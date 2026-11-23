@@ -81,10 +81,8 @@ where two vegetarian guests can eat this weekend and what events are
 happening nearby. The town guide would ask shop assistants about menus and
 availability, then combine their replies with local event listings.
 
-We also plan to bring hybrid inference into Gemihub so shopkeepers can publish
-a site and offer an AI assistant as part of the same workflow. We'd like to
-try it with a few independent shops in one neighborhood and measure how much
-cloud usage on-device answers can save.
+We'd also like to run a pilot with a few independent shops in one
+neighborhood and measure how much cloud usage on-device answers can save.
 
 Live site: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
