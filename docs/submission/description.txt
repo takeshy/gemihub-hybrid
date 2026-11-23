@@ -65,5 +65,13 @@ Those sites now work together through one town guide. Visitors can discover and
 compare shops, then make a reservation with the AI assistant for the shop they
 choose.
 
+What we learned
+
+We learned to choose where AI runs for each request. A question about opening
+hours can be answered on the device using published shop information. A
+reservation needs a current availability check and the visitor's confirmation.
+The app can make that choice as the conversation moves from a question to a
+booking.
+
 Live site: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
