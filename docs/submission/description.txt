@@ -29,14 +29,19 @@ What it does
 
 Gemihub Hybrid helps visitors explore independent shops in one town guide.
 They can ask about opening hours, compare shops, and try booking at a fictional
-restaurant. Existing booking tools handle availability, prices, and confirmation.
+restaurant.
 
-For #BuildHybridAI 2026, we added Firebase AI Logic to the town guide and shop
-assistants. On supported Chrome devices, Gemini Nano answers simple questions
-using the shop's published information. The app uses cloud inference for
-comparisons, reservation conversations, or when Nano is unavailable. A badge
-shows where each answer ran. Firebase App Check protects cloud access, and
-Remote Config controls routing thresholds.
+How we built it
+
+For #BuildHybridAI 2026, we built a shared Firebase AI Logic wrapper for
+Gemihub's town guide and shop assistants. For simple questions, it makes a
+single-turn generateContent() call using one shop's published facts and
+prefers Gemini Nano on supported Chrome devices. Gemini Flash-Lite handles
+cloud fallback, comparisons, and conversations that need tools. Existing MCP
+tools check availability, calculate prices, and confirm reservations.
+
+Firebase App Check protects cloud requests, Remote Config sets routing
+thresholds, and answer badges use the SDK's reported inference source.
 
 Demo: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
