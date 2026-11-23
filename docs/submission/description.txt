@@ -81,8 +81,5 @@ where two vegetarian guests can eat this weekend and what events are
 happening nearby. The town guide would ask shop assistants about menus and
 availability, then combine their replies with local event listings.
 
-We'd also like to run a pilot with a few independent shops in one
-neighborhood and measure how much cloud usage on-device answers can save.
-
 Live site: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
