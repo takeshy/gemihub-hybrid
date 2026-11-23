@@ -664,6 +664,103 @@ body[data-shop-view="open"] #shop-page-status[data-state="loaded"] ~ .shop-page-
 .shop-address { font-size:.85rem; }
 .shop-card[hidden], .shop-directory-map [hidden] { display:none!important; }
 @media(max-width:600px) { .shop-directory-map { padding:16px; } .shop-directory-map iframe { height:280px; } .shop-directory-tools label { width:100%; } }
+
+.town-guide .town-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 62px);
+  margin: clamp(18px, 3vw, 36px) 0;
+  padding: clamp(24px, 4vw, 60px);
+  border-radius: 12px;
+  background: #153a30;
+  color: #fff8e9;
+}
+.town-hero h1 {
+  max-width: 13ch;
+  margin: 0;
+  font: 400 clamp(44px, 6vw, 86px)/.98 Georgia, serif;
+  letter-spacing: -.055em;
+}
+.town-hero .hero-description {
+  max-width: 37ch;
+  margin: 22px 0 26px;
+  color: #e1e9dd;
+  font-size: clamp(15px, 1.5vw, 18px);
+}
+.town-hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+}
+.town-hero-actions a {
+  color: #fff8e9;
+  font-size: 14px;
+  font-weight: 650;
+}
+.town-hero-actions .town-hero-primary {
+  padding: 10px 16px;
+  border-radius: 5px;
+  background: #fff1d8;
+  color: #153a30;
+  text-decoration: none;
+}
+.town-hero-primary:hover {
+  background: #fff;
+}
+.town-hero-photo {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #28594b;
+}
+.town-hero-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.town-hero-photo figcaption {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: #10261f;
+  color: white;
+  font-size: 11px;
+}
+.town-guide .section-heading h2 {
+  font: 400 clamp(28px, 3vw, 40px)/1.1 Georgia, serif;
+  letter-spacing: -.035em;
+}
+.town-guide .shop-card {
+  padding: clamp(18px, 2.5vw, 28px);
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+  background: #fffdf6;
+}
+.town-guide .shop-card h3 {
+  font: 400 27px/1.12 Georgia, serif;
+}
+.town-guide .shop-card p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.town-guide .shop-directory-map {
+  margin: 24px 0 0;
+}
+@media (max-width: 720px) {
+  .town-guide .town-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .town-hero-photo img {
+    aspect-ratio: 16 / 10;
+  }
+}
 .document-pdf-preview {
   width: min(1100px, 96vw);
   height: 90dvh;

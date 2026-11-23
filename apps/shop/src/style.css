@@ -1073,6 +1073,44 @@ pre {
   font-size: 12px;
   gap: 16px;
 }
+.sample-store-robata {
+  --sample-ink: #34281f;
+  --sample-line: #ded3c1;
+}
+.sample-store-robata .sample-store-hero {
+  background: #2c2119;
+  color: #ffefd9;
+}
+.sample-store-robata .sample-store-intro h1 {
+  color: inherit;
+}
+.sample-store-robata .sample-store-description {
+  color: #ead7bf;
+}
+.sample-store-robata .sample-store-action {
+  background: #f1d4a6;
+  color: #34281f;
+}
+.sample-store-robata .sample-store-action:hover {
+  background: #ffe9c8;
+}
+.sample-store-robata .sample-store-photo figcaption {
+  background: #2c2119;
+}
+.sample-store-robata .sample-store-details ul {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.sample-store-robata .sample-store-details li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.sample-store-robata .sample-store-details small {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 @media (max-width: 660px) {
   .sample-store-with-photo,
   .sample-store-with-menu {

@@ -10,7 +10,7 @@ import { SampleStorefront } from "./SampleStorefront";
 import { LanguageLinks } from "./LanguageSwitcher";
 import { navigationItems } from "../shared/navigation";
 import { getLocale, tr } from "../shared/i18n";
-import type { ShopConfig } from "../server/domain";
+import { takesBookings, type ShopConfig } from "../server/domain";
 import { postKey, postLabel, postPath, type PublicPost, type PostCategory } from "../server/post-domain";
 import type { ShopPage } from "../server/pages";
 
@@ -38,13 +38,14 @@ function PostList({ posts, base }: { posts: PublicPost[]; base: string }) {
   return <ul>{posts.map(post => <li key={post.id}><time dateTime={post.date}>{post.date}</time> <a href={link(postPath(base, post))}>{post.title}</a></li>)}</ul>;
 }
 /** The same public markup is generated at publication and shown in Storybook; no effects or API calls. */
-export function StaticStorefront({ config: c, view, base, provisional = false, imageSources = {}, sampleShop = false }: { config: ShopConfig; view: StaticStorefrontView; base: string; provisional?: boolean; imageSources?: Record<string, string>; sampleShop?: boolean }) {
+export function StaticStorefront({ config: c, view, base, provisional = false, imageSources = {}, sampleShop = false, featuredRobata = false }: { config: ShopConfig; view: StaticStorefrontView; base: string; provisional?: boolean; imageSources?: Record<string, string>; sampleShop?: boolean; featuredRobata?: boolean }) {
   const path = staticViewPath(view);
   const resolved = imageSources;
   const informationOnly = c.industry === "other" && c.reservationsEnabled === false;
-  if (sampleShop && informationOnly && view.kind === "home") return <>
+  const robata = featuredRobata && c.industry === "restaurant";
+  if (view.kind === "home" && (robata || (sampleShop && informationOnly))) return <>
     <LanguageLinks href={base} />
-    <main><SampleStorefront config={c} /></main>
+    <main><SampleStorefront config={c} robata={robata} bookingHref={robata && takesBookings(c) ? link(`${base}/reserve`) : undefined} /></main>
   </>;
   let content: React.ReactNode;
   if (view.kind === "home") content = informationOnly ? null : <><ShopAbout config={c} imageSources={imageSources} />{!!view.posts.length && <section className="recent-posts"><h2>{storefrontText(c, "recentPosts")}</h2><PostList posts={view.posts.slice(0, 5)} base={base} /></section>}</>;

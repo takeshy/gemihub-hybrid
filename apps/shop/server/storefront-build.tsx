@@ -74,6 +74,7 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
   const stylesheet = shell.css ? addAsset(Buffer.from(shell.css), "css", storefrontAssetType("x.css")) : undefined;
   const imageNames = Object.fromEntries(Object.entries(images).map(([id, image]) => [id, addAsset(Buffer.from(image.data, "base64"), imageExtension[image.mimeType], image.mimeType)]));
   const published = shop.published!;
+  const featuredRobata = process.env.GEMIHUB_HYBRID_DEMO === "true" && shop.slug === "akari";
   const live = posts.filter(post => articleKinds(published).includes(post.category));
   // Link previews need an absolute URL; a managed header image is served from the canonical address.
   const headerImage = published.header.imageId && imageNames[published.header.imageId] ? `${canonical}/_assets/${imageNames[published.header.imageId]}` : published.header.imageUrl.startsWith("https://") ? published.header.imageUrl : undefined;
@@ -105,7 +106,7 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
           jsonLd && !noindex && `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>`,
           post && `<meta name="gemihub-post-category" content="${post.category}"><meta name="gemihub-post-title" content="${escapeHtml(post.title)}"><meta name="gemihub-post-date" content="${post.date}">`,
         ].filter(Boolean).join("");
-        const body = renderToStaticMarkup(<StaticStorefront config={c} view={view} base={base} provisional={shop.publication === "provisional"} imageSources={sources} sampleShop={/^sample-[a-f0-9]{24}$/.test(shop.slug)} />);
+        const body = renderToStaticMarkup(<StaticStorefront config={c} view={view} base={base} provisional={shop.publication === "provisional"} imageSources={sources} sampleShop={/^sample-[a-f0-9]{24}$/.test(shop.slug)} featuredRobata={featuredRobata} />);
         pages[storefrontFile(path, hosted, locale)] = localizeShell(shell.html).replace(/<title>.*?<\/title>/s, "").replace("</head>", () => `${head}</head>`).replace('<div id="root"></div>', () => `<div id="root" data-page="static-storefront" data-shop-base="${escapeHtml(base)}" data-shop-slug="${escapeHtml(shop.slug)}">${body}</div><script defer src="/storefront-login.js"></script>`);
       };
       render({ kind: "home", posts: live }, c.name, c.description);

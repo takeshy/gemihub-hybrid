@@ -15,6 +15,7 @@ if (![deployedOrigin, "https://hybrid.gemihub.net"].includes(publicOrigin) && !/
 process.env.APP_ORIGIN = publicOrigin;
 process.env.AGENT_PARENT_URL = publicOrigin;
 process.env.DEMO_MODE = "true";
+process.env.GEMIHUB_HYBRID_DEMO = "true";
 process.env.GEMIHUB_DEFAULT_LOCALE = "en";
 process.env.NODE_ENV = "development";
 process.env.SESSION_SECRET ||= randomBytes(32).toString("hex");

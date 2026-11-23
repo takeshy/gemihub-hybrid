@@ -14,7 +14,7 @@
   <script type="module" src="./script.js"></script>
   <script type="module" src="./site.js"></script>
 </head>
-<body>
+<body class="town-guide">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">灯</span><span>Gemihub Hybrid<span class="brand-sub">Town guide</span></span></a>
@@ -22,9 +22,19 @@
   </header>
   <header id="shop-view-header" class="shop-view-header" hidden><button id="shop-close" type="button">← Back to the guide</button><span id="shop-name"></span></header>
   <main id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title">Get to know<br>the neighborhood.</h1>
-      <p class="hero-description">Explore independent shops and ask about local events, public facilities, and neighborhood notices.</p>
+    <section class="hero town-hero" aria-labelledby="hero-title">
+      <div class="town-hero-copy">
+        <h1 id="hero-title">Get to know the neighborhood.</h1>
+        <p class="hero-description">Explore independent shops, compare places to eat, and find out what’s happening nearby.</p>
+        <div class="town-hero-actions">
+          <a class="town-hero-primary" href="#assistant">Ask the town guide</a>
+          <a href="#registered-shops">Browse local shops</a>
+        </div>
+      </div>
+      <figure class="town-hero-photo">
+        <img src="./media/town-guide.webp" alt="Warmly lit shops along a quiet Japanese lane at dusk" width="1320" height="990" fetchpriority="high">
+        <figcaption>Illustrative image</figcaption>
+      </figure>
     </section>
     <section id="assistant" class="assistant panel" aria-labelledby="assistant-heading">
       <div class="section-heading"><h2 id="assistant-heading">Ask the town guide</h2></div>
@@ -59,6 +69,7 @@
       <div class="section-heading"><h2 id="shops-heading">Local shops</h2></div>
       <p class="muted">Visit a shop’s page to see its details or make a reservation.</p>
       <div class="shop-directory-tools"><label for="shop-genre">Filter by category<select id="shop-genre"><option value="">All categories</option></select></label><p id="shop-visible-count" role="status"></p></div>
+      <div id="shop-list" class="card-grid"></div>
       <section id="shop-directory-map" class="shop-directory-map" aria-labelledby="shop-map-heading">
         <h3 id="shop-map-heading">Find shops on the map</h3>
         <label for="shop-map-select">Shop<select id="shop-map-select"><option value="">Select a shop</option></select></label>
@@ -66,7 +77,6 @@
         <iframe id="shop-map-frame" title="Map of the selected shop" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen hidden></iframe>
         <a id="shop-map-open" target="_blank" rel="noopener noreferrer" hidden>Open in Google Maps ↗</a>
       </section>
-      <div id="shop-list" class="card-grid"></div>
     </section>
   </main>
   <footer><p>The guide asks before contacting shops. Confirm current prices and availability with the shop before booking.</p></footer>
