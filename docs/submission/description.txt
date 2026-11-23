@@ -27,47 +27,48 @@ at the shop to reply. That's the kind of town guide I wanted to build.
 
 What it does
 
-Gemihub lets independent shop owners build a website by describing what they
-want in a conversation with AI.
+Independent shop owners can already build a website in gemihub by chatting with AI.
 
-Gemihub Hybrid adds a visitor-facing AI assistant to each shop's website. It
-introduces the shop, answers questions using the shop's published information,
-and helps visitors make reservations. The town guide brings these shops together
-so visitors can discover and compare them. The restaurants on the public site
-are fictional.
+For #BuildHybridAI 2026, I added Firebase AI Logic hybrid inference to the town
+guide and visitor-facing shop assistants. Visitors can discover and compare
+shops in the guide, ask a shop about its published information, and make a
+reservation with that shop's assistant.
 
 How we built it
 
-For #BuildHybridAI 2026, we built a shared Firebase AI Logic wrapper for the
-town guide and shop assistants. For simple questions, it makes a
-single-turn generateContent() call using one shop's published facts and
-prefers Gemini Nano on supported Chrome devices. Gemini Flash-Lite handles
-cloud fallback, comparisons, and conversations that need tools. Existing MCP
-tools check availability, calculate prices, and confirm reservations.
+I built a shared Firebase AI Logic wrapper for both assistants. Its single-turn
+generateContent() call prefers Gemini Nano for a standalone question about one
+shop's published facts, such as its opening hours or address, when no tools are
+needed and the request fits within 1,200 characters of question text and
+12,000 characters of context. Comparisons, follow-ups, live availability,
+bookings, and requests over either limit use gemini-3.5-flash-lite in the cloud,
+and I can adjust both limits through Remote Config without redeploying.
 
-Firebase App Check protects cloud requests, Remote Config sets routing
-thresholds, and answer badges use the SDK's reported inference source.
+Existing MCP tools handle availability, prices, and reservation confirmation.
+Firebase App Check helps protect cloud requests from abuse. After each answer,
+the chat shows whether it ran on the device or in the cloud using the inference
+source reported by the SDK.
 
 Challenges we ran into
 
 Chrome needs a user action to prepare Gemini Nano, and the first download can
-take time. We added a setup button and kept chat available through the cloud
+take time. I added a setup button and kept chat available through the cloud
 while Nano was getting ready.
 
-A single reservation can take several model calls. We hit our first cloud
-model's daily request limit during testing, so we switched to Flash-Lite
-through Remote Config and verified the full reservation flow.
+A single reservation can take several model calls. I hit the daily request
+limit for gemini-4-hydrogen during testing, switched to gemini-3.5-flash-lite
+through Remote Config, and verified the full reservation flow.
 
 Accomplishments that we're proud of
 
-Shopkeepers can build their sites by talking with AI, without writing any code.
-Those sites now work together through one town guide. Visitors can discover and
-compare shops, then make a reservation with the AI assistant for the shop they
-choose.
+I verified that a visitor could ask a shop about its hours on-device and then
+confirm a sample reservation in the same chat using the cloud. In a separate
+desktop Chrome run, one town-guide answer about opening hours took 3.7 seconds
+of on-device inference.
 
 What we learned
 
-We learned to choose where AI runs for each request. A question about opening
+I learned to choose where AI runs for each request. A question about opening
 hours can be answered on the device using published shop information. A
 reservation needs a current availability check and the visitor's confirmation.
 The app can make that choice as the conversation moves from a question to a
@@ -75,11 +76,12 @@ booking.
 
 What's next for Gemihub Hybrid
 
-Our first priority is to give agents on other websites read-only access to
+My next priority is to give agents on other websites read-only access to
 the town guide through a public MCP endpoint. A hotel's assistant could ask
 where two vegetarian guests can eat this weekend and what events are
 happening nearby. The town guide would ask shop assistants about menus and
 availability, then combine their replies with local event listings.
 
 Live site: https://hybrid.gemihub.net
+The restaurants on the live site are fictional.
 Source: https://github.com/takeshy/gemihub-hybrid

@@ -1,7 +1,7 @@
 # Gemihub Hybrid
 
 **Local answers, connected communities.** An independent Web / Chrome entry
-for #BuildHybridAI 2026, extending Gemihub with Firebase AI Logic hybrid inference.
+for #BuildHybridAI 2026, extending gemihub with Firebase AI Logic hybrid inference.
 
 [Live Web demo](https://hybrid.gemihub.net/)
 
@@ -23,10 +23,9 @@ through Remote Config. Local eligible tasks use Gemini Nano in supported Chrome.
 
 **gemihub** is a non-homogenizing local town portal where independent shops can build and run their own bespoke websites simply by talking to AI, and a town-guide AI coordinates across every shop's AI and local community documents to recommend places and itineraries via text, voice, and multiple languages.
 
-> **What we added to Gemihub:** Gemihub Hybrid extends Gemihub's conversational
-> storefront builder with a town guide and visitor-facing shop assistants that
-> use Firebase AI Logic. During #BuildHybridAI 2026 we built the hybrid inference
-> layer, connected it to both assistants, and added inference badges and diagnostics.
+> **What we added to gemihub:** Gemihub Hybrid builds on gemihub's conversational
+> storefront builder. During #BuildHybridAI 2026, the town guide and shop
+> assistants gained Firebase AI Logic hybrid inference, source badges, and diagnostics.
 > The public site runs in its own container with fictional shops.
 > Inherited `infra/dev/` and `apps/shop/infra/` deployment
 > examples target upstream resources and must not be run for this clone.
