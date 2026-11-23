@@ -44,15 +44,16 @@ The three restaurants are fictional sample shops;
 demo reservations are held in memory and reset when the demo container restarts.
 No real mail, payment account or upstream reservation data is used.
 
-Use **AI processing and settings → Prepare on-device AI** in supported desktop
-Chrome with the Prompt API enabled. Initial model download can take time. The
+Use **Set up on-device AI** above the chat for Chrome setup instructions, then
+select **Prepare on-device AI**. Initial model download can take time. The
 answer badge reports the SDK's actual inference source. Simple published-shop
 questions use a single prompt; comparisons, tools and follow-up conversations
 use the cloud. The first request during model preparation also uses the cloud.
 
-Under **Local shops**, select **Create a sample shop** to describe a fictional
-shop, review the draft, and add it to your guide. The shop is available in that
-browser for two hours. You can open its storefront or ask the guide about its hours.
+The judge invitation opens a private **Shop workspace** where you can describe
+a fictional shop, review and publish its storefront, and edit its details.
+The shop is available in that browser for up to two hours. For local invitation
+configuration, see the [deployment guide](infra/hybrid/README.md).
 
 New runtime code: [`hybrid/`](hybrid/), with regression tests in
 [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs). The standalone deployment is in

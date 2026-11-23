@@ -23,3 +23,9 @@ new hostname and reloads Caddy without restarting existing containers. It
 refuses unexpected existing hybrid configuration. An upstream startup script
 can regenerate its Caddyfile, so reapply the `route` step after such a change.
 Do not run inherited deployment scripts for this clone.
+
+To enable the shop workspace, set `HYBRID_JUDGE_INVITE` to a random base64url
+token (32 characters or more) and `HYBRID_JUDGE_UNTIL` to an ISO 8601 expiry.
+Pass them as environment variables for local testing or in a private
+`/opt/gemihub-hybrid/judge.env` file with mode 0600 on the VM. Share
+`/judge#<token>` with the judges through the testing instructions field.

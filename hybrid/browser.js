@@ -119,18 +119,56 @@ export function mountHybridControls(engine, connection) {
     if (element) (selector === "#ai-provider" ? element.closest("label") : element).remove();
   }
   for (const element of root.querySelectorAll('[data-ns-slot="settings"]')) element.remove();
+  document.getElementById("ai-setup-heading").textContent = label("端末内AIのセットアップ", "On-device AI setup");
   document.getElementById("ai-setup-description").textContent = label(
-    "簡単な質問は端末内で処理し、端末内AIが使えない場合や予約の相談はFirebase経由でクラウドへ送ります。APIキーの入力は不要です。",
-    "Simple questions can run on your device. Unsupported devices and complex or reservation conversations use the cloud through Firebase. No API key is needed.");
+    "対応端末のデスクトップ版Chrome 149以降で、Gemini Nanoを準備できます。準備中もクラウドで質問できます。",
+    "Gemini Nano runs on compatible computers with desktop Chrome 149 or later. You can keep chatting in the cloud during setup.");
+  const steps = document.createElement("ol");
+  steps.className = "hybrid-setup-steps";
+  const flagStep = document.createElement("li");
+  flagStep.textContent = label("次のアドレスをChromeのアドレスバーに貼り付けます。",
+    "Paste this address into the Chrome address bar.");
+  const flagRow = document.createElement("div"); flagRow.className = "hybrid-flag";
+  const flag = document.createElement("input");
+  flag.type = "text"; flag.readOnly = true; flag.spellcheck = false;
+  flag.value = "chrome://flags/#prompt-api-for-gemini-nano-multimodal-input";
+  flag.setAttribute("aria-label", label("Chromeの設定アドレス", "Chrome flag address"));
+  flag.addEventListener("focus", () => flag.select());
+  const copy = document.createElement("button"); copy.type = "button";
+  copy.textContent = label("コピー", "Copy");
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(flag.value);
+      copy.textContent = label("コピー済み", "Copied");
+    } catch {
+      flag.focus();
+      flag.select();
+    }
+  });
+  flagRow.append(flag, copy);
+  flagStep.append(flagRow);
+  const relaunch = document.createElement("li");
+  relaunch.textContent = label("設定を Enabled にして、Chromeを再起動し、このページに戻ります。",
+    "Switch the flag to Enabled, relaunch Chrome, then return here.");
+  const download = document.createElement("li");
+  download.textContent = label("「端末内AIを準備する」を押します。初回はダウンロードに数分かかることがあります。",
+    "Click Prepare on-device AI below. The first download may take a few minutes.");
+  steps.append(flagStep, relaunch, download);
+  const requirements = document.createElement("a");
+  requirements.href = "https://developer.chrome.com/docs/ai/get-started#hardware";
+  requirements.target = "_blank"; requirements.rel = "noopener noreferrer";
+  requirements.textContent = label("Chromeの動作要件", "Chrome hardware requirements");
   const panel = document.createElement("section"); panel.className = "hybrid-controls";
   const prepare = document.createElement("button"); prepare.type = "button";
   prepare.textContent = label("端末内AIを準備する", "Prepare on-device AI");
   const device = document.createElement("p"); device.setAttribute("role", "status");
-  device.textContent = label("Chromeで端末内AIを準備できます。未準備の場合はクラウドを使います。", "Prepare local AI in supported desktop Chrome. Until then, answers use the cloud.");
+  device.textContent = label("準備ができるまではクラウドで回答します。", "Answers use the cloud until on-device AI is ready.");
   const details = document.createElement("details"); const summary = document.createElement("summary");
   summary.textContent = label("推論の記録", "Inference details");
   const log = document.createElement("ol"); log.className = "hybrid-log"; details.append(summary, log);
-  panel.append(prepare, device, details); dialog.append(panel);
+  panel.append(steps, prepare, device, requirements, details);
+  const close = document.getElementById("ai-setup-close");
+  dialog.insertBefore(panel, close);
   const badge = document.createElement("span"); badge.id = "hybrid-inference-badge";
   badge.className = "hybrid-badge"; badge.setAttribute("role", "status");
   badge.textContent = label("回答待ち", "Awaiting answer");
@@ -166,9 +204,10 @@ export function mountHybridControls(engine, connection) {
   root.querySelector("#ns-input")?.addEventListener("keydown", event => { if (event.key === "Enter") start(); }, { capture: true });
   const open = document.getElementById("ai-settings-open");
   open.classList.add("hybrid-settings-open");
-  open.disabled = false; open.textContent = label("AIの処理と設定", "AI processing and settings");
+  open.disabled = false; open.textContent = label("端末内AIをセットアップ", "Set up on-device AI");
+  open.setAttribute("aria-haspopup", "dialog");
   open.addEventListener("click", () => dialog.showModal());
-  document.getElementById("ai-setup-close")?.addEventListener("click", () => dialog.close());
+  close?.addEventListener("click", () => dialog.close());
   for (const id of ["assistant-key-note", "assistant-privacy-note"]) {
     const element = document.getElementById(id);
     if (element) element.textContent = document.getElementById("ai-setup-description").textContent;

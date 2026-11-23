@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Shop workspace | Gemihub Hybrid</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/judge.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">灯</span><span>Gemihub Hybrid<span class="brand-sub">Town guide</span></span></a>
+    <nav aria-label="Navigation"><a href="/">Back to the town guide</a></nav>
+  </header>
+  <main class="judge-workspace">
+    <h1>Shop workspace</h1>
+    <p id="judge-session-message" role="status">Checking your invitation…</p>
+    <form id="sample-shop-form" hidden>
+      <label for="sample-shop-prompt">Describe a fictional shop</label>
+      <textarea id="sample-shop-prompt" maxlength="600" rows="3">A café called Willow Café, open 10:00 to 18:00, serving toast and coffee.</textarea>
+      <button id="sample-shop-generate" type="button">Draft shop with AI</button>
+      <fieldset>
+        <legend>Shop details</legend>
+        <label>Shop name<input name="name" maxlength="60" required></label>
+        <label>Description<textarea name="description" maxlength="350" rows="2" required></textarea></label>
+        <div class="sample-shop-hours">
+          <label>Opens at<input name="opensAt" type="time" required></label>
+          <label>Closes at<input name="closesAt" type="time" required></label>
+        </div>
+      </fieldset>
+      <button id="sample-shop-publish" type="submit">Publish sample shop</button>
+      <p id="sample-shop-status" role="status"></p>
+    </form>
+    <nav id="sample-shop-links" aria-label="Visit your sample shop" hidden>
+      <a id="sample-shop-open">Open your storefront</a>
+      <a href="/?ask=sample#assistant">Ask about your shop in the town guide</a>
+    </nav>
+  </main>
+</body>
+</html>

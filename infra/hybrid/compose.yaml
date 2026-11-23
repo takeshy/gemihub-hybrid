@@ -14,6 +14,8 @@ services:
     environment:
       APP_ORIGIN: https://hybrid.gemihub.net
       PORT: '8080'
+      HYBRID_JUDGE_INVITE: ${HYBRID_JUDGE_INVITE:-}
+      HYBRID_JUDGE_UNTIL: ${HYBRID_JUDGE_UNTIL:-}
     networks:
       dev:
         aliases: [gemihub-hybrid]

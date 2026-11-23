@@ -29,7 +29,7 @@
     <section id="assistant" class="assistant panel" aria-labelledby="assistant-heading">
       <div class="section-heading"><h2 id="assistant-heading">Ask the town guide</h2></div>
       <p>Ask when a shop opens, compare restaurants, or find out how to make a reservation.</p>
-      <p class="assistant-note">Simple questions can run on your device. More complex questions use the cloud. <button id="ai-settings-open" class="text-button" type="button" disabled>AI settings</button></p>
+      <p class="assistant-note"><button id="ai-settings-open" class="hybrid-settings-open" type="button" disabled>Set up on-device AI</button></p>
       <p id="assistant-status" role="status">Preparing the assistant…</p>
       <div id="shop-error" class="shop-error" role="alert" hidden>
         <p id="shop-error-text"></p>
@@ -58,32 +58,6 @@
     <section id="registered-shops" aria-labelledby="shops-heading">
       <div class="section-heading"><h2 id="shops-heading">Local shops</h2></div>
       <p class="muted">Visit a shop’s page to see its details or make a reservation.</p>
-      <div id="sample-shop-panel" class="sample-shop-panel" hidden>
-        <p id="sample-shop-message" role="status">Describe a shop in your own words and add it to your guide for this session.</p>
-        <button id="sample-shop-create" class="text-button" type="button">Create a sample shop</button>
-        <a id="sample-shop-open" hidden>Open your shop</a>
-        <button id="sample-shop-ask" class="text-button" type="button" hidden>Ask about its opening hours</button>
-      </div>
-      <dialog id="sample-shop-dialog" class="assistant-review sample-shop-dialog" aria-labelledby="sample-shop-title">
-        <h2 id="sample-shop-title">Create a sample shop</h2>
-        <form id="sample-shop-form">
-          <label for="sample-shop-prompt">Describe a fictional shop</label>
-          <textarea id="sample-shop-prompt" maxlength="600" rows="3" required>A café called Willow Café, open 10:00 to 18:00, serving toast and coffee.</textarea>
-          <button id="sample-shop-generate" type="button">Draft shop</button>
-          <fieldset id="sample-shop-preview" hidden disabled>
-            <legend>Review your shop</legend>
-            <label>Shop name<input name="name" maxlength="60" required></label>
-            <label>Description<textarea name="description" maxlength="350" rows="2" required></textarea></label>
-            <div class="sample-shop-hours">
-              <label>Opens at<input name="opensAt" type="time" required></label>
-              <label>Closes at<input name="closesAt" type="time" required></label>
-            </div>
-          </fieldset>
-          <p id="sample-shop-status" role="status"></p>
-          <button id="sample-shop-publish" type="submit" disabled>Add to my guide</button>
-          <button id="sample-shop-cancel" class="assistant-decline" type="button">Cancel</button>
-        </form>
-      </dialog>
       <div class="shop-directory-tools"><label for="shop-genre">Filter by category<select id="shop-genre"><option value="">All categories</option></select></label><p id="shop-visible-count" role="status"></p></div>
       <section id="shop-directory-map" class="shop-directory-map" aria-labelledby="shop-map-heading">
         <h3 id="shop-map-heading">Find shops on the map</h3>

@@ -35,7 +35,10 @@ def container(image):
         run('docker', 'login', '-u', 'oauth2accesstoken', '--password-stdin',
             'https://asia-northeast1-docker.pkg.dev', input=token.encode(), env=env,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        compose = ['docker-compose', '-p', 'gemihub-hybrid', '-f', str(ROOT / 'compose.yaml')]
+        compose = ['docker-compose']
+        if (ROOT / 'judge.env').is_file():
+            compose.extend(['--env-file', str(ROOT / 'judge.env')])
+        compose.extend(['-p', 'gemihub-hybrid', '-f', str(ROOT / 'compose.yaml')])
         run(*compose, 'pull', 'hybrid', env=env)
         run(*compose, 'up', '-d', '--no-deps', 'hybrid', env=env)
     (ROOT / 'image.env').write_text(f'HYBRID_IMAGE={image}\n')

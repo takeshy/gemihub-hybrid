@@ -10,7 +10,7 @@ import { aiConnection, mountAiConnection, installHybridEngine, readPublishedFact
 import { GuideVoice } from "./voice-chat.js";
 import { GUIDE_GREETING, guideGreeting } from "./guide-copy.js";
 import { mountDocumentPreview } from "./chat-documents.js";
-import { sampleShopSession, mountSampleShop } from "./sample-shop.js";
+import { sampleShopSession } from "./sample-shop.js";
 
 /**
  * Boots the browser runtime in the page's assistant section.
@@ -115,7 +115,12 @@ export class AssistantMount {
       AssistantMount.greet();
       App.mountChat();
       mountAiConnection(booted.engine, connection);
-      mountSampleShop(connection.hybrid, sampleSession, App.addSampleShop);
+      if (sampleSession?.shop && new URLSearchParams(location.search).get("ask") === "sample") {
+        const input = document.getElementById("ns-input");
+        input.value = `What are ${sampleSession.shop.name}'s opening hours?`;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      }
       // Last, so a shop named in the address opens once the AI setup is known.
       App.shopFrame.mount();
       App.voice = new GuideVoice({ engine, shopFrame: App.shopFrame, shops: App.page.shops, config: connection?.config });

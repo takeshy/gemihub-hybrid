@@ -55,7 +55,7 @@ const server = createServer(async (req, res) => {
       res.once("close", () => proxy.destroy()); req.pipe(proxy); return;
     }
     if (!["GET", "HEAD"].includes(req.method)) { res.writeHead(405); res.end(); return; }
-    const relative = decodeURIComponent(path === "/" ? "index.html" : path.slice(1));
+    const relative = decodeURIComponent(path === "/" ? "index.html" : path === "/judge" ? "judge.html" : path.slice(1));
     if (relative.split(/[\\/]/).some(part => part.startsWith(".") && part !== ".well-known") || /(?:llm-relay|ai-setup)\.js$/.test(relative)) {
       res.writeHead(404); res.end(); return;
     }
@@ -64,6 +64,7 @@ const server = createServer(async (req, res) => {
     let bytes = await readFile(target);
     if (rewritten.has(relative)) bytes = Buffer.from(bytes.toString().replaceAll(deployedOrigin, publicOrigin));
     res.writeHead(200, { "Content-Type": `${mime[extname(target)] || "application/octet-stream"}; charset=utf-8`,
+      ...(relative === "judge.html" ? { "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow" } : {}),
       "X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache" });
     res.end(req.method === "HEAD" ? undefined : bytes);
   } catch { res.writeHead(404); res.end("Not found"); }
