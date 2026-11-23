@@ -12,6 +12,7 @@ import { defaultSeating, halfHours } from "../shared/seating.ts";
 import { canSeat, durationFor, seatAvailability, seatBoard, seatOverflow, seatsFor } from "../server/seats.ts";
 import { checkAvailability, findMenuItems, matchAvoid, shopInfo } from "../server/restaurant-mcp.ts";
 import { exportColumns } from "../server/data-export.ts";
+import { storefrontRenderer } from "../server/storefront-build.tsx";
 import { nextFriday, restaurantDemoShops, seedRestaurantDemo } from "../scripts/seed-restaurant-demo.ts";
 
 process.env.DEMO_MODE = "true";
@@ -429,7 +430,7 @@ test("reservation pages share the published theme and upgrade releases missing t
   assert.equal((page.match(/id="assistant-toggle"/g) || []).length, 1);
   assert.doesNotMatch(page, /class="panel about"|agent\/reserve\.css/);
   assert.equal(page.match(/href="([^"]*\/_assets\/[^"]*\.css)"/)?.[1], home.match(/href="([^"]*\/_assets\/[^"]*\.css)"/)?.[1]);
-  assert.equal((await store.shop(shop.id))!.storefrontRelease!.renderer, 10);
+  assert.equal((await store.shop(shop.id))!.storefrontRelease!.renderer, storefrontRenderer);
 });
 
 test("a salon keeps its staff-based booking and has no agent bundle", async t => {
