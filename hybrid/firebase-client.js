@@ -19,7 +19,9 @@ export class HybridInference {
       throw new Error("Firebase App Check is not configured. The site operator must finish setup.");
     this.app = initializeApp(config.firebase, "gemihub-hybrid");
     initializeAppCheck(this.app, { provider: new ReCaptchaEnterpriseProvider(config.appCheckSiteKey || "localhost-debug"), isTokenAutoRefreshEnabled: true });
-    this.ai = getAI(this.app, { backend: new GoogleAIBackend(), useLimitedUseAppCheckTokens: true });
+    // Use the SDK's normal cached App Check session token for multi-step agents.
+    // Baseline App Check remains enforced in the dedicated Firebase project.
+    this.ai = getAI(this.app, { backend: new GoogleAIBackend() });
     void this.loadPolicy();
   }
   async loadPolicy() {
@@ -117,7 +119,9 @@ export class HybridInference {
       this.record(log); return { response, source, log };
     } catch (error) {
       this.record({ task, requestedMode: mode, source: "UNKNOWN", durationMs: Math.round(this.now() - started),
-        reason: route.reason, error: signal?.aborted ? "aborted" : "inference_failed", finalAnswer: false });
+        reason: route.reason, error: signal?.aborted ? "aborted" : "inference_failed",
+        errorCode: /^[a-zA-Z0-9_/-]{1,80}$/.test(error?.code || error?.name || "") ? error.code || error.name : "unknown",
+        finalAnswer: false });
       if (signal?.aborted) throw error;
       const english = globalThis.document?.documentElement?.lang === "en";
       throw new Error(english ? "AI could not answer. Please try again in a moment."
