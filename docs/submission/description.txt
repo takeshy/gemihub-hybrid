@@ -48,5 +48,15 @@ tools check availability, calculate prices, and confirm reservations.
 Firebase App Check protects cloud requests, Remote Config sets routing
 thresholds, and answer badges use the SDK's reported inference source.
 
+Challenges we ran into
+
+Chrome needs a user action to prepare Gemini Nano, and the first download can
+take time. We added a setup button and kept chat available through the cloud
+while Nano was getting ready.
+
+A single reservation can take several model calls. We hit our first cloud
+model's daily request limit during testing, so we switched to Flash-Lite
+through Remote Config and verified a complete reservation in the public demo.
+
 Demo: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
