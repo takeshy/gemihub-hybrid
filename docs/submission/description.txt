@@ -28,18 +28,18 @@ at the shop to reply. That's the kind of town guide I wanted to build.
 What it does
 
 Gemihub lets independent shop owners build a website by describing what they
-want in a conversation with AI. The shop's own AI assistant can introduce the
-business, answer questions using its published information, and help visitors
-make a reservation.
+want in a conversation with AI.
 
-Gemihub Hybrid brings these shops together in a town guide so visitors can
-discover and compare them. In the public demo, visitors can try the reservation
-flow at fictional restaurants.
+Gemihub Hybrid adds a visitor-facing AI assistant to each shop's website. It
+introduces the shop, answers questions using the shop's published information,
+and helps visitors make reservations. The town guide brings these shops together
+so visitors can discover and compare them. In the public demo, visitors can try
+the reservation flow at fictional restaurants.
 
 How we built it
 
-For #BuildHybridAI 2026, we built a shared Firebase AI Logic wrapper for
-Gemihub's town guide and shop assistants. For simple questions, it makes a
+For #BuildHybridAI 2026, we built a shared Firebase AI Logic wrapper for the
+town guide and shop assistants. For simple questions, it makes a
 single-turn generateContent() call using one shop's published facts and
 prefers Gemini Nano on supported Chrome devices. Gemini Flash-Lite handles
 cloud fallback, comparisons, and conversations that need tools. Existing MCP
