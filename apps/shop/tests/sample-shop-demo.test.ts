@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { Store } from "../server/store.ts";
+import { buildStorefront, storefrontFile } from "../server/storefront-build.tsx";
 
 test("sample shop creation and storefront access stay within one browser session", async t => {
   const { createSampleShops } = await import(new URL("../../../scripts/sample-shops.mjs", import.meta.url).href);
@@ -39,26 +40,37 @@ test("sample shop creation and storefront access stay within one browser session
   };
   const owner = await session(), other = await session();
   const draft = { name: "Willow Café", description: "Toast and coffee.", opensAt: "10:00", closesAt: "18:00" };
-  const publish = (requestOrigin = origin, body = draft, cookie = owner) => fetch(`${base}/api/demo-shop`, {
+  const publish = (requestOrigin = origin, body: Record<string, unknown> = draft, cookie = owner) => fetch(`${base}/api/demo-shop`, {
     method: "POST", headers: { "Content-Type": "application/json", Origin: requestOrigin, Cookie: cookie },
     body: JSON.stringify(body),
   });
   assert.equal((await publish(origin, draft, "")).status, 401);
   assert.equal((await publish("https://example.org")).status, 403);
   assert.equal((await publish(origin, { ...draft, closesAt: "09:00" })).status, 400);
+  assert.equal((await publish(origin, { ...draft, products: ["a".repeat(61)] })).status, 400);
   const created = await publish();
   assert.equal(created.status, 201);
   const { shop } = await created.json();
   assert.equal(shop.hours, "10:00 – 18:00");
   assert.deepEqual((await store.shop(shop.id))?.published?.hours,
     { start: "10:00", end: "18:00", closedWeekdays: [], holidays: [] });
-  const updatedDraft = { ...draft, opensAt: "11:00" };
+  const updatedDraft = { ...draft, opensAt: "11:00", products: ["Hand-drip coffee", "Thick-cut butter toast"] };
   const edited = await publish(origin, updatedDraft);
   assert.equal(edited.status, 200);
   const saved = await edited.json();
   assert.equal(saved.shop.id, shop.id);
   assert.equal(saved.shop.hours, "11:00 – 18:00");
-  assert.equal((await store.shop(shop.id))?.published?.hours.start, "11:00");
+  assert.deepEqual(saved.shop.products, updatedDraft.products);
+  const published = await store.shop(shop.id);
+  assert.equal(published?.published?.hours.start, "11:00");
+  assert.deepEqual(published?.published?.products, updatedDraft.products);
+  const shell = { html: '<html><head><title>App</title></head><body><div id="root"></div></body></html>', css: "" };
+  const html = buildStorefront(published!, [], origin, shell).pages[storefrontFile("", false, "en")];
+  assert.match(html, /sample-storefront/);
+  assert.match(html, /\/media\/sample-cafe\.webp/);
+  assert.match(html, /<li>Hand-drip coffee<\/li>/);
+  assert.match(html, /11:00/);
+  assert.doesNotMatch(html, /Book now|Register \/ log in/);
   const ownerState = await fetch(`${base}/api/demo-shop`, { headers: { Cookie: owner } });
   assert.deepEqual(await ownerState.json(), { authenticated: true, ...saved });
   const otherState = await fetch(`${base}/api/demo-shop`, { headers: { Cookie: other } });

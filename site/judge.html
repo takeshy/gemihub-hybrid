@@ -19,7 +19,7 @@
     <p id="judge-session-message" role="status">Checking your invitation…</p>
     <form id="sample-shop-form" hidden>
       <label for="sample-shop-prompt">Describe a fictional shop</label>
-      <textarea id="sample-shop-prompt" maxlength="600" rows="3">A café called Willow Café, open 10:00 to 18:00, serving toast and coffee.</textarea>
+      <textarea id="sample-shop-prompt" maxlength="600" rows="3">Willow Café is a small neighborhood café in a renovated wooden townhouse. It serves hand-drip coffee and thick-cut butter toast, and opens from 10:00 to 18:00.</textarea>
       <button id="sample-shop-generate" type="button">Draft shop with AI</button>
       <fieldset>
         <legend>Shop details</legend>
@@ -29,6 +29,7 @@
           <label>Opens at<input name="opensAt" type="time" required></label>
           <label>Closes at<input name="closesAt" type="time" required></label>
         </div>
+        <label>Products or services (one per line)<textarea name="products" maxlength="365" rows="2"></textarea></label>
       </fieldset>
       <button id="sample-shop-publish" type="submit">Publish sample shop</button>
       <p id="sample-shop-status" role="status"></p>

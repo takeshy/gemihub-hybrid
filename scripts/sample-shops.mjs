@@ -27,13 +27,17 @@ async function readJson(req) {
 }
 
 function readDraft(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length !== 4) return null;
-  const { name, description, opensAt, closesAt } = input;
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+      Object.keys(input).some(key => !["name", "description", "opensAt", "closesAt", "products"].includes(key))) return null;
+  const { name, description, opensAt, closesAt, products = [] } = input;
   if (typeof name !== "string" || !name.trim() || name.length > 60 ||
       typeof description !== "string" || !description.trim() || description.length > 350 ||
       typeof opensAt !== "string" || !clock.test(opensAt) ||
-      typeof closesAt !== "string" || !clock.test(closesAt) || opensAt >= closesAt) return null;
-  return { name: name.trim(), description: description.trim(), opensAt, closesAt };
+      typeof closesAt !== "string" || !clock.test(closesAt) || opensAt >= closesAt ||
+      !Array.isArray(products) || products.length > 6 ||
+      products.some(product => typeof product !== "string" || !product.trim() || product.length > 60)) return null;
+  return { name: name.trim(), description: description.trim(), opensAt, closesAt,
+    products: [...new Set(products.map(product => product.trim()))] };
 }
 
 export function createSampleShops(store, origin, {
@@ -104,7 +108,7 @@ export function createSampleShops(store, origin, {
     if (!sameOriginJson(req)) return json(res, 403, { error: "Open the judge workspace on this site." });
     if (!entry) return json(res, 401, { error: "Reopen your invitation to start a judge session." });
     const draft = readDraft(await readJson(req));
-    if (!draft) return json(res, 400, { error: "Check the shop name, description, and opening hours." });
+    if (!draft) return json(res, 400, { error: "Check the shop details. Use up to six products or services, with up to 60 characters each." });
     const existingShops = await store.list("shop");
     if (existingShops.some(shop => !shop.slug.startsWith("sample-") &&
         normalName(shop.published?.name || "") === normalName(draft.name)))
@@ -114,14 +118,14 @@ export function createSampleShops(store, origin, {
     const existing = !!entry.shop;
     const slug = entry.shop?.id || `sample-${randomBytes(12).toString("hex")}`;
     const address = `${origin}/s/${slug}`;
-    const shop = { id: slug, name: draft.name, description: draft.description, area: "Sample shops",
+    const shop = { id: slug, name: draft.name, description: draft.description, products: draft.products, area: "Sample shops",
       cuisine: "Sample shop", hours: `${draft.opensAt} – ${draft.closesAt}`, pageUrl: `${address}/`,
       networkUrl: `${address}/agent/shop_guide`, reservationEnabled: false };
     const owner = `${slug}@example.invalid`;
     entry.pending = true;
     try {
       const config = shopSchema.parse({
-        ...emptyShop(owner), name: draft.name, description: draft.description, address: "",
+        ...emptyShop(owner), name: draft.name, description: draft.description, products: draft.products, address: "",
         industry: "other", reservationsEnabled: false,
         hours: { start: draft.opensAt, end: draft.closesAt, closedWeekdays: [], holidays: [] },
       });

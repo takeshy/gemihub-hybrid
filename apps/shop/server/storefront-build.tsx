@@ -21,7 +21,7 @@ import { forEachConcurrent } from "./concurrency.ts";
  * Bump when the generated markup changes in a way existing shops should receive.
  * Releases from an older generator keep being served until they are rebuilt in the background.
  */
-export const storefrontRenderer = 10;
+export const storefrontRenderer = 11;
 /** `assets` are shop-level files (`shops/{id}/assets/{name}`) the pages refer to; absent on releases before renderer 2. */
 export type StorefrontRelease = { id: string; paths: string[]; assets?: string[]; renderer?: number; posts?: Record<string, string> };
 export type StorefrontAsset = { body: Buffer; contentType: string };
@@ -105,7 +105,7 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
           jsonLd && !noindex && `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>`,
           post && `<meta name="gemihub-post-category" content="${post.category}"><meta name="gemihub-post-title" content="${escapeHtml(post.title)}"><meta name="gemihub-post-date" content="${post.date}">`,
         ].filter(Boolean).join("");
-        const body = renderToStaticMarkup(<StaticStorefront config={c} view={view} base={base} provisional={shop.publication === "provisional"} imageSources={sources} />);
+        const body = renderToStaticMarkup(<StaticStorefront config={c} view={view} base={base} provisional={shop.publication === "provisional"} imageSources={sources} sampleShop={/^sample-[a-f0-9]{24}$/.test(shop.slug)} />);
         pages[storefrontFile(path, hosted, locale)] = localizeShell(shell.html).replace(/<title>.*?<\/title>/s, "").replace("</head>", () => `${head}</head>`).replace('<div id="root"></div>', () => `<div id="root" data-page="static-storefront" data-shop-base="${escapeHtml(base)}" data-shop-slug="${escapeHtml(shop.slug)}">${body}</div><script defer src="/storefront-login.js"></script>`);
       };
       render({ kind: "home", posts: live }, c.name, c.description);
