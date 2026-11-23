@@ -191,11 +191,13 @@ test("resolver guards keep scheme, port and network identity scoped to the confi
   assert.throws(() => engine.resolveRemote(shops[2].networkUrl), /先に/);
   await confirm({ cuisine: "中華", area: "横浜" });
   assert.throws(() => engine.resolveRemote(shops[0].networkUrl), /先に/);
-  assert.throws(() => engine.resolveRemote(shops[2].networkUrl.replace("http:", "https:")), /先に/);
+  const changedScheme = new URL(shops[2].networkUrl);
+  changedScheme.protocol = changedScheme.protocol === "https:" ? "http:" : "https:";
+  assert.throws(() => engine.resolveRemote(changedScheme.href), /先に/);
   assert.throws(() => engine.resolveMcp({ url: "https://127.0.0.1:3000/mcp" }), /含まれない/);
   assert.throws(() => engine.resolveMcp({ url: "http://127.0.0.1:3001/mcp" }), /含まれない/);
   assert.equal(calls.length, 0);
   await engine.resolveRemote(shops[2].networkUrl);
-  await engine.resolveMcp({ url: "http://127.0.0.1:3000/s/kanton-ryu/agent/mcp" });
+  await engine.resolveMcp({ url: new URL("mcp", shops[2].networkUrl).href });
   assert.equal(calls.length, 2);
 });

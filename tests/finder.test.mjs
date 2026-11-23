@@ -158,7 +158,8 @@ test("unknown shop, guessed course, stale version and elapsed time block navigat
 test("shop registry rejects insecure URLs, credentials and tool-name collisions", () => {
   const config = { version: 1, shops: shops.map(({ networkTool, ...shop }) => shop) };
   assert.equal(validateShops(config)[1].networkTool, "s_trattoria_sole_agent_reservation_concierge");
-  assert.throws(() => validateShops(config, { production: true }), /HTTPS/);
+  const loopback = { ...config, shops: [{ ...config.shops[0], pageUrl: "http://127.0.0.1:3000/s/akari/" }] };
+  assert.throws(() => validateShops(loopback, { production: true }), /HTTPS/);
   for (const changes of [
     { pageUrl: "http://shops.example/reserve" }, { networkUrl: "https://user:secret@shops.example/network" },
     { networkUrl: "http://127.0.0.1:3000/network?key=secret" }, { pageUrl: "http://127.0.0.1:3000/reserve#secret" },

@@ -17,6 +17,12 @@ async function fixture(t, options = {}) {
   await cp(join(source, "src"), join(root, "src"), { recursive: true });
   for (const path of ["vendor", "site/runtime"]) await symlink(join(source, path), join(root, path), "dir");
   for (const path of ["site/shops.json", ...generatedFiles]) { await mkdir(join(root, path, ".."), { recursive: true }); await cp(join(source, path), join(root, path)); }
+  // Admin fixtures exercise loopback/production validation independently of the demo hostname.
+  const published = JSON.parse(await readFile(join(source, "site/shops.json"), "utf8"));
+  const shops = published.shops.map(({ id, name, area, cuisine }) => ({ id, name, area, cuisine,
+    pageUrl: `http://127.0.0.1:3000/s/${id}/reserve`,
+    networkUrl: `http://127.0.0.1:3000/s/${id}/agent/reservation_concierge` }));
+  await writeFile(join(root, "site/shops.json"), JSON.stringify({ version: 1, shops }));
   return { root, store: createShopStore({ root, ...options }) };
 }
 async function snapshot(root) {

@@ -146,7 +146,7 @@ test("dialog shows real destination and conditions, but excludes contact details
   App.page.setConditions({ ...valid, note: "person@example.com sk-private" });
   const content = AssistantMount.dialogContent(proposal());
   assert.equal(content.details["お店"], "炉端 灯");
-  assert.equal(content.details["移動先"], "127.0.0.1:3000");
+  assert.equal(content.details["移動先"], new URL(shops[0].pageUrl).host);
   assert.equal(content.details["人数"], "12名");
   assert.match(content.sentence, /名前や連絡先は渡しません/);
   assert.match(content.exact, /expectedVersion/);
@@ -235,5 +235,5 @@ test("invalid network is rejected before inference; unregistered network name fa
   assert.ok(calls.every(url => url.startsWith(BASE)));
   const peer = new Engine({ originUrl: BASE });
   peer.top = { base: BASE };
-  await assert.rejects(peer.resolveRemote("http://127.0.0.1:3000/s/akari/agent/not_registered", [], null, manifest), /No published network named/);
+  await assert.rejects(peer.resolveRemote(new URL("not_registered", shops[0].networkUrl).href, [], null, manifest), /No published network named/);
 });
