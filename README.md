@@ -3,6 +3,8 @@
 **Local answers, connected communities.** An independent Web / Chrome entry
 for #BuildHybridAI 2026, extending Gemihub with Firebase AI Logic hybrid inference.
 
+[Live Web demo](https://hybrid.gemihub.net/)
+
 **Implementation status:** the Firebase hybrid runtime and finder/shop adapters
 are implemented. Real desktop Chrome has answered a grounded shop question
 on-device and through the cloud. Public deployment and booking UI validation
@@ -14,6 +16,8 @@ for the official implementation guidance.
 This submission clone removes visitor BYOK from the public text experience.
 In-scope finder and shop text inference uses Firebase AI Logic; deterministic booking and MCP execution
 remain authoritative. Existing voice is outside the hybrid conversion.
+Cloud text uses `gemini-3.5-flash-lite`, explicitly configured and changeable
+through Remote Config. Local eligible tasks use Gemini Nano in supported Chrome.
 
 [English](README.md) · [日本語](README_ja.md)
 
@@ -23,8 +27,9 @@ remain authoritative. Existing voice is outside the hybrid conversion.
 > [takeshy/gemihub-agent](https://github.com/takeshy/gemihub-agent), commit
 > `3a2bd474111c9951c6fc27adb7c84b714cfdef6c`. The sections below describe the
 > inherited application. The competition-period work is the new hybrid layer,
-> integration and diagnostics. There is no return merge or deployment to the
-> upstream environments. Inherited `infra/dev/` and `apps/shop/infra/` deployment
+> integration and diagnostics. There is no return merge to upstream. The demo
+> co-hosts in its own container, preserving the original app containers and data.
+> Inherited `infra/dev/` and `apps/shop/infra/` deployment
 > examples target upstream resources and must not be run for this clone.
 
 ### Run the hybrid demo
@@ -62,8 +67,8 @@ New runtime code: [`hybrid/`](hybrid/), with regression tests in
   Visitors can consult the town guide and individual shop AIs via live voice conversation as well as multilingual text (e.g., English and Japanese).
 - **Local Document Retrieval (PDF, Markdown, etc.)**  
   Town operators can upload and publish local notices, public facility guides, and event flyers (such as local festival PDFs) so the portal can answer community questions with source citations.
-- **Managed AI & BYOK Support**  
-  Runs out of the box with managed Gemini API access, while also allowing visitors to switch to **BYOK (Bring Your Own Key)** with their own API key.
+- **Firebase Hybrid Text AI**  
+  The submission's visitor text experience runs through Firebase AI Logic without API key entry.
 
 When managed voice AI is enabled, **Talk to AI** appears beside the heading at the top of both the town-guide and shop chat screens. It opens a compact voice panel at the bottom right while leaving the rest of the page usable; closing the panel or pressing Esc ends the microphone session. The button appears inside chat, and shop confirmations remain on screen. See [AI and voice settings](docs/managed-ai.md#親の音声会話).
 

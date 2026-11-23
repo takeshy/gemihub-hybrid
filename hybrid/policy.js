@@ -2,7 +2,7 @@
 export const DEFAULT_POLICY = Object.freeze({
   localQuestionChars: 1200, localContextChars: 12000,
   maxRequestChars: 180000, maxOutputTokens: 4096,
-  cloudModel: "gemini-4-hydrogen", enabled: true,
+  cloudModel: "gemini-3.5-flash-lite", enabled: true,
 });
 
 export function boundedPolicy(values = {}) {

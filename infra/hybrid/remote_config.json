@@ -4,6 +4,6 @@
     "hybrid_local_question_chars": { "defaultValue": { "value": "1200" }, "valueType": "NUMBER" },
     "hybrid_local_context_chars": { "defaultValue": { "value": "12000" }, "valueType": "NUMBER" },
     "hybrid_max_output_tokens": { "defaultValue": { "value": "4096" }, "valueType": "NUMBER" },
-    "hybrid_cloud_model": { "defaultValue": { "value": "gemini-4-hydrogen" }, "valueType": "STRING" }
+    "hybrid_cloud_model": { "defaultValue": { "value": "gemini-3.5-flash-lite" }, "valueType": "STRING" }
   }
 }

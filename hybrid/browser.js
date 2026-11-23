@@ -154,7 +154,7 @@ export function mountHybridControls(engine, connection) {
     }
     if (event.log) {
       const entry = event.log; const item = document.createElement("li");
-      item.textContent = `${entry.task} · ${entry.source} · ${entry.durationMs} ms · ${entry.reason}${entry.fallback ? " · fallback" : ""}${entry.error ? ` · ${entry.error} · ${entry.errorCode || "unknown"}` : ""}`;
+      item.textContent = `${entry.task} · ${entry.source} · ${entry.durationMs} ms · ${entry.reason}${entry.fallback ? " · fallback" : ""}${entry.error ? ` · ${entry.error} · ${entry.errorCode || "unknown"}${entry.httpStatus ? ` · HTTP ${entry.httpStatus}` : ""}` : ""}`;
       log.prepend(item); while (log.children.length > 30) log.lastElementChild.remove();
       if (entry.finalAnswer) updateBadge(entry);
     }

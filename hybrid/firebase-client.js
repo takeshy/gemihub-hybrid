@@ -19,9 +19,7 @@ export class HybridInference {
       throw new Error("Firebase App Check is not configured. The site operator must finish setup.");
     this.app = initializeApp(config.firebase, "gemihub-hybrid");
     initializeAppCheck(this.app, { provider: new ReCaptchaEnterpriseProvider(config.appCheckSiteKey || "localhost-debug"), isTokenAutoRefreshEnabled: true });
-    // Use the SDK's normal cached App Check session token for multi-step agents.
-    // Baseline App Check remains enforced in the dedicated Firebase project.
-    this.ai = getAI(this.app, { backend: new GoogleAIBackend() });
+    this.ai = getAI(this.app, { backend: new GoogleAIBackend(), useLimitedUseAppCheckTokens: true });
     void this.loadPolicy();
   }
   async loadPolicy() {
@@ -33,7 +31,7 @@ export class HybridInference {
         hybrid_max_output_tokens: DEFAULT_POLICY.maxOutputTokens,
         hybrid_cloud_model: this.config.cloudModel || DEFAULT_POLICY.cloudModel, hybrid_enabled: true };
       remote.settings.fetchTimeoutMillis = 3000;
-      remote.settings.minimumFetchIntervalMillis = 3600000;
+      remote.settings.minimumFetchIntervalMillis = 60000;
       const apply = () => {
         const values = getAll(remote);
         this.policy = boundedPolicy({
@@ -121,9 +119,13 @@ export class HybridInference {
       this.record({ task, requestedMode: mode, source: "UNKNOWN", durationMs: Math.round(this.now() - started),
         reason: route.reason, error: signal?.aborted ? "aborted" : "inference_failed",
         errorCode: /^[a-zA-Z0-9_/-]{1,80}$/.test(error?.code || error?.name || "") ? error.code || error.name : "unknown",
+        httpStatus: Number.isInteger(error?.customErrorData?.status) ? error.customErrorData.status : null,
         finalAnswer: false });
       if (signal?.aborted) throw error;
       const english = globalThis.document?.documentElement?.lang === "en";
+      if (error?.customErrorData?.status === 429) throw new Error(english
+        ? "Cloud AI has reached its usage limit. Please try again later."
+        : "クラウドAIの利用上限に達しました。時間をおいて再試行してください。", { cause: error });
       throw new Error(english ? "AI could not answer. Please try again in a moment."
         : "AIの返答を確認できませんでした。少し時間をおいて再試行してください。", { cause: error });
     } finally { clearTimeout(timeout); if (onAbort) requestSignal.removeEventListener("abort", onAbort); }

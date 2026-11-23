@@ -82,6 +82,17 @@ test("empty and truncated cloud responses never finish silently or execute parti
     parts: [{ text: "Reasoning summary", thought: true }] } }] }), /no answer/);
 });
 
+test("quota failures remain distinct from model unavailability and retain no request text", async () => {
+  const hybrid = new HybridInference({}, { ai: {}, factory: () => ({ generateContent: async () => {
+    const error = new Error("Private provider details"); error.code = "fetch-error";
+    error.customErrorData = { status: 429 }; throw error;
+  } }) });
+  await assert.rejects(hybrid.generate({ task: "agent", question: "Private request", prompt: "Private request", hasTools: true }), /利用上限/);
+  assert.equal(hybrid.logs.at(-1).httpStatus, 429);
+  assert.equal(hybrid.logs.at(-1).errorCode, "fetch-error");
+  assert.doesNotMatch(JSON.stringify(hybrid.logs), /Private/);
+});
+
 function engineFixture() {
   const calls = [];
   const hybrid = { policy: boundedPolicy(), emit() {}, generate: async input => {
