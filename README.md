@@ -5,10 +5,10 @@ for #BuildHybridAI 2026, extending Gemihub with Firebase AI Logic hybrid inferen
 
 [Live Web demo](https://hybrid.gemihub.net/)
 
-**Implementation status:** the Firebase hybrid runtime and finder/shop adapters
-are implemented. Real desktop Chrome has answered a grounded shop question
-on-device and through the cloud. Public deployment and booking UI validation
-are in progress. Firebase Web SDK `13.4.0` is pinned.
+**Implementation status:** deployed and verified in real browsers. Finder and
+shop questions answered on-device in desktop Chrome; comparisons and the complete
+demo reservation flow used the cloud. A browser without Nano answered the same
+shop question through cloud fallback. Firebase Web SDK `13.4.0` is pinned.
 See the [implementation brief](specs/BUILD_HYBRID_AI.md) for the approved scope
 and acceptance criteria, and [Firebase Agent Skills](docs/firebase-agent-skills.md)
 for the official implementation guidance.
@@ -55,6 +55,11 @@ New runtime code: [`hybrid/`](hybrid/), with regression tests in
 [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs). The standalone deployment is in
 [`infra/hybrid/`](infra/hybrid/). Shared third-party runtime files stay unchanged.
 
+Submission materials: [English description](docs/submission/description.txt),
+[thumbnail](docs/submission/thumbnail.png), and
+[real-browser screenshots](docs/submission/evidence/). The public YouTube video
+and Devpost submission are still outstanding.
+
 ---
 
 ## Key Features
@@ -67,7 +72,7 @@ New runtime code: [`hybrid/`](hybrid/), with regression tests in
   Visitors can consult the town guide and individual shop AIs via live voice conversation as well as multilingual text (e.g., English and Japanese).
 - **Local Document Retrieval (PDF, Markdown, etc.)**  
   Town operators can upload and publish local notices, public facility guides, and event flyers (such as local festival PDFs) so the portal can answer community questions with source citations.
-- **Firebase Hybrid Text AI**  
+- **Firebase Hybrid Text AI**
   The submission's visitor text experience runs through Firebase AI Logic without API key entry.
 
 When managed voice AI is enabled, **Talk to AI** appears beside the heading at the top of both the town-guide and shop chat screens. It opens a compact voice panel at the bottom right while leaving the rest of the page usable; closing the panel or pressing Esc ends the microphone session. The button appears inside chat, and shop confirmations remain on screen. See [AI and voice settings](docs/managed-ai.md#親の音声会話).
@@ -77,7 +82,7 @@ When managed voice AI is enabled, **Talk to AI** appears beside the heading at t
 ## Core Stack
 
 - **Google Gemini API**
-  - Shop discovery & agent queries: `gemini-4-hydrogen` (low)
+  - Hybrid visitor text: Firebase AI Logic, Gemini Nano / `gemini-3.5-flash-lite`
   - Live voice interaction: `gemini-3.8-live`
   - Storefront/theme and page HTML/CSS generation: `gemini-4-argon`
   - Visual review and genre classification support

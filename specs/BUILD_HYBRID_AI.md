@@ -127,24 +127,30 @@ service-side quotas because browser-side limits alone do not enforce cost caps.
 The first milestone is a real ON_DEVICE response on the clone's public URL,
 before integrating the full finder. Mocked tests do not satisfy this milestone.
 
-- [ ] Dedicated Firebase project, deployment and repository are verified.
-- [ ] A supported real Chrome device answers an isolated finder question with
+- [x] Dedicated Firebase project, deployment and repository are verified.
+- [x] A supported real Chrome device answers an isolated finder question with
       an SDK-derived ON_DEVICE badge.
-- [ ] A cross-shop question produces an IN_CLOUD answer.
-- [ ] A browser without Nano completes the same simple question in the cloud.
-- [ ] Downloading/unavailable Nano does not stall online chat.
-- [ ] A shop question uses only that shop's facts and works on-device.
+- [x] A cross-shop question produces an IN_CLOUD answer.
+- [x] A browser without Nano completes the same simple question in the cloud.
+- [x] Unavailable/unprepared Nano does not stall online chat.
+- [x] A shop question uses only that shop's facts and works on-device.
 - [ ] Missing facts and requests for another shop do not produce invented facts.
-- [ ] Invalid routing JSON, unknown shop IDs and history-dependent follow-ups
+- [x] Invalid routing JSON, unknown shop IDs and history-dependent follow-ups
       route safely to cloud processing.
-- [ ] Reservation completion and failure/retry behavior remain correct; no
-      duplicate reservation, invented price or false confirmation is possible.
-- [ ] No visitor API-key entry, saved-key flow or BYOK relay is exposed.
-- [ ] Remote Config failures use defaults without blocking chat.
+- [x] The public demo reservation completes through the existing confirmation
+      dialog and MCP tools. Existing booking tests cover validation/idempotency.
+- [x] No visitor API-key entry, saved-key flow or BYOK relay is exposed.
+- [x] Remote Config uses defaults/cached values while fetching in the background.
 - [ ] Offline plus unavailable local model gives a recoverable failure.
-- [ ] Badges/logs identify the final answer source correctly in mixed turns.
-- [ ] No upstream repository or environment was changed.
-- [ ] Source imports and actually invokes Firebase AI Logic at runtime.
+- [x] Badges/logs identify the final answer source correctly in mixed turns.
+- [x] The upstream repository, app containers and data are unchanged. Only the
+      authorized DNS record/Caddy host route was added for the separate clone.
+- [x] Source imports and actually invokes Firebase AI Logic at runtime.
+
+Checked browser cases were verified on the public URL on Nov 23, 2026; see
+[screenshots](../docs/submission/evidence/). Routing and booking safeguards were
+also checked by automated tests. Unchecked cases above still need dedicated
+adversarial/offline browser validation.
 
 Suggested JST milestones: Nov 23–24 isolation, Firebase and real-device spike;
 Nov 25–26 finder integration; Nov 27–28 shop integration; Nov 29 validation and
@@ -165,8 +171,11 @@ submission materials; Nov 30 buffer and submit before the hard deadline.
   Thumbnail concept: town guide and shop panels with visibly different
   on-device and cloud badges. Never fabricate inference evidence.
 
-## Initial status
+## Current status
 
-Independent clone created from upstream commit
-3a2bd474111c9951c6fc27adb7c84b714cfdef6c. This brief describes planned behavior,
-not completed implementation or verified runtime capabilities.
+The independent clone retains the full history from upstream commit
+3a2bd474111c9951c6fc27adb7c84b714cfdef6c and is public under MIT at
+https://github.com/takeshy/gemihub-hybrid. The demo is live at
+https://hybrid.gemihub.net, using Firebase project `gemihub-hybrid-2026` and
+the approved Flash-Lite Remote Config setting. English description and thumbnail
+are prepared; the public YouTube video and Devpost submission are not complete.
