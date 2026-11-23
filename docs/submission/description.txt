@@ -1,0 +1,34 @@
+Gemihub Hybrid
+Local answers, connected communities.
+
+Gemihub Hybrid connects a local town guide with independent shop assistants.
+Visitors can ask about a shop, compare places, and continue into a reservation
+flow without supplying an AI API key.
+
+The Web / Chrome app calls Firebase AI Logic at runtime for both local and cloud
+text inference. Isolated questions that can be answered from one shop's published
+facts prefer Gemini Nano on the device. If local AI is unavailable or still being
+prepared, the same experience continues in the cloud. Comparisons, long contexts,
+multi-turn conversations and tool-using requests explicitly use cloud-only mode.
+
+Routing combines task type with bounded context-length thresholds managed through
+Firebase Remote Config. Firebase App Check protects cloud access. Badges report
+the SDK's actual inference source, while diagnostics record latency and fallback
+status without recording raw prompts.
+
+Each shop assistant receives only its own published facts. Existing deterministic
+code and MCP tools remain responsible for prices, availability and reservation
+confirmation; the model does not decide these results.
+
+This is a significant update to the existing open-source gemihub-agent application.
+The original town portal, storefronts and booking foundation provide the useful
+setting for the new hybrid layer. During the competition we built the Firebase AI
+Logic wrapper, routing policy, finder and shop adapters, App Check and Remote
+Config setup, source badges, diagnostics, regression tests and isolated Web demo.
+The repository retains the original Git history and includes an MIT license.
+
+The public demo uses three fictional restaurants. Demo reservations stay in memory
+and reset when the container restarts. It makes no real bookings, charges or calls.
+
+Demo: https://hybrid.gemihub.net
+Source: https://github.com/takeshy/gemihub-hybrid

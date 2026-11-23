@@ -4,7 +4,7 @@ services:
     image: ${HYBRID_IMAGE:?HYBRID_IMAGE is required}
     restart: unless-stopped
     command: [node, --max-old-space-size=160, --import, tsx, scripts/hybrid-server.mjs]
-    mem_limit: 256m
+    mem_limit: 384m
     cpu_shares: 256
     user: node
     read_only: true

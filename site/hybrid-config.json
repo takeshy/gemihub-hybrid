@@ -8,5 +8,6 @@
     "storageBucket": "gemihub-hybrid-2026.firebasestorage.app"
   },
   "cloudModel": "gemini-4-hydrogen",
+  "demo": true,
   "appCheckSiteKey": "6Lf4nS0uAAAAADrGjLdT3uqDiyQlo5ulPFJ_cLsu"
 }

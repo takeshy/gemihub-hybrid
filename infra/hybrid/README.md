@@ -5,7 +5,7 @@ on `gemihub-dev` (GCP project `geminihub-486523`). Firebase AI Logic, App Check
 and Remote Config use the separate project `gemihub-hybrid-2026`.
 
 `compose.yaml` connects to the existing Caddy network but mounts no upstream
-data or credentials. Its only container has a 256 MiB memory limit. The demo
+data or credentials. Its only container has a 384 MiB memory limit. The demo
 uses fictional shops and in-memory reservations that reset on restart.
 
 Build with `cloudbuild.yaml`, using a new `hybrid` image tag. Copy this

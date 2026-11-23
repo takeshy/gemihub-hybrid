@@ -106,6 +106,12 @@ export function mountHybridControls(engine, connection) {
   const english = document.documentElement.lang === "en";
   const label = (ja, en) => english ? en : ja;
   const dialog = document.getElementById("ai-setup-dialog");
+  if (connection.config.demo) {
+    const note = document.createElement("p"); note.className = "hybrid-demo-note"; note.setAttribute("role", "note");
+    note.textContent = label("デモ版：架空のお店です。実際の予約・請求・連絡は行いません。",
+      "Demo only: fictional shops. No real bookings, charges or calls are made.");
+    (document.getElementById("assistant-status") || root).before(note);
+  }
   // The upstream runtime stays unmodified; no provider/key inputs remain in
   // this product. Existing saved profiles are ignored by explicit boot options.
   for (const selector of [".ns-settings", "#ai-provider", "#ai-key-link"]) {
