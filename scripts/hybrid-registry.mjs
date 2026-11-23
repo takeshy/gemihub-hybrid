@@ -2,9 +2,9 @@ import { writeFile } from "node:fs/promises";
 import { restaurantDemoShops } from "../apps/shop/scripts/seed-restaurant-demo.ts";
 import { hoursText } from "../apps/shop/server/domain.ts";
 const origin = "https://gemihub-hybrid-2026.web.app";
-const rows = restaurantDemoShops("2030-01-01");
-const areas = ["東京都新宿区", "東京都渋谷区", "神奈川県横浜市"];
-const cuisines = ["和食・炉端焼き", "イタリアン", "中華・広東料理"];
+const rows = restaurantDemoShops("2030-01-01", "en");
+const areas = ["Shinjuku, Tokyo", "Shibuya, Tokyo", "Yokohama, Kanagawa"];
+const cuisines = ["Japanese robata", "Italian", "Cantonese"];
 const shops = rows.map(({ slug, config }, index) => ({ id: slug, name: config.name,
   area: areas[index], cuisine: cuisines[index], description: config.description, address: config.address,
   pageUrl: `${origin}/s/${slug}/`, reservationEnabled: true, reservationUrl: `${origin}/s/${slug}/reserve`,

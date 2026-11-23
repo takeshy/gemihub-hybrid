@@ -66,11 +66,11 @@ test("read actions return copies and area filters use the registry", () => {
   const state = page.getState(); state.conditions.avoid.push("secret");
   const list = page.listShops(); list[0].pageUrl = "https://evil.example";
   assert.deepEqual(page.getState().conditions.avoid, ["shrimp"]);
-  assert.equal(page.listShops({ area: "新宿" }).length, 1);
-  assert.equal(page.listShops({ area: "東京" }).length, 2);
-  assert.deepEqual(page.listShops({ cuisine: "中華料理", area: "横浜" }).map(shop => shop.id), ["kanton-ryu"]);
-  assert.deepEqual(page.listShops({ cuisine: "イタリアン" }).map(shop => shop.id), ["trattoria-sole"]);
-  assert.deepEqual(page.listShops({ cuisine: "和食", area: "横浜" }), []);
+  assert.equal(page.listShops({ area: "Shinjuku" }).length, 1);
+  assert.equal(page.listShops({ area: "Tokyo" }).length, 2);
+  assert.deepEqual(page.listShops({ cuisine: "Cantonese", area: "Yokohama" }).map(shop => shop.id), ["kanton-ryu"]);
+  assert.deepEqual(page.listShops({ cuisine: "Italian" }).map(shop => shop.id), ["trattoria-sole"]);
+  assert.deepEqual(page.listShops({ cuisine: "Japanese", area: "Yokohama" }), []);
   assert.deepEqual(page.listShops({ area: "存在しない" }), []);
   assert.equal(page.listShops()[0].pageUrl, shops[0].pageUrl);
 });
@@ -79,7 +79,7 @@ test("no-preference spellings are not searched as literal cuisines or places", (
   const { page } = arrange();
   for (const value of ["", "指定なし", "指定無し", "未指定", "おまかせ", "どこでも", "何でも", "Any", "none"]) {
     assert.equal(page.listShops({ area: value, cuisine: value }).length, shops.length, value);
-    assert.deepEqual(page.listShops({ area: value, cuisine: "中華" }).map(shop => shop.id), ["kanton-ryu"]);
+    assert.deepEqual(page.listShops({ area: value, cuisine: "Cantonese" }).map(shop => shop.id), ["kanton-ryu"]);
   }
   assert.deepEqual(page.listShops({ area: "存在しない", cuisine: "指定なし" }), []);
 });

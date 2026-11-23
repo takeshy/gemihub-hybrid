@@ -66,10 +66,10 @@ export class AssistantMount {
    */
   static DIALOGS = {
     open_shop_page: {
-      title: "この条件を持って、お店のページへ移動しますか？",
-      sentence: "日時・人数・コースの要否・予算・避けたい食材を渡します。名前や連絡先は渡しません。予約の確定は移動先で行います。",
-      confirm: "条件を引き継いで移動",
-      decline: "このページに戻る",
+      title: "Open the shop with these booking details?",
+      sentence: "Share the date, time, party size, course preference, budget, and food restrictions. Your name and contact details stay here. Confirm your reservation on the shop's page.",
+      confirm: "Share details and open shop",
+      decline: "Stay here",
     },
   };
 
@@ -106,13 +106,7 @@ export class AssistantMount {
         shops: App.page.shops, getPage: () => App.page, modelName: model, storage: AssistantMount.tabStorage(),
 
       });
-      // Without a key the chat cannot answer yet. This is the same test as the
-      // runtime's "API key required" badge in runtime/ui.js.
-      const needsKey = !booted.engine.mockLLM
-        && (!booted.engine.byokKey || booted.engine.byokKey === "demo");
-      status.textContent = needsKey
-        ? "AIの設定を保存すると、チャットを始められます。"
-        : "AIの準備ができました。街について知りたいことを聞いてください。";
+      status.textContent = "Ready to chat.";
       AssistantMount.greet();
       App.mountChat();
       mountAiConnection(booted.engine, connection);
@@ -122,7 +116,7 @@ export class AssistantMount {
       return booted.engine;
     } catch (error) {
       // The page must keep working without the assistant.
-      status.textContent = "AIを読み込めませんでした。登録店のリンクはそのまま使えます。";
+      status.textContent = "The assistant could not start. You can still browse shops below.";
       console.error("Assistant startup failed", error);
       return null;
     }
@@ -139,7 +133,7 @@ export class AssistantMount {
   static greet() {
     const first = document.querySelector("#ns-msgs .ns-msg.bot");
     if (first) {
-      first.textContent = guideGreeting(document.getElementById("assistant")?.dataset.greeting);
+      first.textContent = guideGreeting(document.getElementById("assistant")?.dataset.greeting, document.documentElement.lang);
     }
   }
 
@@ -163,7 +157,7 @@ export class AssistantMount {
     if (items.length > 1) {
       for (const item of items) {
         if (item.origin === pageOrigin && Object.hasOwn(AssistantMount.DIALOGS, item.action)) {
-          throw new Error("ページの移動は、他の操作と分けて確認してください。何も実行していません。");
+          throw new Error("Confirm opening the shop separately from other actions.");
         }
       }
     }
@@ -200,7 +194,7 @@ export class AssistantMount {
       details = AssistantMount.reviewDetails(item.action, item.arguments) || {};
     } catch (error) {
       // Refuse when the page cannot validate the proposal.
-      details = { refusal: "移動する条件を確認できません。もう一度選んでください。" };
+      details = { refusal: "Could not verify the booking details. Please try again." };
     }
     return {
       ...AssistantMount.DIALOGS[item.action],
@@ -227,15 +221,15 @@ export class AssistantMount {
       const c = check.conditions;
       const candidate = App.page.candidates.find(item => item.shopId === args.shopId);
       return {
-        "お店": check.shop.name,
-        "移動先": new URL(check.url).host,
-        "日時": `${c.date} ${c.time}（日本時間）`,
-        "人数": `${c.partySize}名`,
-        "スタイル": COURSE_LABELS[c.course],
-        ...(args.courseId ? { "コース": `${candidate.courseName || args.courseId} (${args.courseId})` } : {}),
-        "予算": c.budgetPerPerson === undefined ? "指定なし" : `1人 ${c.budgetPerPerson.toLocaleString("ja-JP")}円`,
-        "避けたい食材": c.avoid.map(allergenLabel).join("、") || "指定なし",
-        "引き継がない情報": "名前・メール・電話番号・メモ・AIの設定とキー",
+        "Shop": check.shop.name,
+        "Destination": new URL(check.url).host,
+        "Date and time": `${c.date} ${c.time} (Japan time)`,
+        "Guests": c.partySize,
+        "Booking type": COURSE_LABELS[c.course],
+        ...(args.courseId ? { "Course": `${candidate.courseName || args.courseId} (${args.courseId})` } : {}),
+        "Budget": c.budgetPerPerson === undefined ? "Any" : `¥${c.budgetPerPerson.toLocaleString("en-US")} per person`,
+        "Foods to avoid": c.avoid.map(allergenLabel).join(", ") || "None",
+        "Private information kept here": "Name, email, phone number, notes, and AI settings",
       };
     }
     return {};
@@ -263,7 +257,7 @@ export class AssistantMount {
     dialog.append(heading, sentence);
     const exact = document.createElement("details");
     const exactLabel = document.createElement("summary");
-    exactLabel.textContent = "操作の詳細";
+    exactLabel.textContent = "Action details";
     const exactText = document.createElement("pre");
     exactText.textContent = content.exact;
     exact.append(exactLabel, exactText);

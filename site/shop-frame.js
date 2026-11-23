@@ -18,12 +18,12 @@ export function requestedShop(search) {
 
 /** The search conditions as one line the visitor can check before they go to a shop. */
 export function conditionsLine(conditions) {
-  if (!conditions) return "お店に渡した検索条件：なし（日時と人数はお店のページで入力できます）";
+  if (!conditions) return "Choose a date, time, and party size on the shop’s page.";
   const c = conditions;
-  return `お店に渡した検索条件：${c.date} ${c.time} / ${c.partySize}名 / ${COURSE_LABELS[c.course]}`
-    + (c.budgetPerPerson ? ` / 1人${c.budgetPerPerson.toLocaleString("ja-JP")}円` : "")
-    + (c.avoid.length ? ` / 避けたい食材：${c.avoid.map(allergenLabel).join("、")}` : "")
-    + "（名前・連絡先・メモ・AIのキーは渡しません）";
+  return `Shared with the shop: ${c.date} ${c.time} / Guests: ${c.partySize} / ${COURSE_LABELS[c.course]}`
+    + (c.budgetPerPerson ? ` / ¥${c.budgetPerPerson.toLocaleString("en-US")} per person` : "")
+    + (c.avoid.length ? ` / Foods to avoid: ${c.avoid.map(allergenLabel).join(", ")}` : "")
+    + " (Name, contact details, and notes stay here.)";
 }
 
 /**
@@ -81,12 +81,12 @@ export class ShopFrame {
   open(id, { target = "shop", courseId } = {}) {
     const shop = typeof id === "string" ? this.find(id) : null;
     if (!shop || !["shop", "reserve"].includes(target)) {
-      const reason = "指定されたお店は登録されていません。登録店の一覧から選んでください。";
+      const reason = "That shop is not listed. Choose one from the directory.";
       this.showError(reason);
       return { ok: false, reason };
     }
-    if (target === "reserve" && !canCheckReservations(shop)) return { ok: false, reason: "この店の予約情報は取得できません。店舗サイトをご覧ください。" };
-    if (!hasAgent(shop)) return { ok: false, reason: "このお店は店舗サイトのリンクから開いてください。" };
+    if (target === "reserve" && !canCheckReservations(shop)) return { ok: false, reason: "Visit the shop’s website for booking information." };
+    if (!hasAgent(shop)) return { ok: false, reason: "Use the link to open this shop’s website." };
     if (!this.shop) { this.previousScroll = scrollY; this.previousFocus = document.activeElement; }
     this.endRelay();
     this.shop = shop;
@@ -98,22 +98,22 @@ export class ShopFrame {
     const frame = previous.cloneNode(false);
     frame.removeAttribute("src");
     previous.replaceWith(frame);
-    frame.title = `${shop.name}${target === "reserve" ? "の予約ページ" : "のページ"}`;
+    frame.title = `${shop.name} — ${target === "reserve" ? "Booking" : "Shop page"}`;
     frame.src = framed.url;
     this.element("shop-page-newtab").href = framed.url;
     const status = this.element("shop-page-status");
     status.dataset.state = "loading";
-    status.textContent = `${shop.name}のページを読み込んでいます…`;
+    status.textContent = `Opening ${shop.name}…`;
     clearTimeout(this.frameTimer);
     this.frameTimer = setTimeout(() => {
       if (status.dataset.state !== "loading") return;
       status.dataset.state = "failed";
-      status.textContent = "店舗ページを表示できたか確認できませんでした。表示されない場合は別タブで開いてください。別タブでは親のAIは自動では使えません。";
+      status.textContent = "The shop page could not be loaded here. Try opening it in a new tab.";
     }, FRAME_WAIT_MS);
     this.remember();
     this.render();
     this.element("shop-close").focus();
-    return { ok: true, shop: shop.name, target, conditionsPassed: !!framed.conditions, note: "お店のページを開きました。商品・サービスや予約対応は、お店のページで確認できます。" };
+    return { ok: true, shop: shop.name, target, conditionsPassed: !!framed.conditions, note: "The shop page is open. Check its products, services, and booking details there." };
   }
   close() {
     if (!this.shop) return;
@@ -188,7 +188,7 @@ export class ShopFrame {
     const requested = requestedShop(location.search);
     const saved = this.remembered();
     if (requested === undefined) {
-      this.showError("お店の指定が正しくありません。登録店の一覧から選んでください。");
+      this.showError("The shop link is invalid. Choose a shop from the directory.");
       this.remember();
     } else {
       const id = requested || saved?.id;

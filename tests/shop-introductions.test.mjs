@@ -38,12 +38,12 @@ test("a reservation URL without an agent is shown only as a normal shop link", t
   t.after(() => { globalThis.document = before; });
   globalThis.document = new StubDocument();
   const plain = App.introductionCard(bookable);
-  assert.equal(plain.querySelectorAll("button").some(button => button.textContent === "予約ページへ"), false);
+  assert.equal(plain.querySelectorAll("button").some(button => button.textContent === "Open booking page"), false);
   const [link] = plain.querySelectorAll("a");
   assert.equal(link.href, bookable.pageUrl);
   assert.equal(link.target, "_blank");
-  assert.equal(plain.querySelectorAll("p").some(p => p.textContent.includes("予約ページあり")), false);
-  assert.equal(App.introductionCard(full).querySelectorAll("button").some(button => button.textContent === "予約ページへ"), true);
+  assert.equal(plain.querySelectorAll("p").some(p => p.textContent.includes("Reservations available")), false);
+  assert.equal(App.introductionCard(full).querySelectorAll("button").some(button => button.textContent === "Open booking page"), true);
 });
 test("agentless reservation URLs cannot bypass the hidden control through a tool or restored frame", () => {
   const page = new FinderPage([bookable, full], { now: () => new Date("2026-11-15T00:00:00Z") });

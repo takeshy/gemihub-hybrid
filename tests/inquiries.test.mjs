@@ -48,14 +48,14 @@ test("14 candidates start in batches but 15 ask only for missing preferences", a
 });
 
 test("the threshold uses filtered candidates and does not ask the other preference below 15", async () => {
-  const { inquiries, confirm } = arrange(undefined, registryOf(30), "中華で探して");
-  const filtered = await confirm({ cuisine: "中華" });
+  const { inquiries, confirm } = arrange(undefined, registryOf(30), "Cantoneseで探して");
+  const filtered = await confirm({ cuisine: "Cantonese" });
   assert.equal(filtered.approved, true);
   assert.equal(filtered.totalCount, 10);
   assert.equal(filtered.count, 4);
-  assert.deepEqual(inquiries.preferences, { cuisine: "中華", area: null });
-  const { confirm: large } = arrange(undefined, registryOf(45), "中華で探して");
-  const result = await large({ cuisine: "中華" });
+  assert.deepEqual(inquiries.preferences, { cuisine: "Cantonese", area: null });
+  const { confirm: large } = arrange(undefined, registryOf(45), "Cantoneseで探して");
+  const result = await large({ cuisine: "Cantonese" });
   assert.equal(result.needsPreferences, true);
   assert.deepEqual(result.missingPreferences, ["area"]);
 });
@@ -66,7 +66,7 @@ test("literal unspecified tool arguments count all registered shops instead of z
   assert.equal(result.approved, true);
   assert.equal(result.totalCount, shops.length);
   assert.deepEqual(result.shops.map(shop => shop.id), shops.map(shop => shop.id));
-  await confirm({ cuisine: "中華", area: "横浜" });
+  await confirm({ cuisine: "Cantonese", area: "Yokohama" });
   assert.equal((await confirm({ cuisine: "おまかせ", area: "指定なし" })).count, shops.length);
 });
 
@@ -101,7 +101,7 @@ test("a continuation cannot skip batches or reuse a changed search", async () =>
     assert.equal((await confirm()).approved, true);
     if (change === "conditions") page.setConditions({ ...page.conditions, partySize: 2 });
     if (change === "reset") inquiries.reset();
-    assert.equal((await confirm({ offset: change === "skip" ? 8 : 4, ...(change === "preferences" ? { cuisine: "中華" } : {}) })).ok, false);
+    assert.equal((await confirm({ offset: change === "skip" ? 8 : 4, ...(change === "preferences" ? { cuisine: "Cantonese" } : {}) })).ok, false);
     assert.equal(inquiries.activePlan(), null);
   }
 });
@@ -111,7 +111,7 @@ test("the count and exact targets come from parent metadata before any connectio
   const { inquiries, confirm } = arrange(async plan => { shown = plan; return true; });
   assert.equal(inquiries.canContactNetwork(shops[2].networkUrl), false);
   assert.equal(inquiries.decision({ kind: "network", peerOrigin: "127.0.0.1:3000" }), "decline");
-  const result = await confirm({ cuisine: "中華", area: "横浜" });
+  const result = await confirm({ cuisine: "Cantonese", area: "Yokohama" });
   assert.equal(result.approved, true);
   assert.equal(result.count, 1);
   assert.deepEqual(shown.shops.map(shop => shop.id), ["kanton-ryu"]);
@@ -145,7 +145,7 @@ test("declining, stale dates and missing preferences make no approved plan", asy
 test("zero matches do not show a confirmation or silently broaden the search", async () => {
   let shown = false;
   const { confirm } = arrange(async () => { shown = true; return true; });
-  const result = await confirm({ cuisine: "中華", area: "新宿" });
+  const result = await confirm({ cuisine: "Cantonese", area: "Shinjuku" });
   assert.equal(result.count, 0);
   assert.equal(shown, false);
 });
@@ -165,7 +165,7 @@ test("new conditions and new conversations cannot reuse the previous approval", 
   await confirm();
   page.setConditions({ ...page.conditions, partySize: 2 });
   assert.equal(inquiries.activePlan(), null);
-  await confirm({ cuisine: "中華", area: "横浜" });
+  await confirm({ cuisine: "Cantonese", area: "Yokohama" });
   inquiries.reset();
   assert.equal(inquiries.activePlan(), null);
   assert.deepEqual(inquiries.preferences, { cuisine: null, area: null });
@@ -173,10 +173,10 @@ test("new conditions and new conversations cannot reuse the previous approval", 
 
 test("blank filters cannot silently widen previously specified preferences", async () => {
   const { inquiries, confirm } = arrange();
-  await confirm({ cuisine: "中華", area: "横浜" });
+  await confirm({ cuisine: "Cantonese", area: "Yokohama" });
   inquiries.getUserMessage = () => "日時だけ変えてください";
   assert.equal((await confirm()).count, 1);
-  assert.deepEqual(inquiries.preferences, { cuisine: "中華", area: "横浜" });
+  assert.deepEqual(inquiries.preferences, { cuisine: "Cantonese", area: "Yokohama" });
   inquiries.getUserMessage = () => "ジャンルと場所は指定なし";
   assert.equal((await confirm()).count, 3);
 });
@@ -189,7 +189,7 @@ test("resolver guards keep scheme, port and network identity scoped to the confi
   installInquiryPolicy(engine, inquiries);
   assert.equal(engine.consent.size, 0);
   assert.throws(() => engine.resolveRemote(shops[2].networkUrl), /先に/);
-  await confirm({ cuisine: "中華", area: "横浜" });
+  await confirm({ cuisine: "Cantonese", area: "Yokohama" });
   assert.throws(() => engine.resolveRemote(shops[0].networkUrl), /先に/);
   const changedScheme = new URL(shops[2].networkUrl);
   changedScheme.protocol = changedScheme.protocol === "https:" ? "http:" : "https:";

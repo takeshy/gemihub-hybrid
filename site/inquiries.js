@@ -143,33 +143,37 @@ export function reviewShopInquiries(plan, signal) {
     const card = document.createElement("div");
     card.className = "ns-msg bot finder-inquiry";
     card.setAttribute("role", "group");
-    card.setAttribute("aria-label", "確認先の確認");
+    card.setAttribute("aria-label", "Confirm which shops to contact");
     const title = document.createElement("p");
     title.className = "finder-inquiry-title";
-    const topic = plan.purpose === "introduction" ? "商品・店舗情報" : "空席・メニュー";
+    const topic = plan.purpose === "introduction" ? "shop and product details" : "availability and menus";
+    const count = `${plan.count} ${plan.count === 1 ? "shop" : "shops"}`;
     title.textContent = plan.totalCount > plan.count
-      ? `候補は${plan.totalCount}店です。${plan.offset ? "続きの" : "まず"}${plan.count}店のAIで${topic}を確認しますか？`
-      : `${plan.count}店のAIで${topic}を確認しますか？`;
+      ? `${plan.totalCount} shops match. Ask the ${plan.offset ? "next" : "first"} ${count} about ${topic}?`
+      : `Ask ${count} about ${topic}?`;
     const summary = document.createElement("p");
     const c = plan.conditions;
-    summary.textContent = plan.purpose === "introduction" ? `${plan.cuisine || "ジャンル指定なし"} / ${plan.area || "場所指定なし"} · ${plan.query}` : `${plan.cuisine || "ジャンル指定なし"} / ${plan.area || "場所指定なし"} · ${c.date} ${c.time} / ${c.partySize}名 / ${COURSE_LABELS[c.course]}`
-      + (c.budgetPerPerson ? ` / 1人${c.budgetPerPerson.toLocaleString("ja-JP")}円` : "")
-      + (c.avoid.length ? ` / 避けたい食材：${c.avoid.map(allergenLabel).join("、")}` : "");
+    const filters = `${plan.cuisine || "Any category"} / ${plan.area || "Any area"}`;
+    summary.textContent = plan.purpose === "introduction"
+      ? `${filters} · ${plan.query}`
+      : `${filters} · ${c.date} ${c.time} / Guests: ${c.partySize} / ${COURSE_LABELS[c.course]}`
+        + (c.budgetPerPerson ? ` / ¥${c.budgetPerPerson.toLocaleString("en-US")} per person` : "")
+        + (c.avoid.length ? ` / Foods to avoid: ${c.avoid.map(allergenLabel).join(", ")}` : "");
     const targets = document.createElement("p");
-    targets.textContent = plan.shops.map(shop => shop.name).join("、");
+    targets.textContent = plan.shops.map(shop => shop.name).join(", ");
     const origins = document.createElement("small");
-    origins.textContent = [...new Set(plan.shops.map(shop => new URL(shop.networkUrl).origin))].join("、");
+    origins.textContent = [...new Set(plan.shops.map(shop => new URL(shop.networkUrl).origin))].join(", ");
     const buttons = document.createElement("div");
     buttons.className = "finder-inquiry-actions";
     const yes = document.createElement("button");
-    yes.type = "button"; yes.textContent = "確認する";
+    yes.type = "button"; yes.textContent = "Ask these shops";
     const no = document.createElement("button");
-    no.type = "button"; no.textContent = "条件を変える";
+    no.type = "button"; no.textContent = "Change search";
     const finish = accepted => {
       signal.removeEventListener("abort", abort);
       buttons.remove();
-      title.textContent = signal.aborted ? "条件が変わりました。確認先を確認し直してください。"
-        : accepted ? `${plan.count}店への${topic}の確認を始めます。` : `${topic}の確認は行っていません。希望を変更してください。`;
+      title.textContent = signal.aborted ? "The search changed. Review the shops again."
+        : accepted ? `Asking ${count} about ${topic}…` : "Search canceled. You can change your preferences.";
       document.getElementById("ns-input")?.focus();
       resolve(accepted);
     };

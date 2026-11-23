@@ -145,10 +145,10 @@ test("partner context receives no parent website tools", async () => {
 test("dialog shows real destination and conditions, but excludes contact details and note", () => {
   App.page.setConditions({ ...valid, note: "person@example.com sk-private" });
   const content = AssistantMount.dialogContent(proposal());
-  assert.equal(content.details["お店"], "炉端 灯");
-  assert.equal(content.details["移動先"], new URL(shops[0].pageUrl).host);
-  assert.equal(content.details["人数"], "12名");
-  assert.match(content.sentence, /名前や連絡先は渡しません/);
+  assert.equal(content.details.Shop, shops[0].name);
+  assert.equal(content.details.Destination, new URL(shops[0].pageUrl).host);
+  assert.equal(content.details.Guests, 12);
+  assert.match(content.sentence, /Your name and contact details stay here/);
   assert.match(content.exact, /expectedVersion/);
   assert.doesNotMatch(JSON.stringify(content), /person@example|sk-private/);
 });
@@ -169,7 +169,7 @@ for (const answer of ["confirm", "decline", "escape"]) test(`only confirm approv
 
 test("invalid navigation opens no dialog, and mixed action bundles run nothing", async () => {
   await assert.rejects(AssistantMount.review([proposal({ expectedVersion: 0 })]), /条件が変わりました/);
-  await assert.rejects(AssistantMount.review([proposal(), { action: "set_reservation_conditions", origin: BASE, arguments: valid }]), /分けて確認/);
+  await assert.rejects(AssistantMount.review([proposal(), { action: "set_reservation_conditions", origin: BASE, arguments: valid }]), /separately from other actions/);
   assert.equal(document.body.children.length, 0);
 });
 
@@ -184,7 +184,7 @@ test("denying a partner makes no contact before or after the consent decision", 
   const ctx = context();
   let contacts = 0;
   ctx.resolveRemote = async () => { contacts += 1; throw new Error("must not contact"); };
-  ctx.requestConsent = async info => { assert.equal(contacts, 0); assert.equal(info.peerLabel, "炉端 灯"); return "decline"; };
+  ctx.requestConsent = async info => { assert.equal(contacts, 0); assert.equal(info.peerLabel, shops[0].name); return "decline"; };
   const result = await call(ctx, shops[0].networkTool, { request: "2026-12-18 19:00、12名、コース希望。" });
   assert.match(result, /^The user declined/);
   assert.equal(contacts, 0);

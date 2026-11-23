@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="街のお知らせ、イベント、公共施設、お店の紹介まで。公開された資料や登録情報をもとに、地域の情報をご案内します。">
-  <title>街の案内｜地域の情報とお店紹介</title>
+  <meta name="description" content="Explore independent shops and find local events and public facilities using published information.">
+  <title>Gemihub Hybrid | Town Guide</title>
   <link rel="stylesheet" href="./hybrid.css">
   <link rel="stylesheet" href="./assistant.css">
   <link rel="stylesheet" href="./voice-chat.css">
@@ -15,63 +15,61 @@
   <script type="module" src="./site.js"></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">本文へ</a>
+  <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">灯</span><span>街の案内<span class="brand-sub">地域の情報・イベント・お店紹介</span></span></a>
-    <nav aria-label="ページ内"><a href="#registered-shops">登録店 <span id="shop-count">—</span></a><a href="#assistant">AIに相談</a></nav>
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">灯</span><span>Gemihub Hybrid<span class="brand-sub">Town guide</span></span></a>
+    <nav aria-label="On this page"><a href="#registered-shops">Shops <span id="shop-count">—</span></a><a href="#assistant">Ask the guide</a></nav>
   </header>
-  <header id="shop-view-header" class="shop-view-header" hidden><button id="shop-close" type="button">← 案内ページに戻る</button><span id="shop-name"></span></header>
+  <header id="shop-view-header" class="shop-view-header" hidden><button id="shop-close" type="button">← Back to the guide</button><span id="shop-name"></span></header>
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <p class="eyebrow">街のこと、お出かけのこと、日々の暮らしのこと。</p>
-      <h1 id="hero-title">この街のことを、<br>気軽に聞いてみよう。</h1>
-      <p class="hero-description">イベントや施設の利用案内、地域のお知らせ。<br>公開資料や登録情報をもとに、お店の紹介もお手伝いします。</p>
-      <ol class="steps"><li><span>01</span> 知りたいことを聞く</li><li><span>02</span> 資料や登録情報を確認</li><li><span>03</span> 街の情報をご案内</li><li><span>04</span> 詳細やお店のページへ</li></ol>
+      <h1 id="hero-title">Get to know<br>the neighborhood.</h1>
+      <p class="hero-description">Explore independent shops and ask about local events, public facilities, and neighborhood notices.</p>
     </section>
     <section id="assistant" class="assistant panel" aria-labelledby="assistant-heading">
-      <div class="section-heading"><span class="eyebrow">YOUR ASSISTANT</span><h2 id="assistant-heading">街のことを相談する</h2></div>
-      <p>「今度のイベントは？」「図書館は何時まで？」など、街について知りたいことを聞いてください。運営が公開した資料をもとにご案内します。お店の紹介や飲食店の予約相談もできます。</p>
-      <p class="assistant-note">簡単な質問は端末内、複雑な相談はクラウドで処理します。<button id="ai-settings-open" class="text-button" type="button" disabled>AIの設定</button></p>
-      <p id="assistant-status" role="status">AIを準備しています。読み込めない場合も、登録店のリンクは使えます。</p>
+      <div class="section-heading"><h2 id="assistant-heading">Ask the town guide</h2></div>
+      <p>Ask when a shop opens, compare restaurants, or find out how to make a reservation.</p>
+      <p class="assistant-note">Simple questions can run on your device. More complex questions use the cloud. <button id="ai-settings-open" class="text-button" type="button" disabled>AI settings</button></p>
+      <p id="assistant-status" role="status">Preparing the assistant…</p>
       <div id="shop-error" class="shop-error" role="alert" hidden>
         <p id="shop-error-text"></p>
-        <a href="#registered-shops">登録店の一覧を見る</a>
+        <a href="#registered-shops">Browse shops</a>
       </div>
       <div id="assistant-layout" class="assistant-layout" data-page="closed" data-view="chat">
       <div id="agent-app">
         <div data-ns-slot="header"></div>
         <div class="assistant-panels"><div data-ns-slot="chat"></div><div data-ns-slot="agents"></div></div>
         <dialog id="ai-setup-dialog" class="ai-setup" aria-labelledby="ai-setup-heading" aria-describedby="ai-setup-description">
-          <h2 id="ai-setup-heading">AIの設定</h2>
-          <p id="ai-setup-description">Firebase AI Logicを使い、端末内AIとクラウドを切り替えます。APIキーの入力は不要です。</p>
-          <label for="ai-provider">プロバイダー<select id="ai-provider"></select></label>
+          <h2 id="ai-setup-heading">AI settings</h2>
+          <p id="ai-setup-description">Prepare on-device AI and see where your answers are generated.</p>
+          <label for="ai-provider">Provider<select id="ai-provider"></select></label>
           <p class="ai-key-link"><a id="ai-key-link" target="_blank" rel="noopener noreferrer"></a></p>
           <div data-ns-slot="settings"></div>
-          <button id="ai-setup-close" class="text-button" type="button">閉じる</button>
+          <button id="ai-setup-close" class="text-button" type="button">Close</button>
         </dialog>
       </div>
-      <aside id="shop-page-panel" class="shop-page-panel" aria-label="店舗ページ" hidden>
+      <aside id="shop-page-panel" class="shop-page-panel" aria-label="Shop page" hidden>
         <p id="shop-page-status" role="status"></p>
-        <p class="shop-page-links"><a id="shop-page-newtab" target="_blank" rel="noopener noreferrer">別タブで開く ↗</a> <small>別タブでは移動先のAI設定を利用します。</small></p>
+        <p class="shop-page-links"><a id="shop-page-newtab" target="_blank" rel="noopener noreferrer">Open in a new tab ↗</a></p>
         <iframe id="shop-page-frame" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
       </aside>
       </div>
     </section>
     <section id="registered-shops" aria-labelledby="shops-heading">
-      <div class="section-heading"><span class="eyebrow">OUR NEIGHBOURS</span><h2 id="shops-heading">登録されているお店</h2></div>
-      <p class="muted">雑貨店などの店舗紹介と、予約に対応したお店を掲載しています。お店のAIへの問い合わせは、対象を確認してから行います。</p>
-      <div class="shop-directory-tools"><label for="shop-genre">ジャンルで絞り込む<select id="shop-genre"><option value="">すべてのジャンル</option></select></label><p id="shop-visible-count" role="status"></p></div>
+      <div class="section-heading"><h2 id="shops-heading">Local shops</h2></div>
+      <p class="muted">Visit a shop’s page to see its details or make a reservation.</p>
+      <div class="shop-directory-tools"><label for="shop-genre">Filter by category<select id="shop-genre"><option value="">All categories</option></select></label><p id="shop-visible-count" role="status"></p></div>
       <section id="shop-directory-map" class="shop-directory-map" aria-labelledby="shop-map-heading">
-        <h3 id="shop-map-heading">地図でお店を確認</h3>
-        <label for="shop-map-select">地図に表示するお店<select id="shop-map-select"><option value="">お店を選んでください</option></select></label>
-        <p id="shop-map-status" class="muted" role="status">お店を選ぶと地図を表示します。</p>
-        <iframe id="shop-map-frame" title="選んだお店の地図" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen hidden></iframe>
-        <a id="shop-map-open" target="_blank" rel="noopener noreferrer" hidden>Googleマップで開く ↗</a>
+        <h3 id="shop-map-heading">Find shops on the map</h3>
+        <label for="shop-map-select">Shop<select id="shop-map-select"><option value="">Select a shop</option></select></label>
+        <p id="shop-map-status" class="muted" role="status">Select a shop to see it on the map.</p>
+        <iframe id="shop-map-frame" title="Map of the selected shop" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen hidden></iframe>
+        <a id="shop-map-open" target="_blank" rel="noopener noreferrer" hidden>Open in Google Maps ↗</a>
       </section>
       <div id="shop-list" class="card-grid"></div>
     </section>
   </main>
-  <footer><p>簡単な質問は端末内で処理できます。端末内AIが利用できない場合や複雑な相談は、Firebase経由でクラウドに送ります。お店のエージェントへ問い合わせる場合は、対象と内容を確認します。</p><p>在庫・価格・空席は確認時点の情報です。予約や購入の手続きは店舗サイトで行います。</p></footer>
-  <noscript>このサイトのAIにはJavaScriptが必要です。</noscript>
+  <footer><p>The guide asks before contacting shops. Confirm current prices and availability with the shop before booking.</p></footer>
+  <noscript>JavaScript is required to use the assistant.</noscript>
 </body>
 </html>

@@ -2,29 +2,29 @@
   "akari": {
     "hours": "17:00 – 23:30",
     "products": [
-      "冬の炉端コース",
-      "海鮮炉端コース",
-      "えびの串焼き",
-      "焼きおにぎり",
-      "燗酒（一合）"
+      "Winter robata course",
+      "Seafood robata course",
+      "Grilled shrimp skewers",
+      "Grilled rice ball",
+      "Warm sake (180 ml)"
     ]
   },
   "trattoria-sole": {
     "hours": "18:00 – 23:30",
     "products": [
-      "パーティープラン",
-      "グルテン控えめプラン",
-      "マルゲリータ",
-      "海鮮サラダ",
-      "ハウスワイン（グラス）"
+      "Party menu",
+      "Gluten-light menu",
+      "Margherita pizza",
+      "Seafood salad",
+      "House wine (glass)"
     ]
   },
   "kanton-ryu": {
     "hours": "17:30 – 23:00",
     "products": [
-      "円卓宴会",
-      "ベジ円卓",
-      "麻婆豆腐"
+      "Round-table banquet",
+      "Vegetable banquet",
+      "Mapo tofu"
     ]
   }
 }

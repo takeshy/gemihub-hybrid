@@ -9,7 +9,7 @@ export function localeForRequest(req: IncomingMessage): Locale {
   try { query = parseLocale(new URL(req.url || "/", "http://localhost").searchParams.get("lang")); } catch { /* The request handler reports malformed URLs. */ }
   const header = parseLocale(req.headers["x-gemihub-language"]);
   const cookie = parseLocale(req.headers.cookie?.match(/(?:^|;\s*)gemihub_locale=([^;]*)/)?.[1]);
-  return query || header || cookie || browserLocale(req.headers["accept-language"]);
+  return query || header || cookie || parseLocale(process.env.GEMIHUB_DEFAULT_LOCALE) || browserLocale(req.headers["accept-language"]);
 }
 /** First visit: a browser that prefers Japanese gets Japanese, any other stated language English. */
 export function browserLocale(acceptLanguage: string | undefined): Locale {

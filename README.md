@@ -23,12 +23,11 @@ through Remote Config. Local eligible tasks use Gemini Nano in supported Chrome.
 
 **gemihub** is a non-homogenizing local town portal where independent shops can build and run their own bespoke websites simply by talking to AI, and a town-guide AI coordinates across every shop's AI and local community documents to recommend places and itineraries via text, voice, and multiple languages.
 
-> **Existing work and isolation:** This project starts from
-> [takeshy/gemihub-agent](https://github.com/takeshy/gemihub-agent), commit
-> `3a2bd474111c9951c6fc27adb7c84b714cfdef6c`. The sections below describe the
-> inherited application. The competition-period work is the new hybrid layer,
-> integration and diagnostics. There is no return merge to upstream. The demo
-> co-hosts in its own container, preserving the original app containers and data.
+> **What we added to Gemihub:** Gemihub Hybrid extends Gemihub's conversational
+> storefront builder with a town guide and visitor-facing shop assistants that
+> use Firebase AI Logic. During #BuildHybridAI 2026 we built the hybrid inference
+> layer, connected it to both assistants, and added inference badges and diagnostics.
+> The public site runs in its own container with fictional shops.
 > Inherited `infra/dev/` and `apps/shop/infra/` deployment
 > examples target upstream resources and must not be run for this clone.
 
@@ -41,7 +40,8 @@ npm run build:shop
 npm run dev:hybrid
 ```
 
-Open `http://localhost:8088/`. The three restaurants are fictional sample shops;
+Open `http://localhost:8088/`. The town guide and storefronts open in English.
+The three restaurants are fictional sample shops;
 demo reservations are held in memory and reset when the demo container restarts.
 No real mail, payment account or upstream reservation data is used.
 

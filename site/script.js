@@ -55,20 +55,20 @@ export class App {
     card.dataset.shopId = shop.id;
     card.append(node("span", `${shop.area} / ${shop.cuisine}`, "eyebrow"), node("h3", shop.name));
     if (shop.description) card.append(node("p", shop.description));
-    card.append(node("p", `${hasAgent(shop) ? "お店のAIに問い合わせできます" : "詳しくは店舗サイトをご覧ください"}${canCheckReservations(shop) ? " · 予約ページあり" : ""}`, "muted"));
+    card.append(node("p", `${hasAgent(shop) ? "Ask the shop’s assistant" : "Visit the shop’s website for details"}${canCheckReservations(shop) ? " · Reservations available" : ""}`, "muted"));
     const actions = node("div", undefined, "candidate-actions");
     if (hasAgent(shop)) {
-      const open = node("button", "お店を開く", "candidate-chat");
+      const open = node("button", "Open shop", "candidate-chat");
       open.type = "button";
       open.addEventListener("click", () => App.shopFrame?.open(shop.id, { target: "shop" }));
       actions.append(open);
     } else {
-      const link = node("a", "店舗サイトを開く ↗", "candidate-chat");
+      const link = node("a", "Open shop website ↗", "candidate-chat");
       link.href = shopPageUrl(shop); link.target = "_blank"; link.rel = "noopener noreferrer";
       actions.append(link);
     }
     if (canCheckReservations(shop)) {
-      const reserve = node("button", "予約ページへ", "candidate-button");
+      const reserve = node("button", "Open booking page", "candidate-button");
       reserve.type = "button";
       reserve.addEventListener("click", () => App.shopFrame?.open(shop.id, { target: "reserve" }));
       actions.append(reserve);
@@ -84,7 +84,7 @@ export class App {
     if (!messages || messages.querySelector(`.finder-introductions[data-introduction="${state.introductionVersion}"]`)) return;
     const result = node("div", undefined, "ns-msg bot finder-introductions");
     result.dataset.introduction = String(state.introductionVersion);
-    result.setAttribute("role", "group"); result.setAttribute("aria-label", "お店の紹介");
+    result.setAttribute("role", "group"); result.setAttribute("aria-label", "Suggested shops");
     const list = node("div", undefined, "finder-candidate-list");
     for (const id of state.introductions) list.append(App.introductionCard(App.page.shops.find(shop => shop.id === id)));
     result.append(list); messages.append(result); messages.scrollTop = messages.scrollHeight;
@@ -99,7 +99,7 @@ export class App {
         current = message;
       } else {
         message.dataset.current = "false";
-        message.querySelector(".finder-results-status").textContent = "条件が変わりました。最新の条件で確認してください。";
+        message.querySelector(".finder-results-status").textContent = "The search details changed. Check availability again.";
         for (const button of message.querySelectorAll("button")) button.disabled = true;
       }
     }
@@ -110,16 +110,16 @@ export class App {
       current = node("div", undefined, "ns-msg bot finder-results");
       current.dataset.version = String(state.version);
       current.setAttribute("role", "group");
-      current.setAttribute("aria-label", "お店からの回答");
+      current.setAttribute("aria-label", "Replies from shops");
       messages.append(current);
     }
     current.dataset.current = "true";
-    const heading = node("p", `${state.conditions.date} ${state.conditions.time} / ${state.conditions.partySize}名 · ${state.candidates.length}店の回答`, "finder-results-heading");
+    const heading = node("p", `${state.conditions.date} ${state.conditions.time} / Guests: ${state.conditions.partySize} · Shop replies: ${state.candidates.length}`, "finder-results-heading");
     const list = node("div", undefined, "finder-candidate-list");
     const status = node("p", "", "finder-results-status");
     status.setAttribute("role", "status");
     current.replaceChildren(heading, list, status);
-    const labels = { available: "空きあり", full: "満席", unknown: "確認できず", declined: "予約不可" };
+    const labels = { available: "Available", full: "Fully booked", unknown: "Unconfirmed", declined: "Unavailable" };
     for (const candidate of state.candidates) {
       const shop = shops.find(item => item.id === candidate.shopId);
       const card = node("article", undefined, "candidate-card");
@@ -127,32 +127,32 @@ export class App {
       if (candidate.status === "available") {
         const details = node("dl");
         const line = (label, value) => { if (value !== undefined) details.append(node("dt", label), node("dd", value)); };
-        line("残りの席", candidate.remaining === undefined ? undefined : `${candidate.remaining}席`);
-        line("利用時間", candidate.durationMinutes === undefined ? undefined : `${candidate.durationMinutes}分`);
-        line("席のみ", candidate.seatOnly === undefined ? undefined : candidate.seatOnly ? "予約できます" : "コース予約のみ");
-        if (state.conditions.course !== "none") { line("コース", candidate.courseName); line("1人あたり・合計見込み", candidate.priceText); }
+        line("Seats left", candidate.remaining);
+        line("Duration", candidate.durationMinutes === undefined ? undefined : `${candidate.durationMinutes} min`);
+        line("Table only", candidate.seatOnly === undefined ? undefined : candidate.seatOnly ? "Available" : "Course required");
+        if (state.conditions.course !== "none") { line("Course", candidate.courseName); line("Estimated price", candidate.priceText); }
         card.append(details);
-        if (candidate.avoidResult) card.append(node("p", `食材の確認：${candidate.avoidResult}`, "allergen-note"));
+        if (candidate.avoidResult) card.append(node("p", `Ingredient check: ${candidate.avoidResult}`, "allergen-note"));
       }
-      const chat = node("button", "お店を開く", "candidate-chat");
+      const chat = node("button", "Open shop", "candidate-chat");
       chat.type = "button";
       chat.addEventListener("click", () => {
         const result = App.shopFrame?.open(shop.id, { target: "shop" });
-        if (!result) status.textContent = "AIの準備ができてから、もう一度お試しください。";
+        if (!result) status.textContent = "Please wait for the assistant to finish loading.";
         else if (!result.ok) status.textContent = result.reason;
       });
       const actions = node("div", undefined, "candidate-actions");
       actions.append(chat);
       card.append(actions);
       if (!state.valid || !canCheckReservations(shop) || candidate.status !== "available") { list.append(card); continue; }
-      const button = node("button", "予約ページへ", "candidate-button");
+      const button = node("button", "Open booking page", "candidate-button");
       button.type = "button";
       button.addEventListener("click", () => {
         const result = App.shopFrame?.open(shop.id, {
           target: "reserve",
           ...(state.conditions.course !== "none" && candidate.courseId ? { courseId: candidate.courseId } : {}),
         });
-        if (!result?.ok) status.textContent = result?.reason || "準備ができていません。";
+        if (!result?.ok) status.textContent = result?.reason || "The booking page is not ready.";
       });
       actions.append(button);
       list.append(card);
@@ -185,7 +185,7 @@ export class App {
       cards.set(shop.id, card);
       card.append(node("span", `${shop.area} / ${shop.cuisine}`, "eyebrow"), node("h3", shop.name));
       if (shop.description) card.append(node("p", shop.description));
-      const chat = node("button", "お店を開く", "candidate-chat");
+      const chat = node("button", "Open shop", "candidate-chat");
       chat.type = "button";
       chat.addEventListener("click", () => {
         if (!App.shopFrame) return;
@@ -193,13 +193,13 @@ export class App {
       });
       if (hasAgent(shop)) card.append(chat);
       else {
-        const link = node("a", "店舗サイトを開く ↗", "candidate-chat");
+        const link = node("a", "Open shop website ↗", "candidate-chat");
         link.href = shopPageUrl(shop); link.target = "_blank"; link.rel = "noopener noreferrer";
         card.append(link);
       }
-      const details = node("details"); details.append(node("summary", "公開URLを確認"));
-      for (const [label, url] of [["店舗ページ", shopPageUrl(shop)], ...(canCheckReservations(shop) ? [["予約ページ", reservationPageUrl(shop)]] : []), ...(hasAgent(shop) ? [["エージェント", shop.networkUrl]] : [])]) {
-        const a = node("a", `${label}：${url}`); a.href = url; a.rel = "noreferrer"; details.append(a);
+      const details = node("details"); details.append(node("summary", "Public links"));
+      for (const [label, url] of [["Shop website", shopPageUrl(shop)], ...(canCheckReservations(shop) ? [["Booking page", reservationPageUrl(shop)]] : []), ...(hasAgent(shop) ? [["Agent", shop.networkUrl]] : [])]) {
+        const a = node("a", `${label}: ${url}`); a.href = url; a.rel = "noreferrer"; details.append(a);
       }
       card.append(details); list.append(card);
     }

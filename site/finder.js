@@ -1,9 +1,9 @@
 // Page-owned business rules. Shared by manual controls and website_* actions.
 import { canCheckReservations, reservationPageUrl, shopPageUrl } from "./shop-data.js";
-export const COURSE_LABELS = { none: "席のみ", wanted: "コース希望", any: "どちらでも" };
+export const COURSE_LABELS = { none: "Table only", wanted: "Course requested", any: "Either" };
 export const ALLERGENS = {
-  shrimp: "えび", crab: "かに", walnut: "くるみ", wheat: "小麦",
-  buckwheat: "そば", egg: "卵", milk: "乳", peanut: "落花生",
+  shrimp: "shrimp", crab: "crab", walnut: "walnut", wheat: "wheat",
+  buckwheat: "buckwheat", egg: "egg", milk: "milk", peanut: "peanut",
 };
 export const allergenLabel = word => Object.hasOwn(ALLERGENS, word) ? ALLERGENS[word] : word;
 const aliases = { えび: "shrimp", エビ: "shrimp", 海老: "shrimp", かに: "crab", カニ: "crab", くるみ: "walnut", 小麦: "wheat", そば: "buckwheat", 卵: "egg", 乳: "milk", 牛乳: "milk", 落花生: "peanut", ピーナッツ: "peanut" };

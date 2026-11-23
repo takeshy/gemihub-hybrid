@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { parseLocale } from "../shared/i18n.ts";
 import { dateIn, zonedDate } from "../shared/region.ts";
 import { halfHours } from "../shared/seating.ts";
 import { ownerStaffId, seatOnlyMenuId, shopSchema, type Booking, type ShopConfig } from "../server/domain.ts";
@@ -16,7 +17,43 @@ const course = (id: string, name: string, price: number, people: [number, number
 const dish = (id: string, name: string, price: number, ingredients: string[], allergens: Menu["allergens"] = [], kind: "dish" | "drink" = "dish"): Menu =>
   ({ id, name, kind, duration: 30, price, active: true, ingredients, allergens });
 
-export function restaurantDemoShops(banquetDate: string): { slug: string; owner: string; config: ShopConfig }[] {
+const englishShopCopy: Record<string, Pick<ShopConfig, "name" | "description" | "address"> & {
+  menus: Record<string, Pick<Menu, "name" | "ingredients" | "allergenNote">>;
+}> = {
+  akari: {
+    name: "Robata Akari", description: "Charcoal-grilled fish and vegetables at the counter or in a raised seating area. Tables for two and space for larger groups.",
+    address: "Shinjuku, Tokyo (fictional restaurant)",
+    menus: {
+      "winter-robata": { name: "Winter robata course", ingredients: ["Chicken thigh", "Japanese leek", "Atka mackerel", "Daikon", "Rice", "Soy sauce"], allergenNote: "The same kitchen handles shrimp." },
+      "seafood-robata": { name: "Seafood robata course", ingredients: ["Shrimp", "Scallops", "Squid", "Clams", "Rice", "Soy sauce"] },
+      "ebi-kushi": { name: "Grilled shrimp skewers", ingredients: ["Shrimp", "Salt"] },
+      "yaki-onigiri": { name: "Grilled rice ball", ingredients: ["Rice", "Soy sauce"] },
+      "hot-sake": { name: "Warm sake (180 ml)", ingredients: ["Sake"] },
+    },
+  },
+  "trattoria-sole": {
+    name: "Trattoria Sole", description: "Wood-fired pizza and handmade pasta. Private parties are welcome.",
+    address: "Shibuya, Tokyo (fictional restaurant)",
+    menus: {
+      "party-plan": { name: "Party menu", ingredients: ["Pasta", "Tomato", "Mozzarella", "Prosciutto", "Basil"] },
+      "gluten-light": { name: "Gluten-light menu", ingredients: ["Risotto", "Beef", "Seasonal vegetables", "Parmigiano"], allergenNote: "Prepared in a kitchen that handles wheat." },
+      margherita: { name: "Margherita pizza", ingredients: ["Wheat flour", "Tomato", "Mozzarella", "Basil"] },
+      "seafood-salad": { name: "Seafood salad", ingredients: ["Shrimp", "Squid", "Lettuce", "Olive oil"] },
+      "house-wine": { name: "House wine (glass)", ingredients: ["Grapes"] },
+    },
+  },
+  "kanton-ryu": {
+    name: "Canton Ryu", description: "Cantonese cooking served around round tables. Course reservations start at four guests.",
+    address: "Yokohama, Kanagawa (fictional restaurant)",
+    menus: {
+      "round-table": { name: "Round-table banquet", ingredients: ["Chili shrimp", "Soup dumplings", "Peking duck", "Stir-fried greens", "Fried rice"] },
+      "veggie-table": { name: "Vegetable banquet", ingredients: ["Tofu", "Greens", "Mushrooms", "Glass noodles"], allergenNote: "The same kitchen handles shrimp and crab." },
+      "mapo-tofu": { name: "Mapo tofu", ingredients: ["Tofu", "Ground pork", "Chili bean paste"] },
+    },
+  },
+};
+
+export function restaurantDemoShops(banquetDate: string, locale = parseLocale(process.env.GEMIHUB_DEFAULT_LOCALE) || "ja"): { slug: string; owner: string; config: ShopConfig }[] {
   const base = {
     address: "",
     notificationEmail: "owner@example.com",
@@ -76,7 +113,20 @@ export function restaurantDemoShops(banquetDate: string): { slug: string; owner:
       },
     },
   ];
-  return shops.map(shop => ({ ...shop, config: shopSchema.parse(shop.config) }));
+  return shops.map(shop => {
+    const copy = locale === "en" ? englishShopCopy[shop.slug] : undefined;
+    if (!copy) return { ...shop, config: shopSchema.parse(shop.config) };
+    const { menus, ...text } = copy;
+    const config = {
+      ...shop.config,
+      ...text,
+      menus: shop.config.menus.map(menu => ({ ...menu, ...menus[menu.id] })),
+      seating: { ...shop.config.seating, overrides: shop.config.seating.overrides.map(override => ({
+        ...override, note: "Four counter seats are reserved for walk-in guests.",
+      })) },
+    };
+    return { ...shop, config: shopSchema.parse(config) };
+  });
 }
 
 /** The next Friday after `today` (never today itself), as YYYY-MM-DD. */
