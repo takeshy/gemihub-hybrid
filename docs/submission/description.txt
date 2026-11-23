@@ -33,8 +33,8 @@ want in a conversation with AI.
 Gemihub Hybrid adds a visitor-facing AI assistant to each shop's website. It
 introduces the shop, answers questions using the shop's published information,
 and helps visitors make reservations. The town guide brings these shops together
-so visitors can discover and compare them. In the public demo, visitors can try
-the reservation flow at fictional restaurants.
+so visitors can discover and compare them. The restaurants on the public site
+are fictional.
 
 How we built it
 
@@ -56,15 +56,14 @@ while Nano was getting ready.
 
 A single reservation can take several model calls. We hit our first cloud
 model's daily request limit during testing, so we switched to Flash-Lite
-through Remote Config and verified a complete reservation in the public demo.
+through Remote Config and verified the full reservation flow.
 
 Accomplishments that we're proud of
 
 Shopkeepers can build their sites by talking with AI, without writing any code.
 Those sites now work together through one town guide. Visitors can discover and
 compare shops, then make a reservation with the AI assistant for the shop they
-choose. We verified shop comparisons and completed a reservation in the public
-demo.
+choose.
 
-Demo: https://hybrid.gemihub.net
+Live site: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
