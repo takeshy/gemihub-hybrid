@@ -121,7 +121,7 @@ export class App {
     current.replaceChildren(heading, list, status);
     const labels = { available: "Available", full: "Fully booked", unknown: "Unconfirmed", declined: "Unavailable" };
     for (const candidate of state.candidates) {
-      const shop = shops.find(item => item.id === candidate.shopId);
+      const shop = App.page.shops.find(item => item.id === candidate.shopId);
       const card = node("article", undefined, "candidate-card");
       card.append(node("span", labels[candidate.status], `status-badge status-${candidate.status}`), node("h3", shop.name), node("p", candidate.summary));
       if (candidate.status === "available") {
@@ -177,8 +177,21 @@ export class App {
 
   static start() {
     App.restoreDraft();
+    App.renderDirectory();
+    App.render("init");
+  }
+
+  static addSampleShop(shop) {
+    if (App.page.shops.some(item => item.id === shop.id)) return;
+    App.page.shops.push(shop);
+    App.renderDirectory();
+  }
+
+  static renderDirectory() {
+    const shops = App.page.shops;
     document.getElementById("shop-count").textContent = String(shops.length);
     const list = document.getElementById("shop-list");
+    list.replaceChildren();
     const cards = new Map();
     for (const shop of shops) {
       const card = node("article", undefined, "shop-card");
@@ -204,7 +217,6 @@ export class App {
       card.append(details); list.append(card);
     }
     mountShopDirectory({ shops, cards });
-    App.render("init");
   }
 }
 

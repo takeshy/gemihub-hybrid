@@ -10,6 +10,7 @@ import { aiConnection, mountAiConnection, installHybridEngine, readPublishedFact
 import { GuideVoice } from "./voice-chat.js";
 import { GUIDE_GREETING, guideGreeting } from "./guide-copy.js";
 import { mountDocumentPreview } from "./chat-documents.js";
+import { sampleShopSession, mountSampleShop } from "./sample-shop.js";
 
 /**
  * Boots the browser runtime in the page's assistant section.
@@ -99,7 +100,11 @@ export class AssistantMount {
         () => [...document.querySelectorAll("#ns-msgs .ns-msg.user")].at(-1)?.textContent || "");
       installInquiryPolicy(booted.engine, App.inquiries);
       const engine = booted.engine;
-      const publishedFacts = await readPublishedFacts(new URL("./shop-public-facts.json", siteBase).href) || {};
+      const [facts, sampleSession] = await Promise.all([
+        readPublishedFacts(new URL("./shop-public-facts.json", siteBase).href), sampleShopSession(),
+      ]);
+      const publishedFacts = facts || {};
+      if (sampleSession?.shop) App.addSampleShop(sampleSession.shop);
       installHybridEngine(engine, connection, { getShops: () => App.page.shops.map(shop => ({ ...shop, ...publishedFacts[shop.id] })) });
       const model = () => engine.modelOverride || engine.top.network.config.llm_config.model_name;
       App.shopFrame = new ShopFrame({
@@ -110,6 +115,7 @@ export class AssistantMount {
       AssistantMount.greet();
       App.mountChat();
       mountAiConnection(booted.engine, connection);
+      mountSampleShop(connection.hybrid, sampleSession, App.addSampleShop);
       // Last, so a shop named in the address opens once the AI setup is known.
       App.shopFrame.mount();
       App.voice = new GuideVoice({ engine, shopFrame: App.shopFrame, shops: App.page.shops, config: connection?.config });

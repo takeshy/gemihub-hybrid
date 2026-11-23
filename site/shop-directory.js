@@ -29,5 +29,5 @@ export function mountShopDirectory({shops,cards}) {
   count.textContent=`${visible.length} ${visible.length === 1 ? "shop" : "shops"}`;select.replaceChildren(option('','Select a shop'),...visible.map(s=>option(s.id,s.name)));select.disabled=!visible.length;
   const keep=visible.find(s=>s.id===previous),first=visible.find(s=>shopMapQuery(s));showMap(keep?.id||first?.id||'');
  }
- genre.addEventListener('change',filter);select.addEventListener('change',()=>showMap(select.value));filter();
+ genre.onchange=filter;select.onchange=()=>showMap(select.value);filter();
 }

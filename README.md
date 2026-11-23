@@ -50,6 +50,10 @@ answer badge reports the SDK's actual inference source. Simple published-shop
 questions use a single prompt; comparisons, tools and follow-up conversations
 use the cloud. The first request during model preparation also uses the cloud.
 
+Under **Local shops**, select **Create a sample shop** to describe a fictional
+shop, review the draft, and add it to your guide. The shop is available in that
+browser for two hours. You can open its storefront or ask the guide about its hours.
+
 New runtime code: [`hybrid/`](hybrid/), with regression tests in
 [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs). The standalone deployment is in
 [`infra/hybrid/`](infra/hybrid/). Shared third-party runtime files stay unchanged.

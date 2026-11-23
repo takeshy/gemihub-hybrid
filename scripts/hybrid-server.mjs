@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
+import { createSampleShops } from "./sample-shops.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const site = resolve(root, "site");
 const deployedOrigin = "https://gemihub-hybrid-2026.web.app";
@@ -27,6 +28,7 @@ const { seedRestaurantDemo } = await import("../apps/shop/scripts/seed-restauran
 const { allowDemoShoppers } = await import("../apps/shop/server/auth.ts");
 const store = new Store(":memory:");
 await seedRestaurantDemo(store); allowDemoShoppers();
+const sampleShops = createSampleShops(store, publicOrigin);
 const backend = createApp(store);
 await new Promise(resolve => backend.listen(0, "127.0.0.1", resolve));
 const backendPort = backend.address().port;
@@ -36,10 +38,18 @@ const server = createServer(async (req, res) => {
   try {
     const path = new URL(req.url, publicOrigin).pathname;
     if (path === "/healthz") { res.end("ok"); return; }
+    const sampleAccess = await sampleShops.route(req, res, path);
+    if (sampleAccess === "handled") return;
     if (/^\/s\/|^\/api\/public\/|^\/api\/ai\/(?:config|session)$|^\/assets\//.test(path)) {
       const proxy = request({ hostname: "127.0.0.1", port: backendPort, path: req.url, method: req.method,
         headers: { ...req.headers, host: new URL(publicOrigin).host } }, response => {
-        res.writeHead(response.statusCode, response.headers); response.pipe(res);
+        const headers = response.headers;
+        if (sampleAccess === "private") {
+          headers["cache-control"] = "private, no-store";
+          headers.vary = [headers.vary, "Cookie"].filter(Boolean).join(", ");
+          delete headers["access-control-allow-origin"];
+        }
+        res.writeHead(response.statusCode, headers); response.pipe(res);
       });
       proxy.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end("Demo backend unavailable"); });
       res.once("close", () => proxy.destroy()); req.pipe(proxy); return;

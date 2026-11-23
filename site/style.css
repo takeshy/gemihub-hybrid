@@ -70,6 +70,23 @@ button:disabled {
   cursor:not-allowed;
   opacity:.6;
 }
+.sample-shop-panel {
+  padding:12px 16px;
+  margin:16px 0;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+}
+.sample-shop-panel p { margin:0 0 8px; }
+.sample-shop-panel a { margin-right:16px; }
+.sample-shop-dialog form > label, .sample-shop-dialog fieldset label { display:block; }
+.sample-shop-dialog input, .sample-shop-dialog textarea {
+  display:block;
+  width:100%;
+  margin:4px 0 10px;
+}
+.sample-shop-dialog fieldset { margin-top:12px; border:1px solid var(--line); }
+.sample-shop-hours { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; }
 .skip-link {
   position:absolute;
   left:16px;
