@@ -53,7 +53,7 @@ const englishShopCopy: Record<string, Pick<ShopConfig, "name" | "description" | 
   },
 };
 
-export function restaurantDemoShops(banquetDate: string, locale = parseLocale(process.env.GEMIHUB_DEFAULT_LOCALE) || "ja"): { slug: string; owner: string; config: ShopConfig }[] {
+export function restaurantDemoShops(banquetDate: string, locale = parseLocale(process.env.GEMIHUB_DEFAULT_LOCALE) || "ja", address?: string): { slug: string; owner: string; config: ShopConfig }[] {
   const base = {
     address: "",
     notificationEmail: "owner@example.com",
@@ -115,11 +115,12 @@ export function restaurantDemoShops(banquetDate: string, locale = parseLocale(pr
   ];
   return shops.map(shop => {
     const copy = locale === "en" ? englishShopCopy[shop.slug] : undefined;
-    if (!copy) return { ...shop, config: shopSchema.parse(shop.config) };
+    if (!copy) return { ...shop, config: shopSchema.parse({ ...shop.config, address: address ?? shop.config.address }) };
     const { menus, ...text } = copy;
     const config = {
       ...shop.config,
       ...text,
+      address: address ?? text.address,
       menus: shop.config.menus.map(menu => ({ ...menu, ...menus[menu.id] })),
       seating: { ...shop.config.seating, overrides: shop.config.seating.overrides.map(override => ({
         ...override, note: "Four counter seats are reserved for walk-in guests.",
@@ -136,12 +137,12 @@ export function nextFriday(today: string) {
   return new Date(day.getTime() + ahead * 86400000).toISOString().slice(0, 10);
 }
 
-export async function seedRestaurantDemo(store: Store, now = new Date(), banquet = process.env.SEED_BANQUET_DATE) {
+export async function seedRestaurantDemo(store: Store, now = new Date(), banquet = process.env.SEED_BANQUET_DATE, address?: string) {
   const today = dateIn(now, "Asia/Tokyo");
   const banquetDate = banquet && /^\d{4}-\d{2}-\d{2}$/.test(banquet) ? banquet : nextFriday(today);
   const existing = await store.list<Shop>("shop");
   const seeded: Shop[] = [];
-  for (const { slug, owner, config } of restaurantDemoShops(banquetDate)) {
+  for (const { slug, owner, config } of restaurantDemoShops(banquetDate, undefined, address)) {
     if (existing.some(shop => shop.slug === slug)) continue;
     const shop: Shop = { id: randomUUID(), owner, slug, published: config, publication: "public", draft: null, revision: 1, history: [{ at: now.toISOString(), summary: "デモ用のお店を用意" }] };
     await store.saveShop(shop);

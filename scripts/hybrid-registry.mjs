@@ -1,12 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import { restaurantDemoShops } from "../apps/shop/scripts/seed-restaurant-demo.ts";
 import { hoursText } from "../apps/shop/server/domain.ts";
+import { address, area } from "./hybrid-neighborhood.mjs";
 const origin = "https://gemihub-hybrid-2026.web.app";
-const rows = restaurantDemoShops("2030-01-01", "en");
-const areas = ["Shinjuku, Tokyo", "Shibuya, Tokyo", "Yokohama, Kanagawa"];
+const rows = restaurantDemoShops("2030-01-01", "en", address);
 const cuisines = ["Japanese robata", "Italian", "Cantonese"];
 const shops = rows.map(({ slug, config }, index) => ({ id: slug, name: config.name,
-  area: areas[index], cuisine: cuisines[index], description: config.description, address: config.address,
+  area, cuisine: cuisines[index], description: config.description, address: config.address,
   pageUrl: `${origin}/s/${slug}/`, reservationEnabled: true, reservationUrl: `${origin}/s/${slug}/reserve`,
   networkUrl: `${origin}/s/${slug}/agent/reservation_concierge` }));
 const facts = Object.fromEntries(rows.map(({ slug, config }) => [slug, {

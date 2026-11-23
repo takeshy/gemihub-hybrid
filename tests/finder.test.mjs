@@ -66,11 +66,11 @@ test("read actions return copies and area filters use the registry", () => {
   const state = page.getState(); state.conditions.avoid.push("secret");
   const list = page.listShops(); list[0].pageUrl = "https://evil.example";
   assert.deepEqual(page.getState().conditions.avoid, ["shrimp"]);
-  assert.equal(page.listShops({ area: "Shinjuku" }).length, 1);
-  assert.equal(page.listShops({ area: "Tokyo" }).length, 2);
-  assert.deepEqual(page.listShops({ cuisine: "Cantonese", area: "Yokohama" }).map(shop => shop.id), ["kanton-ryu"]);
+  assert.equal(page.listShops({ area: "Nakazakicho" }).length, shops.length);
+  assert.equal(page.listShops({ area: "Osaka" }).length, shops.length);
+  assert.deepEqual(page.listShops({ cuisine: "Cantonese", area: "Nakazakicho" }).map(shop => shop.id), ["kanton-ryu"]);
   assert.deepEqual(page.listShops({ cuisine: "Italian" }).map(shop => shop.id), ["trattoria-sole"]);
-  assert.deepEqual(page.listShops({ cuisine: "Japanese", area: "Yokohama" }), []);
+  assert.deepEqual(page.listShops({ cuisine: "Japanese", area: "Tokyo" }), []);
   assert.deepEqual(page.listShops({ area: "存在しない" }), []);
   assert.equal(page.listShops()[0].pageUrl, shops[0].pageUrl);
 });
