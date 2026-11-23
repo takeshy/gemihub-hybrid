@@ -75,10 +75,16 @@ booking.
 
 What's next for Gemihub Hybrid
 
-We plan to bring hybrid inference into Gemihub so shopkeepers can publish a
-site and offer an AI assistant as part of the same workflow. We'd like to try
-it with a few independent shops in one neighborhood, see which questions
-visitors ask, and measure how much cloud usage on-device answers can save.
+Our first priority is to give agents on other websites read-only access to
+the town guide through a public MCP endpoint. A hotel's assistant could ask
+where two vegetarian guests can eat this weekend and what events are
+happening nearby. The town guide would ask shop assistants about menus and
+availability, then combine their replies with local event listings.
+
+We also plan to bring hybrid inference into Gemihub so shopkeepers can publish
+a site and offer an AI assistant as part of the same workflow. We'd like to
+try it with a few independent shops in one neighborhood and measure how much
+cloud usage on-device answers can save.
 
 Live site: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
