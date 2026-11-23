@@ -1,6 +1,32 @@
 Gemihub Hybrid
 Local answers, connected communities.
 
+Inspiration
+
+When I was a student, Nakazakicho in Osaka was a quiet neighborhood of old row
+houses. Affordable rents drew young creatives, and cafés and small shops opened
+in those old homes. Over time, Nakazakicho became a popular neighborhood with a
+culture of its own.
+
+Most of what I see about Nakazakicho online is articles about individual shops.
+I wondered what would happen if shopkeepers could tell their neighborhood's
+story together. Could a website give visitors a sense of what it feels like to
+walk those streets?
+
+With AI, an independent shopkeeper can build a website that feels like their
+own just by having a conversation. A town guide can bring together what each
+shop chooses to publish and help visitors discover things they might miss when
+looking up shops one by one.
+
+If every question about opening hours goes to a cloud model, costs can grow
+with traffic. It's hard for a small shop to budget for traffic it can't predict,
+especially if the service is misused. On supported devices, AI in the visitor's
+browser can answer common questions using what the shop has already published.
+Visitors can find out what they need before they go, without waiting for someone
+at the shop to reply. That's the kind of town guide I wanted to build.
+
+What it does
+
 Gemihub Hybrid connects a local town guide with independent shop assistants.
 Visitors can ask about a shop, compare places, and continue into a reservation
 flow without supplying an AI API key.
