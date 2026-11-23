@@ -73,5 +73,12 @@ reservation needs a current availability check and the visitor's confirmation.
 The app can make that choice as the conversation moves from a question to a
 booking.
 
+What's next for Gemihub Hybrid
+
+We plan to bring hybrid inference into Gemihub so shopkeepers can publish a
+site and offer an AI assistant as part of the same workflow. We'd like to try
+it with a few independent shops in one neighborhood, see which questions
+visitors ask, and measure how much cloud usage on-device answers can save.
+
 Live site: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
