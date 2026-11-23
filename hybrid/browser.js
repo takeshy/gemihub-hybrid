@@ -168,7 +168,7 @@ export function mountHybridControls(engine, connection) {
   const log = document.createElement("ol"); log.className = "hybrid-log"; details.append(summary, log);
   panel.append(steps, prepare, device, requirements, details);
   const close = document.getElementById("ai-setup-close");
-  dialog.insertBefore(panel, close);
+  dialog.insertBefore(panel, close?.parentElement === dialog ? close : null);
   const badge = document.createElement("span"); badge.id = "hybrid-inference-badge";
   badge.className = "hybrid-badge"; badge.setAttribute("role", "status");
   badge.textContent = label("回答待ち", "Awaiting answer");
