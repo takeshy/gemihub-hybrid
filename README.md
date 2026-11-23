@@ -54,7 +54,7 @@ New runtime code: [`hybrid/`](hybrid/), with regression tests in
 [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs). The standalone deployment is in
 [`infra/hybrid/`](infra/hybrid/). Shared third-party runtime files stay unchanged.
 
-Submission materials: [English description](docs/submission/description.txt),
+Submission materials: [English description](docs/submission/description.md),
 [thumbnail](docs/submission/thumbnail.png), and
 [real-browser screenshots](docs/submission/evidence/). The public YouTube video
 and Devpost submission are still outstanding.
