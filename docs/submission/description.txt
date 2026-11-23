@@ -27,33 +27,16 @@ at the shop to reply. That's the kind of town guide I wanted to build.
 
 What it does
 
-Gemihub Hybrid connects a local town guide with independent shop assistants.
-Visitors can ask about a shop, compare places, and continue into a reservation
-flow without supplying an AI API key.
+Gemihub Hybrid helps visitors explore independent shops in one town guide.
+They can ask about opening hours, compare shops, and try booking at a fictional
+restaurant. Existing booking tools handle availability, prices, and confirmation.
 
-The Web / Chrome app calls Firebase AI Logic at runtime for both local and cloud
-text inference. Isolated questions that can be answered from one shop's published
-facts prefer Gemini Nano on the device. If local AI is unavailable or still being
-prepared, the same experience continues in the cloud. Comparisons, long contexts,
-multi-turn conversations and tool-using requests explicitly use cloud-only mode.
-
-Routing combines task type with bounded context-length thresholds managed through
-Firebase Remote Config. Firebase App Check protects cloud access. Badges report
-the SDK's actual inference source, while diagnostics record latency and fallback
-status without recording raw prompts.
-
-Each shop assistant receives only its own published facts. Existing deterministic
-code and MCP tools remain responsible for prices, availability and reservation
-confirmation; the model does not decide these results.
-
-During #BuildHybridAI 2026, we updated Gemihub's town guide and shop assistants
-with Firebase AI Logic hybrid inference. We built the routing policy, inference
-source badges, diagnostics and a standalone Web demo, and integrated Firebase App
-Check and Remote Config. The repository preserves Gemihub's development history
-and is available under the MIT License.
-
-The public demo uses three fictional restaurants. Demo reservations stay in memory
-and reset when the container restarts. It makes no real bookings, charges or calls.
+For #BuildHybridAI 2026, we added Firebase AI Logic to the town guide and shop
+assistants. On supported Chrome devices, Gemini Nano answers simple questions
+using the shop's published information. The app uses cloud inference for
+comparisons, reservation conversations, or when Nano is unavailable. A badge
+shows where each answer ran. Firebase App Check protects cloud access, and
+Remote Config controls routing thresholds.
 
 Demo: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
