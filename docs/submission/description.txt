@@ -60,11 +60,11 @@ through Remote Config and verified a complete reservation in the public demo.
 
 Accomplishments that we're proud of
 
-In the public demo, a shop assistant answered an opening-hours question
-on-device in Chrome. The same chat switched to the cloud and completed a demo
-reservation. We also asked the town guide about the shop's hours in a browser
-without Nano and got a cloud answer. The badges showed where each answer
-actually ran.
+Shopkeepers can build their sites by talking with AI, without writing any code.
+Those sites now work together through one town guide. Visitors can discover and
+compare shops, then make a reservation with the AI assistant for the shop they
+choose. We verified shop comparisons and completed a reservation in the public
+demo.
 
 Demo: https://hybrid.gemihub.net
 Source: https://github.com/takeshy/gemihub-hybrid
