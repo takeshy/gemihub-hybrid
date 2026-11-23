@@ -1,11 +1,11 @@
 {
-  "brand": "街の案内",
+  "brand": "Town guide",
   "networks": [
     {
       "name": "reservation_finder",
       "front_man": "finder_front",
       "hocon": "./reservation_finder.network.json",
-      "description": "街のお知らせ、イベント、公共施設、暮らしの情報を公開資料からご案内します。登録されているお店の紹介や、希望する方には飲食店の予約相談もお手伝いします。",
+      "description": "Guide to local shops, events, public facilities, and restaurant reservations.",
       "tags": [
         "agentified-website",
         "local-guide",
@@ -14,12 +14,10 @@
         "multi-site"
       ],
       "sample_queries": [
-        "今度の地域のイベントを教えて",
-        "図書館の開館時間を教えて",
-        "公民館の利用方法を知りたい",
-        "新宿で贈り物が見つかる雑貨店を教えて",
-        "今夜19時に2人、席だけ空いている店は？",
-        "3店の空席を比べて"
+        "What are Robata Akari's opening hours?",
+        "Compare Robata Akari and Trattoria Sole.",
+        "Which restaurants have a table for two at 7 pm tonight?",
+        "What local events are coming up?"
       ]
     }
   ],
