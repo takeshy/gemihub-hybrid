@@ -20,12 +20,11 @@ Each shop assistant receives only its own published facts. Existing deterministi
 code and MCP tools remain responsible for prices, availability and reservation
 confirmation; the model does not decide these results.
 
-This is a significant update to the existing open-source gemihub-agent application.
-The original town portal, storefronts and booking foundation provide the useful
-setting for the new hybrid layer. During the competition we built the Firebase AI
-Logic wrapper, routing policy, finder and shop adapters, App Check and Remote
-Config setup, source badges, diagnostics, regression tests and isolated Web demo.
-The repository retains the original Git history and includes an MIT license.
+During #BuildHybridAI 2026, we updated Gemihub's town guide and shop assistants
+with Firebase AI Logic hybrid inference. We built the routing policy, inference
+source badges, diagnostics and a standalone Web demo, and integrated Firebase App
+Check and Remote Config. The repository preserves Gemihub's development history
+and is available under the MIT License.
 
 The public demo uses three fictional restaurants. Demo reservations stay in memory
 and reset when the container restarts. It makes no real bookings, charges or calls.
