@@ -1,6 +1,7 @@
 {
   "name": "gemihub-agent",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,18 +11,20 @@
     "apps/shop"
   ],
   "dependencies": {
+    "firebase": "13.4.0",
     "googleapis": "171.3.0",
     "parse5": "^8.0.0",
-    "postcss": "^8.5.28",
-    "sharp": "^0.35.5",
     "playwright": "^1.63.0",
+    "postcss": "^8.5.28",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.35.5"
   },
   "scripts": {
     "build": "npm run build:finder && npm run build:admin && npm run build:shop",
-    "build:finder": "node scripts/build.mjs",
-    "build:shop": "npm run build --workspace @gemihub/shop",
+    "build:hybrid": "node scripts/build-hybrid.mjs",
+    "build:finder": "npm run build:hybrid && node --import tsx scripts/hybrid-registry.mjs && node scripts/build.mjs",
+    "build:shop": "npm run build:hybrid && npm run build --workspace @gemihub/shop",
     "admin": "npm run build:admin && node --env-file-if-exists=.env admin/server.mjs",
     "check": "npm run check:finder && npm run check:admin && npm run check:shop",
     "check:finder": "node scripts/build.mjs --check",
@@ -29,10 +32,11 @@
     "start": "node --env-file-if-exists=.env --import tsx scripts/serve.mjs",
     "start:shop": "npm run start --workspace @gemihub/shop",
     "dev:shop": "npm run dev --workspace @gemihub/shop",
+    "dev:hybrid": "node --import tsx scripts/hybrid-server.mjs",
     "storybook": "npm run storybook --workspace @gemihub/shop",
     "dev:demo": "node --env-file-if-exists=.env scripts/dev-demo.mjs",
     "test": "npm run test:finder && npm run test:shop",
-    "test:finder": "node --test \"tests/*.test.mjs\"",
+    "test:finder": "npm run build:hybrid && node --test \"tests/*.test.mjs\"",
     "test:shop": "npm run test --workspace @gemihub/shop",
     "test:browser": "node tests/browser-check.mjs",
     "test:admin": "node tests/admin-browser-check.mjs",
@@ -47,7 +51,9 @@
     "check:admin": "tsc -p admin/editor/tsconfig.json"
   },
   "devDependencies": {
-    "vite": "^7.1.7",
-    "typescript": "^5.9.2"
+    "esbuild": "0.28.2",
+    "firebase-tools": "15.37.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
   }
 }

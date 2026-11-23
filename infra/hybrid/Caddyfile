@@ -1,0 +1,4 @@
+hybrid.gemihub.net {
+    header X-Robots-Tag "noindex, nofollow"
+    reverse_proxy gemihub-hybrid:8080
+}

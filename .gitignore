@@ -11,6 +11,16 @@ admin/auth.json
 admin/auth.json.*.tmp
 admin/site-editor.json
 admin/site-editor.json.*.tmp
+.firebase-agent-skills/
+/site/hybrid.bundle.js
+/site/hybrid.css
+firebase-debug.log*
+.firebase/
+.firebaserc
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/hybrid/local-config.json
 
 admin/site-images/
 admin/dist/

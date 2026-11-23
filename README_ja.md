@@ -1,11 +1,22 @@
-# gemihub-agent
+# Gemihub Hybrid
+
+**端末内で答え、街とつながる。** #BuildHybridAI 2026 向けの独立した
+Web / Chrome 提出用クローンです。Firebase AI Logic によるハイブリッド推論を
+追加します。現在は基盤準備中で、実機のオンデバイス推論は未検証です。
+
+[実装ブリーフ](specs/BUILD_HYBRID_AI.md)に対象範囲と受け入れ条件を記載しています。
+このクローンでは利用者のBYOKを削除し、対象のテキスト推論をFirebase AI Logicに
+統一します。以下は主に継承元の機能説明です。
 
 [English](README.md) · [日本語](README_ja.md)
 
 自然な言葉で AI に頼むだけで個店が独自の Web サイトを持て、さらに「街案内 AI」が全店の AI や地域資料と連携して、訪れる人に合うお店や巡り方を音声・多言語でも案内できる、画一化しない街のポータルサイト **『gemihub』** の開発リポジトリです。
 
-> **今後の統合について（`takeshy/gemihub` への合流予定）**  
-> 本体である **[takeshy/gemihub](https://github.com/takeshy/gemihub)** は別ハッカソンの審査に伴うコードフリーズ（codefix）中のため、街のポータルおよび店舗 AI 連携機能は本リポジトリで先行開発しています。審査終了後、順次 `takeshy/gemihub` 本体へ合流・統合していく予定です。
+> **継承元と環境分離:** takeshy/gemihub-agent のコミット
+> `3a2bd474111c9951c6fc27adb7c84b714cfdef6c` を起点にしています。
+> 今回の追加開発はハイブリッド推論レイヤーとその組み込み・表示・検証です。
+> 原本への還流や既存dev環境へのデプロイは行いません。
+> 継承した `infra/dev/` と `apps/shop/infra/` の配備手順は実行しないでください。
 
 ---
 

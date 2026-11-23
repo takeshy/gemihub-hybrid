@@ -7,6 +7,7 @@
   <meta name="color-scheme" content="light">
   <meta name="description" content="街のお知らせ、イベント、公共施設、お店の紹介まで。公開された資料や登録情報をもとに、地域の情報をご案内します。">
   <title>街の案内｜地域の情報とお店紹介</title>
+  <link rel="stylesheet" href="./hybrid.css">
   <link rel="stylesheet" href="./assistant.css">
   <link rel="stylesheet" href="./voice-chat.css">
   <link rel="stylesheet" href="./style.css">
@@ -30,7 +31,7 @@
     <section id="assistant" class="assistant panel" aria-labelledby="assistant-heading">
       <div class="section-heading"><span class="eyebrow">YOUR ASSISTANT</span><h2 id="assistant-heading">街のことを相談する</h2></div>
       <p>「今度のイベントは？」「図書館は何時まで？」など、街について知りたいことを聞いてください。運営が公開した資料をもとにご案内します。お店の紹介や飲食店の予約相談もできます。</p>
-      <p class="assistant-note">AIの利用方法は切り替えられます。<button id="ai-settings-open" class="text-button" type="button" disabled>AIの設定</button></p>
+      <p class="assistant-note">簡単な質問は端末内、複雑な相談はクラウドで処理します。<button id="ai-settings-open" class="text-button" type="button" disabled>AIの設定</button></p>
       <p id="assistant-status" role="status">AIを準備しています。読み込めない場合も、登録店のリンクは使えます。</p>
       <div id="shop-error" class="shop-error" role="alert" hidden>
         <p id="shop-error-text"></p>
@@ -42,7 +43,7 @@
         <div class="assistant-panels"><div data-ns-slot="chat"></div><div data-ns-slot="agents"></div></div>
         <dialog id="ai-setup-dialog" class="ai-setup" aria-labelledby="ai-setup-heading" aria-describedby="ai-setup-description">
           <h2 id="ai-setup-heading">AIの設定</h2>
-          <p id="ai-setup-description">街の案内AIには設定が必要です。プロバイダーを選び、ご自身のAPIキーを入力してください。</p>
+          <p id="ai-setup-description">Firebase AI Logicを使い、端末内AIとクラウドを切り替えます。APIキーの入力は不要です。</p>
           <label for="ai-provider">プロバイダー<select id="ai-provider"></select></label>
           <p class="ai-key-link"><a id="ai-key-link" target="_blank" rel="noopener noreferrer"></a></p>
           <div data-ns-slot="settings"></div>
@@ -70,7 +71,7 @@
       <div id="shop-list" class="card-grid"></div>
     </section>
   </main>
-  <footer><p>メッセージは利用中のAIへ送られます。運営のGeminiを使う場合は、運営側のサーバーを経由します。お店のエージェントへ問い合わせる場合は、対象と内容を確認します。</p><p>在庫・価格・空席は確認時点の情報です。予約や購入の手続きは店舗サイトで行います。</p></footer>
+  <footer><p>簡単な質問は端末内で処理できます。端末内AIが利用できない場合や複雑な相談は、Firebase経由でクラウドに送ります。お店のエージェントへ問い合わせる場合は、対象と内容を確認します。</p><p>在庫・価格・空席は確認時点の情報です。予約や購入の手続きは店舗サイトで行います。</p></footer>
   <noscript>このサイトのAIにはJavaScriptが必要です。</noscript>
 </body>
 </html>

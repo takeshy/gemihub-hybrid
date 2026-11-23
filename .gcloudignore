@@ -1,5 +1,7 @@
 .gcloudignore
 .git
+.firebase-agent-skills
+.firebase
 **/node_modules
 **/dist
 **/.data

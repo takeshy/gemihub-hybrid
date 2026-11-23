@@ -1,0 +1,42 @@
+{
+  "hosting": {
+    "site": "gemihub-hybrid-2026",
+    "public": "site",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "*.hocon",
+      "_headers",
+      "llm-relay*.js",
+      "ai-setup.js"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "hybrid-config.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  },
+  "remoteconfig": {
+    "template": "infra/hybrid/remote_config.json"
+  }
+}

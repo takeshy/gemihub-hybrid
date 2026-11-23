@@ -12,7 +12,7 @@ import { z } from "zod";
 import { getLocale, tr } from "../shared/i18n.ts";
 import { restaurantReservations, type Booking, type ShopConfig } from "./domain.ts";
 import { shopGuideFront, shopGuideInfo, shopGuideNetwork, shopGuideQueries, shopGuideTool } from "./shop-guide.ts";
-import { callRestaurantTool, restaurantTools } from "./restaurant-mcp.ts";
+import { callRestaurantTool, restaurantTools, shopInfo } from "./restaurant-mcp.ts";
 import { agentCopy, reservePageCopy, sampleQueries } from "../shared/restaurant-agent-copy.ts";
 export { sampleQueries };
 
@@ -29,7 +29,7 @@ const networkFor = (shop: AgenticShop) => shop.config.industry === "other" ? sho
 const skillDir = resolve("agentic/skill");
 const siteDir = resolve("agentic/site");
 const sharedVoiceDir = resolve(siteDir, "../../../../site");
-const sharedVoiceFiles = new Set(["voice-chat.js", "voice-audio.js", "voice-chat.css"]);
+const sharedVoiceFiles = new Set(["voice-chat.js", "voice-audio.js", "voice-chat.css", "hybrid.bundle.js", "hybrid.css", "hybrid-config.json"]);
 const runtimeDir = join(skillDir, "runtime");
 const run = promisify(execFile);
 const mcpProtocol = "2025-06-18";
@@ -45,7 +45,7 @@ const contentTypes: Record<string, string> = {
   ".map": "application/json; charset=utf-8",
 };
 /** The page's own modules and styles, served next to the generated bundle. */
-const siteFiles = new Set(["site.js", "ai-setup.js", "ai-connection.js", "reservation-actions.js", "reserve-page.js", "review-dialog.js", "llm-relay.js", "llm-relay-sw.js", "voice-bridge.js", "voice-turn.js", "shop-voice.js", "assistant.css", "storefront-agent.css"]);
+const siteFiles = new Set(["site.js", "ai-connection.js", "reservation-actions.js", "reserve-page.js", "review-dialog.js", "voice-bridge.js", "voice-turn.js", "shop-voice.js", "assistant.css", "storefront-agent.css"]);
 /** Files other origins fetch: these, and only these, carry the CORS header. */
 const publicFiles = new Set(["agent-manifest.json", `${networkName}.network.json`, "links.json", "agent-mcp.json", ".well-known/nsdeploy.json", ".well-known/nsdeploy-agent.json"]);
 const generatedFiles = new Set([...publicFiles, "bridge/action-bridge.html", "bridge/agent-manifest.json"]);
@@ -94,7 +94,7 @@ export function shopManifest(shop: AgenticShop, site: AgenticSite) {
       imports: [],
       link_updates: { mode: "browser-local" },
     },
-    deployment: { mode: "static", self_contained_runtime: true, browser_mock: false, direct_byok: true, direct_mcp_requires_cors: true, public_mcp_facade: false },
+    deployment: { mode: "static", self_contained_runtime: true, browser_mock: false, direct_byok: false, direct_mcp_requires_cors: true, public_mcp_facade: false },
     ...(!guide ? { actions: {
       version: 1,
       module: "./reservation-actions.js",
@@ -173,7 +173,7 @@ export function parentSite() {
     return undefined;
   }
 }
-const pageCsp = (frameAncestors: string) => `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self'; frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'self'`;
+const pageCsp = (frameAncestors: string) => `default-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; worker-src 'self' blob:; frame-src 'self' https://www.google.com https://recaptcha.google.com; frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'self'`;
 
 type ReservationCopy = ReturnType<typeof reservePageCopy>;
 function assistantPanel(t: ReservationCopy) {
@@ -219,11 +219,16 @@ export function storefrontAssistant(shop: AgenticShop, site: AgenticSite, reserv
     assistant: `${name} shop guide`, assistantLead: "Ask about opening hours, closed days and the products the shop carries.",
     privacy: "Your messages and public shop information go to the provider you choose in AI settings. Your key stays in this browser and is never sent to the shop.",
   } : {}) };
+  Object.assign(t, {
+    privacy: locale === "ja" ? "簡単な質問は端末内で処理し、端末内AIが使えない場合や予約の相談はFirebase経由でクラウドへ送ります。" : "Simple questions can run on-device. Unsupported devices and reservation conversations use the cloud through Firebase.",
+    key: locale === "ja" ? "APIキーの入力は不要です。" : "No API key is required.",
+    settingsDescription: locale === "ja" ? "端末内AIの準備と推論の記録を確認できます。" : "Prepare on-device AI and inspect inference details.",
+  });
   const base = site.base;
   const parent = parentSite();
   return {
     attributes: ` data-slug="${escapeHtml(shop.slug)}" data-shop-name="${escapeHtml(shop.config.name)}"${guide ? ' data-agent-kind="shop"' : ""}${parent ? ` data-parent-origin="${escapeHtml(parent.origin)}"` : ""}`,
-    head: `<link rel="stylesheet" href="${base}/agent/assistant.css"><link rel="stylesheet" href="${base}/agent/storefront-agent.css"><link rel="stylesheet" href="${base}/agent/voice-chat.css"><link rel="agent-manifest" href="${base}/agent/agent-manifest.json"><script type="module" src="${base}/agent/reserve-page.js"></script><script type="module" src="${base}/agent/site.js"></script>`,
+    head: `<link rel="stylesheet" href="${base}/agent/hybrid.css"><link rel="stylesheet" href="${base}/agent/assistant.css"><link rel="stylesheet" href="${base}/agent/storefront-agent.css"><link rel="stylesheet" href="${base}/agent/voice-chat.css"><link rel="agent-manifest" href="${base}/agent/agent-manifest.json"><script type="module" src="${base}/agent/reserve-page.js"></script><script type="module" src="${base}/agent/site.js"></script>`,
     // Other pages keep backing controls hidden; /reserve owns its visible form.
     body: `${reservation ? "" : `<button id="assistant-toggle" class="restaurant-ai-toggle" type="button" aria-controls="assistant" aria-expanded="false" disabled>${t.askAI}</button>${guide ? "" : `<div id="restaurant-reservation" class="restaurant-reservation" hidden>${renderToStaticMarkup(createElement(RestaurantReservationForm, { config: shop.config }))}</div>`}`}${assistantPanel(t)}`,
     csp: pageCsp(parent ? parent.origin : "'none'"),
@@ -348,7 +353,18 @@ export function agenticSite(options: {
         if (headers) res.removeHeader("Content-Security-Policy");
         return await file(res, method, path, headers) || notFound(res);
       }
-      // The relay's service worker must control the reservation page, which sits one folder above it.
+      if (rest === "facts.json") {
+        const info = shop.config.industry === "other"
+          ? shopGuideInfo(shop.config, site.origin + site.base + "/")
+          : shopInfo(shop.config, site.origin + site.base + "/reserve");
+        const facts = { id: shop.slug, name: info.shop, description: info.description,
+          address: info.address, hours: info.hours,
+          products: shop.config.menus.filter(menu => menu.active).map(menu => ({ name: menu.name })),
+          pageUrl: site.origin + site.base + "/", checkedAt: info.checkedAt };
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" });
+        res.end(method === "HEAD" ? undefined : JSON.stringify(facts));
+        return true;
+      }
       if (sharedVoiceFiles.has(rest)) return await file(res, method, join(sharedVoiceDir, rest)) || notFound(res);
       if (siteFiles.has(rest)) return await file(res, method, join(siteDir, rest), rest === "llm-relay-sw.js" ? { "Service-Worker-Allowed": `${site.base}/` } : undefined) || notFound(res);
       const guide = shop.config.industry === "other";

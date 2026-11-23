@@ -1,0 +1,12 @@
+{
+  "firebase": {
+    "projectId": "gemihub-hybrid-2026",
+    "appId": "1:684821813982:web:0cc7f3bd8fd72ee517804f",
+    "apiKey": "AIzaSyC8c7mscidGU2JyV6P003cyBAPcJYIhMTY",
+    "authDomain": "gemihub-hybrid-2026.firebaseapp.com",
+    "messagingSenderId": "684821813982",
+    "storageBucket": "gemihub-hybrid-2026.firebasestorage.app"
+  },
+  "cloudModel": "gemini-4-hydrogen",
+  "appCheckSiteKey": "6Lf4nS0uAAAAADrGjLdT3uqDiyQlo5ulPFJ_cLsu"
+}

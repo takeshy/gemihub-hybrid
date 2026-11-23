@@ -1,6 +1,6 @@
 // One shop's own page, shown inside this site. The shop's assistant runs in that page;
-// its model requests are relayed here and answered with the visitor's own AI setup
-// (llm-relay.js). The visitor talks to the shop and reserves in the shop's page.
+// its model requests use its own Firebase hybrid adapter. The visitor talks to
+// the shop and reserves in the shop's page; no provider credential is relayed.
 // This site reserves nothing, and never shows a reservation as made.
 import { allergenLabel, COURSE_LABELS } from "./finder.js";
 import { canCheckReservations, hasAgent } from "./shop-data.js";
@@ -44,7 +44,7 @@ export class ShopFrame {
     this.frameTimer = null;
     this.voiceSequence = 0;
     this.voicePending = null;
-    relay.onChange = () => {};
+    if (relay) relay.onChange = () => {};
   }
   element(id) { return document.getElementById(id); }
   find(id) { return this.shops.find(shop => shop.id === id) || null; }
@@ -132,7 +132,7 @@ export class ShopFrame {
   }
   endRelay({ keepVoice = false } = {}) {
     if (!keepVoice && this.voicePending) { this.voicePending.reject(new Error("お店の音声会話を終了しました。")); this.voicePending = null; }
-    const closed = this.relay.close();
+    const closed = this.relay?.close();
     if (closed) this.post({ type: "gemihub:relay-closed", session: closed.id, reason: "The shop page was closed." });
   }
   onMessage(event) {
@@ -155,25 +155,7 @@ export class ShopFrame {
       clearTimeout(this.frameTimer);
       this.element("shop-page-status").dataset.state = "ready";
       this.element("shop-page-status").textContent = "";
-    } else if (data.type === "gemihub:relay-hello" && data.version === 1 && data.shop === this.shop.id) {
-      // The visitor opens the shop's AI from its own button. No key is sent to the frame.
-      this.endRelay({ keepVoice: true });
-      if (!this.relay.ready()) {
-        this.post({ type: "gemihub:relay-denied", reason: "Set up AI on the finder site first." });
-        this.element("ai-settings-open").click();
-        return;
-      }
-      const session = this.relay.open(this.shop);
-      this.post({ type: "gemihub:relay-open", session: session.id, model: this.modelName() });
-    } else if (data.type === "gemihub:llm-request") {
-      const shop = this.shop;
-      void this.relay.handle(data, (type, fields) => {
-        if (this.shop === shop && this.element("shop-page-frame") === frame) {
-          this.post({ type: `gemihub:llm-${type}`, session: data.session, id: data.id, ...fields });
-        }
-      });
-    } else if (data.type === "gemihub:llm-abort" && data.session === this.relay.session?.id) {
-      this.relay.abort(data.id);
+
     }
   }
   render() {

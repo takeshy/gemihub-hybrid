@@ -1,4 +1,6 @@
 .git
+.firebase-agent-skills
+.firebase
 admin/site-editor.json
 admin/site-editor.json.*.tmp
 **/node_modules

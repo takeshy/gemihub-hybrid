@@ -3,8 +3,7 @@
 // check, which asks the server, so reviewDetails is awaited.
 import { App } from "./reserve-page.js";
 import { openReviewDialog } from "./review-dialog.js";
-import { RelayClient } from "./llm-relay.js";
-import { aiConnection, mountAiConnection } from "./ai-connection.js";
+import { aiConnection, mountAiConnection, installHybridEngine, readPublishedFacts } from "./ai-connection.js";
 import { mountShopVoiceBridge } from "./voice-bridge.js";
 
 const WORDS = {
@@ -194,7 +193,7 @@ export class AssistantMount {
   }
 
   static startAssistant() {
-    if (AssistantMount.engine && (!App.embedded() || AssistantMount.relay?.session)) return Promise.resolve(AssistantMount.engine);
+    if (AssistantMount.engine) return Promise.resolve(AssistantMount.engine);
     if (!AssistantMount.starting) {
       AssistantMount.starting = AssistantMount.bootAssistant().finally(() => { AssistantMount.starting = null; });
     }
@@ -205,97 +204,37 @@ export class AssistantMount {
     const status = document.querySelector("#assistant-status");
     const words = AssistantMount.words();
     const siteBase = new URL("./", import.meta.url).href;
-    let relayed = null;
-    if (App.embedded()) {
-      // Inside the finder site's frame the visitor's own AI is used through a relay, so no key is asked for here.
-      relayed = await AssistantMount.connectRelay(status, siteBase);
-      if (!relayed) {
-        return null;
-      }
-    }
-    if (AssistantMount.engine && relayed) {
-      AssistantMount.engine.byokKey = relayed.key;
-      AssistantMount.engine.modelOverride = relayed.model;
-      status.textContent = words.relay.open;
-      return AssistantMount.engine;
-    }
     try {
-      // Load the runtime here, so a missing or broken runtime is reported too.
       const { boot } = await import("./runtime/index.js");
-      const connection = relayed ? null : await aiConnection();
+      const connection = await aiConnection();
+      const facts = await readPublishedFacts(new URL("./facts.json", siteBase).href);
       const booted = await boot("#agent-app", {
         originUrl: siteBase,
         sandboxWorkerUrl: new URL("runtime/sandbox-worker.js", siteBase).href,
-        // The runtime's own options for a hosting page. The key is a session label, never a provider key.
-        ...(relayed ? { router: relayed.router, byokKey: relayed.key, model: relayed.model } : {}),
-        ...(!relayed && connection?.setup || {}),
+        ...connection.setup,
       });
       AssistantMount.engine = booted.engine;
+      installHybridEngine(booted.engine, connection, { scope: "shop", getFacts: () => facts });
       AssistantMount.mountChatControls();
       AssistantMount.defaultReview = booted.engine.onActionConfirm;
       booted.engine.onActionConfirm = AssistantMount.review;
       AssistantMount.defaultConsent = booted.engine.onConsent;
       booted.engine.onConsent = AssistantMount.consent;
-      // The same test as the runtime's "API key required" badge in runtime/ui.js.
-      const needsKey = !booted.engine.mockLLM
-        && (!booted.engine.byokKey || booted.engine.byokKey === "demo");
-      if (!relayed) {
-        const { mountAISetup } = await import("./ai-setup.js");
-        AssistantMount.setup = mountAISetup(booted.engine);
-        mountAiConnection(booted.engine, connection);
-        if (connection?.config.voice) {
-          const { mountShopVoice } = await import("./shop-voice.js");
-          AssistantMount.voice = mountShopVoice(booted.engine, connection.config);
-        }
-        if (!document.getElementById("assistant").hidden) AssistantMount.setup.openIfNeeded();
-      } else {
+      AssistantMount.setup = mountAiConnection(booted.engine, connection);
+      if (App.embedded()) {
         const { mountEmbeddedShopVoice } = await import("./shop-voice.js");
         mountEmbeddedShopVoice();
+      } else if (connection.config.voice) {
+        const { mountShopVoice } = await import("./shop-voice.js");
+        AssistantMount.voice = mountShopVoice(booted.engine, connection.config);
       }
-      status.textContent = relayed ? words.relay.open : needsKey ? words.needsKey : words.connected;
-      if (!needsKey) {
-        AssistantMount.greet();
-      }
+      status.textContent = words.connected;
+      AssistantMount.greet();
       AssistantMount.mountCarriedConditions();
       return booted.engine;
     } catch (error) {
-      // The page must keep working without the assistant.
       status.textContent = words.failed;
       console.error("Assistant startup failed", error);
-      return null;
-    }
-  }
-
-  /**
-   * Ask the finder site to relay this page's model requests, and report each step in the status line.
-   *
-   * :return: {router, key, model} for boot(), or null when no relay opened.
-   */
-  static async connectRelay(status, siteBase) {
-    AssistantMount.relay?.dispose();
-    const words = AssistantMount.words().relay;
-    const parentOrigin = document.documentElement.dataset.parentOrigin;
-    if (!parentOrigin) {
-      status.textContent = words.unsupported;
-      return null;
-    }
-    const relay = new RelayClient({
-      parentOrigin: parentOrigin,
-      shop: App.page?.slug || document.documentElement.dataset.slug || "",
-      // "/s/<slug>" under the app's origin, "" on the shop's own host.
-      base: new URL("../", siteBase).pathname.replace(/\/$/, ""),
-      onState: (state) => {
-        if (words[state]) {
-          status.textContent = words[state];
-        }
-        document.documentElement.dataset.relay = state;
-      },
-    });
-    AssistantMount.relay = relay;
-    try {
-      return await relay.connect();
-    } catch (error) {
-      console.warn("The AI relay did not open", error);
       return null;
     }
   }

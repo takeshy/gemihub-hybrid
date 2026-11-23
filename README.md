@@ -1,11 +1,53 @@
-# gemihub-agent
+# Gemihub Hybrid
+
+**Local answers, connected communities.** An independent Web / Chrome entry
+for #BuildHybridAI 2026, extending Gemihub with Firebase AI Logic hybrid inference.
+
+**Implementation status:** the Firebase hybrid runtime and finder/shop adapters
+are implemented. The cloud path has been verified in Chrome; real on-device
+verification and deployment are in progress. Firebase Web SDK `13.4.0` is pinned.
+See the [implementation brief](specs/BUILD_HYBRID_AI.md) for the approved scope
+and acceptance criteria, and [Firebase Agent Skills](docs/firebase-agent-skills.md)
+for the official implementation guidance.
+
+This submission clone removes visitor BYOK from the public text experience.
+In-scope finder and shop text inference uses Firebase AI Logic; deterministic booking and MCP execution
+remain authoritative. Existing voice is outside the hybrid conversion.
 
 [English](README.md) · [日本語](README_ja.md)
 
 **gemihub** is a non-homogenizing local town portal where independent shops can build and run their own bespoke websites simply by talking to AI, and a town-guide AI coordinates across every shop's AI and local community documents to recommend places and itineraries via text, voice, and multiple languages.
 
-> **Planned Merge into `takeshy/gemihub`**  
-> Because the main repository **[takeshy/gemihub](https://github.com/takeshy/gemihub)** is currently in code freeze for another hackathon submission, the town-portal and multi-shop AI federation features are being developed here first and will be merged into `takeshy/gemihub` once that review period concludes.
+> **Existing work and isolation:** This project starts from
+> [takeshy/gemihub-agent](https://github.com/takeshy/gemihub-agent), commit
+> `3a2bd474111c9951c6fc27adb7c84b714cfdef6c`. The sections below describe the
+> inherited application. The competition-period work is the new hybrid layer,
+> integration and diagnostics. There is no return merge or deployment to the
+> upstream environments. Inherited `infra/dev/` and `apps/shop/infra/` deployment
+> examples target upstream resources and must not be run for this clone.
+
+### Run the hybrid demo
+
+```sh
+npm ci
+npm run build:finder
+npm run build:shop
+npm run dev:hybrid
+```
+
+Open `http://localhost:8088/`. The three restaurants are fictional sample shops;
+demo reservations are held in memory and reset when the demo container restarts.
+No real mail, payment account or upstream reservation data is used.
+
+Use **AI processing and settings → Prepare on-device AI** in supported desktop
+Chrome with the Prompt API enabled. Initial model download can take time. The
+answer badge reports the SDK's actual inference source. Simple published-shop
+questions use a single prompt; comparisons, tools and follow-up conversations
+use the cloud. The first request during model preparation also uses the cloud.
+
+New runtime code: [`hybrid/`](hybrid/), with regression tests in
+[`tests/hybrid.test.mjs`](tests/hybrid.test.mjs). The standalone deployment is in
+[`infra/hybrid/`](infra/hybrid/). Shared third-party runtime files stay unchanged.
 
 ---
 

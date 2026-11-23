@@ -1,0 +1,26 @@
+version: "2.4"
+services:
+  hybrid:
+    image: ${HYBRID_IMAGE:?HYBRID_IMAGE is required}
+    restart: unless-stopped
+    command: [node, --max-old-space-size=160, --import, tsx, scripts/hybrid-server.mjs]
+    mem_limit: 256m
+    cpu_shares: 256
+    user: node
+    read_only: true
+    tmpfs: [/tmp:size=96m,mode=1777]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      APP_ORIGIN: https://hybrid.gemihub.net
+      PORT: '8080'
+    networks:
+      dev:
+        aliases: [gemihub-hybrid]
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+networks:
+  dev:
+    external: true
+    name: gemihub-dev_default

@@ -386,9 +386,14 @@ test("the public bundle is built by the official script and served with the head
   const worker = await get(`${base}/runtime/sandbox-worker.js`);
   assert.equal(worker.headers.get("content-security-policy"), "default-src 'none'; script-src blob:; connect-src 'none'; worker-src 'none'");
   assert.equal((await get(`${base}/runtime/index.js`)).status, 200);
-  for (const file of ["site.js", "ai-setup.js", "reservation-actions.js", "reserve-page.js", "review-dialog.js", "llm-relay.js", "llm-relay-sw.js", "voice-bridge.js", "voice-turn.js", "assistant.css"]) assert.equal((await get(`${base}/${file}`)).status, 200, file);
+  for (const file of ["site.js", "ai-connection.js", "reservation-actions.js", "reserve-page.js", "review-dialog.js", "hybrid.bundle.js", "hybrid-config.json", "hybrid.css", "voice-bridge.js", "voice-turn.js", "assistant.css"]) assert.equal((await get(`${base}/${file}`)).status, 200, file);
   const relayWorker = await get(`${base}/llm-relay-sw.js`);
-  assert.equal(relayWorker.headers.get("service-worker-allowed"), "/s/akari/");
+  assert.equal(relayWorker.status, 404);
+  const facts = await (await get(`${base}/facts.json`)).json();
+  assert.equal(facts.name, akari().name);
+  assert.equal(facts.notificationEmail, undefined);
+  assert.equal(facts.staff, undefined);
+  assert.equal(facts.reservations, undefined);
   assert.equal(relayWorker.headers.get("access-control-allow-origin"), null);
   assert.equal((await get(`${base}/llm-bridge/v1/chat/completions`)).status, 404, "without the worker the server never forwards a model request");
   for (const path of [`${base}/runtime/%2e%2e/%2e%2e/%2e%2e/package.json`, `${base}/reservation_concierge.hocon`, `${base}/nothing.json`, "/s/nobody/agent/agent-manifest.json"]) assert.equal((await get(path)).status, 404, path);
@@ -510,7 +515,7 @@ test("a restaurant on its own host serves the same page and bundle at the root",
   const network = JSON.parse((await hosted("/agent/reservation_concierge.network.json")).body);
   assert.equal(network.tools[0].tools[1].url, "https://akari.shops.test/agent/mcp");
   assert.equal((await hosted("/agent/runtime/index.js")).status, 200);
-  assert.equal((await hosted("/agent/llm-relay-sw.js")).headers["service-worker-allowed"], "/");
+  assert.equal((await hosted("/agent/llm-relay-sw.js")).status, 404);
   assert.equal((await hosted("/api/public/akari/seats?date=2030-01-10&people=2")).status, 200, "the page's own calls work on that host");
 });
 

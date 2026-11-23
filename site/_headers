@@ -24,10 +24,10 @@
   X-Content-Type-Options: nosniff
 
 /
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*; frame-src 'self' https://maps.google.com https://www.google.com http://127.0.0.1:3000; worker-src 'self' blob:; img-src 'self' data: https:; object-src 'none'; base-uri 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*; frame-src 'self' https://maps.google.com https://www.google.com https://gemihub-hybrid-2026.web.app; worker-src 'self' blob:; img-src 'self' data: https:; object-src 'none'; base-uri 'none'; form-action 'self'
 
 /index.html
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*; frame-src 'self' https://maps.google.com https://www.google.com http://127.0.0.1:3000; worker-src 'self' blob:; img-src 'self' data: https:; object-src 'none'; base-uri 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*; frame-src 'self' https://maps.google.com https://www.google.com https://gemihub-hybrid-2026.web.app; worker-src 'self' blob:; img-src 'self' data: https:; object-src 'none'; base-uri 'none'; form-action 'self'
 
 /runtime/sandbox-worker.js
   Content-Security-Policy: default-src 'none'; script-src blob:; connect-src 'none'; worker-src 'none'

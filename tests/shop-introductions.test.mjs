@@ -186,7 +186,7 @@ test("introduction queries expose read-only MCP tools and expire with the approv
   assert.throws(() => client.callTool("list_products"), /もう一度確認/);
   assert.deepEqual(writes, ["list_products"]);
 });
-test("ordinary agentless pages cannot open a parent AI relay", t => {
+test("framed shop pages cannot open the removed parent BYOK relay", t => {
   const previous = globalThis.document;
   t.after(() => { globalThis.document = previous; });
   const sent = [];
@@ -201,6 +201,6 @@ test("ordinary agentless pages cannot open a parent AI relay", t => {
   assert.equal(opened, 0);
   framed.shop = agentShop;
   framed.onMessage({ source: frameWindow, origin, data: { type: "gemihub:relay-hello", version: 1, shop: agentShop.id } });
-  assert.equal(opened, 1);
-  assert.equal(sent[0].type, "gemihub:relay-open");
+  assert.equal(opened, 0);
+  assert.equal(sent.length, 0);
 });

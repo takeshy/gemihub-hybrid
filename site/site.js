@@ -4,15 +4,12 @@
 // The page needs the mount markup from assistant-section.html.
 import { App } from "./script.js";
 import { allergenLabel, COURSE_LABELS } from "./finder.js";
-import { mountAISetup } from "./ai-setup.js";
 import { ShopInquiries, installInquiryPolicy, reviewShopInquiries } from "./inquiries.js";
 import { ShopFrame } from "./shop-frame.js";
-import { LlmRelay } from "./llm-relay.js";
-import { aiConnection, mountAiConnection } from "./ai-connection.js";
+import { aiConnection, mountAiConnection, installHybridEngine, readPublishedFacts } from "./ai-connection.js";
 import { GuideVoice } from "./voice-chat.js";
 import { GUIDE_GREETING, guideGreeting } from "./guide-copy.js";
 import { mountDocumentPreview } from "./chat-documents.js";
-import { installFinderRouting } from "./finder-routing.js";
 
 /**
  * Boots the browser runtime in the page's assistant section.
@@ -102,12 +99,12 @@ export class AssistantMount {
         () => [...document.querySelectorAll("#ns-msgs .ns-msg.user")].at(-1)?.textContent || "");
       installInquiryPolicy(booted.engine, App.inquiries);
       const engine = booted.engine;
-      installFinderRouting(engine, connection, () => App.page);
+      const publishedFacts = await readPublishedFacts(new URL("./shop-public-facts.json", siteBase).href) || {};
+      installHybridEngine(engine, connection, { getShops: () => App.page.shops.map(shop => ({ ...shop, ...publishedFacts[shop.id] })) });
       const model = () => engine.modelOverride || engine.top.network.config.llm_config.model_name;
       App.shopFrame = new ShopFrame({
         shops: App.page.shops, getPage: () => App.page, modelName: model, storage: AssistantMount.tabStorage(),
-        // The setup the visitor applied here: the relay sends their key to this router and nowhere else.
-        relay: new LlmRelay({ getSetup: () => ({ router: engine.routerOverride || engine.top.llm.baseUrl, key: engine.mockLLM ? "" : engine.byokKey, model: model() }) }),
+
       });
       // Without a key the chat cannot answer yet. This is the same test as the
       // runtime's "API key required" badge in runtime/ui.js.
@@ -118,7 +115,6 @@ export class AssistantMount {
         : "AIの準備ができました。街について知りたいことを聞いてください。";
       AssistantMount.greet();
       App.mountChat();
-      mountAISetup(booted.engine);
       mountAiConnection(booted.engine, connection);
       // Last, so a shop named in the address opens once the AI setup is known.
       App.shopFrame.mount();
