@@ -58,6 +58,8 @@ export function cloudRequest(messages, tools = [], signatures = new Map()) {
 }
 
 export function runtimeResponse(response, signatures = new Map(), newId = () => crypto.randomUUID()) {
+  const finishReason = response.candidates?.[0]?.finishReason;
+  if (finishReason && finishReason !== "STOP") throw new Error(`Incomplete Firebase response (${finishReason}). Please try again.`);
   const parts = response.candidates?.[0]?.content?.parts || [];
   const functionParts = parts.filter(part => part.functionCall);
   const toolCalls = functionParts.map(part => ({ id: part.functionCall.id || `firebase-${newId()}`, type: "function",
@@ -68,6 +70,8 @@ export function runtimeResponse(response, signatures = new Map(), newId = () => 
     for (const call of toolCalls) signatures.set(call.id, record);
     while (signatures.size > 256) signatures.delete(signatures.keys().next().value);
   }
-  return { content: parts.filter(part => typeof part.text === "string" && !part.thought).map(part => part.text).join(""),
+  const content = parts.filter(part => typeof part.text === "string" && !part.thought).map(part => part.text).join("");
+  if (!content.trim() && !toolCalls.length) throw new Error("Firebase returned no answer. Please try again.");
+  return { content,
     toolCalls, finishReason: toolCalls.length ? "tool_calls" : "stop", usage: response.usageMetadata || null };
 }

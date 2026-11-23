@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
-import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, InferenceSource } from "firebase/ai";
+import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, InferenceSource, ThinkingLevel } from "firebase/ai";
 import { getRemoteConfig, fetchAndActivate, getAll, isSupported } from "firebase/remote-config";
 import { DEFAULT_POLICY, boundedPolicy, routePolicy } from "./policy.js";
 import { firebaseSchema } from "./messages.js";
@@ -54,6 +54,7 @@ export class HybridInference {
           ...(schema ? { promptOptions: { responseConstraint: schema } } : {}) },
         inCloudParams: { model: this.policy.cloudModel, ...(systemInstruction ? { systemInstruction } : {}),
           generationConfig: { maxOutputTokens: this.policy.maxOutputTokens,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             ...(schema ? { responseMimeType: "application/json", responseSchema: firebaseSchema(schema) } : {}) } },
       }, { timeout: 45000 }));
       while (this.models.size > 12) this.models.delete(this.models.keys().next().value);
@@ -108,6 +109,9 @@ export class HybridInference {
         reason: route.local && mode === InferenceMode.ONLY_IN_CLOUD ? `device_${deviceAtStart}` : route.reason,
         fallback: route.local && source === "IN_CLOUD",
         fallbackReason: route.local && source === "IN_CLOUD" ? mode === InferenceMode.ONLY_IN_CLOUD ? deviceAtStart : "unknown" : null,
+        finishReason: response.candidates?.[0]?.finishReason || null,
+        outputTokens: response.usageMetadata?.candidatesTokenCount || 0,
+        thinkingTokens: response.usageMetadata?.thoughtsTokenCount || 0,
         finalAnswer, at: new Date().toISOString() });
       this.record(log); return { response, source, log };
     } catch (error) {

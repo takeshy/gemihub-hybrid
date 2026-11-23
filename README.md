@@ -4,8 +4,9 @@
 for #BuildHybridAI 2026, extending Gemihub with Firebase AI Logic hybrid inference.
 
 **Implementation status:** the Firebase hybrid runtime and finder/shop adapters
-are implemented. The cloud path has been verified in Chrome; real on-device
-verification and deployment are in progress. Firebase Web SDK `13.4.0` is pinned.
+are implemented. Real desktop Chrome has answered a grounded shop question
+on-device and through the cloud. Public deployment and booking UI validation
+are in progress. Firebase Web SDK `13.4.0` is pinned.
 See the [implementation brief](specs/BUILD_HYBRID_AI.md) for the approved scope
 and acceptance criteria, and [Firebase Agent Skills](docs/firebase-agent-skills.md)
 for the official implementation guidance.

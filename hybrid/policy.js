@@ -1,7 +1,7 @@
 // These rules apply before model classification and cannot be relaxed remotely.
 export const DEFAULT_POLICY = Object.freeze({
   localQuestionChars: 1200, localContextChars: 12000,
-  maxRequestChars: 180000, maxOutputTokens: 1536,
+  maxRequestChars: 180000, maxOutputTokens: 4096,
   cloudModel: "gemini-4-hydrogen", enabled: true,
 });
 
@@ -12,7 +12,7 @@ export function boundedPolicy(values = {}) {
     localQuestionChars: integer("localQuestionChars", 100, 2000),
     localContextChars: integer("localContextChars", 1000, 16000),
     maxRequestChars: DEFAULT_POLICY.maxRequestChars,
-    maxOutputTokens: integer("maxOutputTokens", 256, 2048),
+    maxOutputTokens: integer("maxOutputTokens", 256, 8192),
     cloudModel: /^gemini-[a-z0-9.-]{3,70}$/.test(values.cloudModel || "")
       ? values.cloudModel : DEFAULT_POLICY.cloudModel,
     enabled: values.enabled !== false,

@@ -8,7 +8,7 @@ services:
     cpu_shares: 256
     user: node
     read_only: true
-    tmpfs: [/tmp:size=96m,mode=1777]
+    tmpfs: ["/tmp:size=96m,mode=1777"]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:

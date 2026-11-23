@@ -73,6 +73,13 @@ test("actual SDK inferenceSource controls badges/logs, independently of the requ
   assert.equal(configurations[0].inCloudParams.model, "gemini-4-hydrogen");
 });
 
+test("empty and truncated cloud responses never finish silently or execute partial tools", () => {
+  assert.throws(() => runtimeResponse({ candidates: [{ finishReason: "MAX_TOKENS", content: {
+    parts: [{ functionCall: { name: "confirm_reservation", args: {} } }] } }] }), /Incomplete/);
+  assert.throws(() => runtimeResponse({ candidates: [{ finishReason: "STOP", content: {
+    parts: [{ text: "Reasoning summary", thought: true }] } }] }), /no answer/);
+});
+
 function engineFixture() {
   const calls = [];
   const hybrid = { policy: boundedPolicy(), emit() {}, generate: async input => {
