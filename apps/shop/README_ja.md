@@ -132,7 +132,9 @@ Google / Vertex AI を接続する場合や、コードを触る場合（開発�
 
 ## ライセンス
 
-[MIT](LICENSE) © 2026 takeshy。サードパーティのライセンス表記は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+Gemihub Hybrid の店舗アプリは [Apache License 2.0](LICENSE) で配布しています。
+`takeshy/gemihub-agent` から引き継いだコードには、[元の MIT ライセンスと著作権表記](LICENSE-MIT) が適用されます。
+[サードパーティ表記](THIRD_PARTY_NOTICES.md)も参照してください。
 
 ## 飲食店の予約エージェント
 

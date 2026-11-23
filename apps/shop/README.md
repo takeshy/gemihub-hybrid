@@ -132,7 +132,9 @@ To connect Google and Vertex AI, or to work on the code (hot reload, Storybook, 
 
 ## License
 
-[MIT](LICENSE) © 2026 takeshy. Third-party notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The shop app in Gemihub Hybrid is distributed under the [Apache License 2.0](LICENSE).
+The [original MIT license and copyright notice](LICENSE-MIT) apply to the code
+inherited from `takeshy/gemihub-agent`. See the [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## Restaurant reservation agent
 

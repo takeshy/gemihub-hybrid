@@ -120,6 +120,10 @@ npm run dev:demo
 
 ---
 
-## サードパーティ表記
+## ライセンス
+
+Gemihub Hybrid は [Apache License 2.0](LICENSE) で配布しています。
+`takeshy/gemihub-agent` から引き継いだコードには、[元の MIT ライセンスと著作権表記](LICENSE-MIT) が適用されます。
 
 親ポータルおよびエージェント連携ランタイムの一部（`site/runtime/`・`vendor/agentify-website/`）には、Cognizant AI Labs の [agentify-website](https://github.com/cognizant-ai-labs/agentic-web)（Apache License 2.0）を利用しています。
+[店舗アプリのサードパーティ表記](apps/shop/THIRD_PARTY_NOTICES.md)も参照してください。

@@ -165,6 +165,11 @@ Default local endpoints:
 
 ---
 
-## Third-Party Notices
+## License
+
+Gemihub Hybrid is distributed under the [Apache License 2.0](LICENSE).
+The [original MIT license and copyright notice](LICENSE-MIT) apply to the code
+inherited from `takeshy/gemihub-agent`.
 
 Parts of the portal and agent runtime (`site/runtime/` and `vendor/agentify-website/`) incorporate [agentify-website](https://github.com/cognizant-ai-labs/agentic-web) by Cognizant AI Labs under the Apache License 2.0.
+See also the [shop app's third-party notices](apps/shop/THIRD_PARTY_NOTICES.md).

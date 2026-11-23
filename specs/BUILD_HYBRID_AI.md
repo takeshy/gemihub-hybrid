@@ -9,8 +9,8 @@
 - Platform: Web / Chrome only.
 - Submission deadline supplied by the owner: **2026-12-01 07:00 JST**
   (2026-11-30 14:00 Pacific Time). No extension is assumed.
-- Independent public repository with an MIT license. Existing third-party
-  Apache-2.0 licenses and notices remain intact.
+- Independent public repository distributed under Apache-2.0, as preferred by
+  the hackathon. Include the upstream MIT license and all third-party notices.
 - This is an extension of takeshy/gemihub-agent, not a claim that all existing
   functionality was created during the competition. The new contribution is
   the Firebase AI Logic hybrid inference layer and its integration and UI.
@@ -158,7 +158,7 @@ submission materials; Nov 30 buffer and submit before the hard deadline.
 
 ## Submission artifacts
 
-- Public source repository, detectable root MIT license, setup/test instructions
+- Public source repository, detectable root Apache-2.0 license, setup/test instructions
   and explicit existing-work / competition-period contribution disclosure.
 - Clone-only demo URL with free judge access and instructions for on-device
   Chrome setup; a working cloud fallback for unsupported judge devices.
