@@ -64,6 +64,7 @@ export class HybridInference {
   subscribe(callback) { this.listeners.add(callback); return () => this.listeners.delete(callback); }
   emit(event) { for (const callback of this.listeners) { try { callback(event); } catch { /* Diagnostics cannot break chat. */ } } }
   prepareDevice() {
+    if (this.device === "ready") return Promise.resolve();
     if (this.preparing) return this.preparing;
     // Called synchronously from a click/submit handler, never page load.
     const model = this.model(InferenceMode.PREFER_ON_DEVICE);

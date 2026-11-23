@@ -1,5 +1,6 @@
 .hybrid-badge{display:inline-block;border:1px solid #b6c4ce;border-radius:999px;padding:.25rem .65rem;font-size:.75rem;font-weight:600;line-height:1.4;white-space:nowrap;background:#f4f6f8;color:#243746}
 .hybrid-badge[data-source="ON_DEVICE"]{background:#e5f4ea;color:#17582d;border-color:#8dc9a1}
 .hybrid-badge[data-source="IN_CLOUD"]{background:#eaf1ff;color:#193d83;border-color:#a5bbed}
+html[data-embedded="true"] #ai-settings-open.hybrid-settings-open{display:inline-flex!important}
 .hybrid-controls{display:grid;gap:.8rem;margin-top:1rem}.hybrid-controls p{font-size:.9rem;line-height:1.6}.hybrid-controls button{padding:.6rem 1rem;justify-self:start}.hybrid-log{font:12px/1.7 ui-monospace,monospace;max-height:220px;overflow:auto;padding-left:1.4rem;overflow-wrap:anywhere}
 .ns-msg.bot[data-inference-source]::after{display:block;font-size:.7rem;opacity:.8;margin-top:.6rem}.ns-msg.bot[data-inference-source="ON_DEVICE"]::after{content:"On-device"}.ns-msg.bot[data-inference-source="IN_CLOUD"]::after{content:"Cloud"}

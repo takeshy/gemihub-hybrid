@@ -59,6 +59,8 @@ test("actual SDK inferenceSource controls badges/logs, independently of the requ
   const hybrid = new HybridInference({ cloudModel: "gemini-4-hydrogen" }, { ai: {}, now: () => 10,
     factory: (_ai, config) => { configurations.push(config); return { generateContent: async () => ({ response: { inferenceSource: source } }) }; } });
   hybrid.device = "ready";
+  await hybrid.prepareDevice();
+  assert.equal(hybrid.device, "ready");
   const options = { task: "single_shop", question: "What are the opening hours?", prompt: "Published facts only" };
   const fallback = await hybrid.generate(options);
   assert.equal(configurations[0].mode, InferenceMode.PREFER_ON_DEVICE);

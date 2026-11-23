@@ -73,8 +73,8 @@ export function installHybridEngine(engine, connection, { getShops, getFacts, sc
           systemInstruction: converted.systemInstruction, hasTools: !!request.tools?.length,
           historyCount: users.length - 1, signal: request.signal });
         const answer = runtimeResponse(result.response, signatures);
-        if (isFront && !answer.toolCalls.length) hybrid.emit({ answer: { ...result.log, finalAnswer: true } });
         if (answer.content) request.onContentDelta?.(answer.content);
+        if (isFront && !answer.toolCalls.length) hybrid.emit({ answer: { ...result.log, finalAnswer: true } });
         engine.trace.end(span, { source: result.source, toolCalls: answer.toolCalls.map(call => call.function.name) });
         return { ...answer, model: hybrid.policy.cloudModel };
       } catch (error) { engine.trace.fail(span, "Firebase inference failed"); throw error; }
@@ -128,7 +128,7 @@ export function mountHybridControls(engine, connection) {
   const badge = document.createElement("span"); badge.id = "hybrid-inference-badge";
   badge.className = "hybrid-badge"; badge.setAttribute("role", "status");
   badge.textContent = label("回答待ち", "Awaiting answer");
-  root.querySelector(".ns-header")?.append(badge);
+  (document.querySelector(".assistant-sidebar-header") || root.querySelector(".ns-header"))?.append(badge);
   const updateBadge = entry => {
     badge.dataset.source = entry.source;
     badge.textContent = entry.source === "ON_DEVICE" ? label("端末内", "On-device")
@@ -159,6 +159,7 @@ export function mountHybridControls(engine, connection) {
   root.querySelector("#ns-send")?.addEventListener("click", start, { capture: true });
   root.querySelector("#ns-input")?.addEventListener("keydown", event => { if (event.key === "Enter") start(); }, { capture: true });
   const open = document.getElementById("ai-settings-open");
+  open.classList.add("hybrid-settings-open");
   open.disabled = false; open.textContent = label("AIの処理と設定", "AI processing and settings");
   open.addEventListener("click", () => dialog.showModal());
   document.getElementById("ai-setup-close")?.addEventListener("click", () => dialog.close());
