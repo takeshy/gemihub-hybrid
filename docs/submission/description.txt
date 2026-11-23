@@ -27,9 +27,14 @@ at the shop to reply. That's the kind of town guide I wanted to build.
 
 What it does
 
-Gemihub Hybrid helps visitors explore independent shops in one town guide.
-They can ask about opening hours, compare shops, and try booking at a fictional
-restaurant.
+Gemihub lets independent shop owners build a website by describing what they
+want in a conversation with AI. The shop's own AI assistant can introduce the
+business, answer questions using its published information, and help visitors
+make a reservation.
+
+Gemihub Hybrid brings these shops together in a town guide so visitors can
+discover and compare them. In the public demo, visitors can try the reservation
+flow at fictional restaurants.
 
 How we built it
 
