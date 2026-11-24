@@ -45,24 +45,42 @@ demo reservations are held in memory and reset when the demo container restarts.
 No real mail, payment account or upstream reservation data is used.
 
 Use **Set up on-device AI** above the chat for Chrome setup instructions, then
-select **Prepare on-device AI**. Initial model download can take time. The
-answer badge reports the SDK's actual inference source. Simple published-shop
-questions use a single prompt; comparisons, tools and follow-up conversations
-use the cloud. The first request during model preparation also uses the cloud.
+select **Prepare on-device AI**. Initial model download can take time. If Gemini
+Nano is already downloaded in Chrome, the page probes `LanguageModel.availability()`
+at startup so the very first turn can run on-device. Each assistant reply displays
+an inline telemetry pill reporting the SDK's actual `inferenceSource`, latency,
+and policy reason, and three quick-test chips above the input let judges test
+on-device FAQ, on-device booking preflight, and cloud multi-shop comparison in one click.
+
+The town guide also exposes a public read-only MCP endpoint at `/api/mcp`
+(`list_town_shops`, `query_shop_facts`, `search_local_events`) so external agents
+can inspect published neighborhood facts without touching reservations.
 
 The judge invitation opens a private **Shop workspace** where you can describe
 a fictional shop, review and publish its storefront, and edit its details.
 The shop is available in that browser for up to two hours. For local invitation
 configuration, see the [deployment guide](infra/hybrid/README.md).
 
-New runtime code: [`hybrid/`](hybrid/), with regression tests in
-[`tests/hybrid.test.mjs`](tests/hybrid.test.mjs). The standalone deployment is in
-[`infra/hybrid/`](infra/hybrid/). Shared third-party runtime files stay unchanged.
+New runtime code: [`hybrid/`](hybrid/) and [`scripts/town-mcp.mjs`](scripts/town-mcp.mjs),
+with regression tests in [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs).
+The standalone deployment is in [`infra/hybrid/`](infra/hybrid/). Shared third-party
+runtime files stay unchanged.
 
-Submission materials: [English description](docs/submission/description.md),
+Submission materials: [Devpost project page](https://devpost.com/software/gemihub-hybrid),
+[YouTube demo video](https://youtu.be/7SislWBHabl),
+[English description](docs/submission/description.md),
 [thumbnail](docs/submission/thumbnail.png), and
-[real-browser screenshots](docs/submission/evidence/). The public YouTube video
-and Devpost submission are still outstanding.
+[real-browser screenshots](docs/submission/evidence/).
+
+### What Was Built for #BuildHybridAI 2026
+
+| Area | Inherited from `gemihub` | Built during #BuildHybridAI 2026 |
+| --- | --- | --- |
+| Storefront & Booking | Conversational storefront builder, deterministic reservation ledger, shop read-only MCP | Preserved unchanged as the authoritative booking backend |
+| Visitor Text AI | Cloud-only BYOK / server relay | Removed visitor BYOK; added Firebase AI Logic (`hybrid/`) with `PREFER_ON_DEVICE` / `ONLY_IN_CLOUD`, startup availability probe, and streaming |
+| Routing & Slot Preflight | Single cloud agent loop | 3-tier policy engine (`hybrid/policy.js`) with Gemini Nano JSON Schema (`DECISION_SCHEMA`, `BOOKING_PREFLIGHT_SCHEMA`) and Remote Config bounds |
+| Judge UX & Observability | Basic chat panel | Inline per-message inference telemetry pills, one-click verification chips, App Check protection, and diagnostics log |
+| Town Federation | Shop-level read-only MCP | Added public town-guide read-only MCP endpoint (`/api/mcp`) |
 
 ---
 

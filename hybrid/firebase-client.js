@@ -5,6 +5,11 @@ import { getRemoteConfig, fetchAndActivate, getAll, isSupported } from "firebase
 import { DEFAULT_POLICY, boundedPolicy, routePolicy } from "./policy.js";
 import { firebaseSchema } from "./messages.js";
 
+const ON_DEVICE_IO = Object.freeze({
+  expectedInputs: [{ type: "text", languages: ["en", "ja"] }],
+  expectedOutputs: [{ type: "text", languages: ["en", "ja"] }],
+});
+
 export class HybridInference {
   constructor(config, { ai, factory = getGenerativeModel, now = () => performance.now() } = {}) {
     this.config = config; this.policy = boundedPolicy({ cloudModel: config.cloudModel });
@@ -21,6 +26,16 @@ export class HybridInference {
     initializeAppCheck(this.app, { provider: new ReCaptchaEnterpriseProvider(config.appCheckSiteKey || "localhost-debug"), isTokenAutoRefreshEnabled: true });
     this.ai = getAI(this.app, { backend: new GoogleAIBackend(), useLimitedUseAppCheckTokens: true });
     void this.loadPolicy();
+    void this.probeAvailability();
+  }
+  async probeAvailability() {
+    try {
+      const status = await globalThis.LanguageModel?.availability(ON_DEVICE_IO);
+      if (status === "available" && this.device === "not_prepared") {
+        this.device = "ready";
+        this.emit({ device: this.device });
+      }
+    } catch { /* Unsupported browsers stay not_prepared and use cloud fallback. */ }
   }
   async loadPolicy() {
     try {
@@ -49,8 +64,7 @@ export class HybridInference {
     const key = JSON.stringify([mode, schema, systemInstruction, this.policy.cloudModel, this.policy.maxOutputTokens]);
     if (!this.models.has(key)) {
       this.models.set(key, this.factory(this.ai, { mode,
-        onDeviceParams: { createOptions: { expectedInputs: [{ type: "text", languages: ["en", "ja"] }],
-          expectedOutputs: [{ type: "text", languages: ["en", "ja"] }] },
+        onDeviceParams: { createOptions: { ...ON_DEVICE_IO },
           ...(schema ? { promptOptions: { responseConstraint: schema } } : {}) },
         inCloudParams: { model: this.policy.cloudModel, ...(systemInstruction ? { systemInstruction } : {}),
           generationConfig: { maxOutputTokens: this.policy.maxOutputTokens,
@@ -71,7 +85,7 @@ export class HybridInference {
     this.device = "preparing"; this.emit({ device: this.device });
     this.preparing = model.initializeDeviceModel(progress => this.emit({ device: "downloading", progress }))
       .then(async () => {
-        const available = await globalThis.LanguageModel?.availability({ expectedInputs: [{ type: "text", languages: ["en", "ja"] }], expectedOutputs: [{ type: "text", languages: ["en", "ja"] }] });
+        const available = await globalThis.LanguageModel?.availability(ON_DEVICE_IO);
         this.device = available === "available" ? "ready" : "unavailable";
         this.emit({ device: this.device });
       }).catch(() => { this.device = "unavailable"; this.emit({ device: this.device }); })
@@ -79,34 +93,72 @@ export class HybridInference {
     return this.preparing;
   }
   async generate({ task, question, prompt, request, schema, systemInstruction, historyCount = 0,
-    contextChars = 0, hasTools = false, crossShop = false, signal, finalAnswer = false }) {
+    contextChars = 0, hasTools = false, crossShop = false, signal, finalAnswer = false, onDelta }) {
     signal?.throwIfAborted();
     const size = JSON.stringify(request || prompt || "").length;
     if (size > this.policy.maxRequestChars) throw new Error("This conversation is too long. Start a new conversation.");
     const route = routePolicy({ question, contextChars, historyCount, hasTools, crossShop, task }, this.policy);
-    // Do not wait for Chrome's availability/download work on the chat path.
-    // Once preparation is complete the SDK chooses local vs cloud itself.
+    // Give an already-downloaded device model up to 250 ms to finish preparing
+    // without blocking ordinary chat on an initial model download.
+    if (route.local && this.preparing) {
+      let waitTimer;
+      await Promise.race([
+        this.preparing,
+        new Promise(resolve => { waitTimer = setTimeout(resolve, 250); }),
+      ]);
+      clearTimeout(waitTimer);
+      signal?.throwIfAborted();
+    }
     const deviceAtStart = this.device;
     const mode = route.local && deviceAtStart === "ready" ? InferenceMode.PREFER_ON_DEVICE : InferenceMode.ONLY_IN_CLOUD;
     const started = this.now();
     let response;
+    let streamed = false;
     const controller = new AbortController();
     const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-    const timeout = setTimeout(() => controller.abort(new DOMException("Inference timed out. Please try again.", "TimeoutError")), task === "decision" ? 8000 : 45000);
+    const timeout = setTimeout(() => controller.abort(new DOMException("Inference timed out. Please try again.", "TimeoutError")), task === "decision" || task === "booking_preflight" ? 8000 : 45000);
     let onAbort;
+    const abortPromise = new Promise((_resolve, reject) => {
+      onAbort = () => reject(requestSignal.reason);
+      requestSignal.addEventListener("abort", onAbort, { once: true });
+      if (requestSignal.aborted) onAbort();
+    });
+    abortPromise.catch(() => {}); // Observed by each race; never an unhandled rejection.
     try {
-      const result = await Promise.race([
-        this.model(mode, schema, systemInstruction).generateContent(request || prompt, { signal: requestSignal }),
-        new Promise((_resolve, reject) => {
-          onAbort = () => reject(requestSignal.reason);
-          requestSignal.addEventListener("abort", onAbort, { once: true });
-          if (requestSignal.aborted) onAbort();
-        }),
-      ]);
-      signal?.throwIfAborted(); response = result.response;
+      const target = this.model(mode, schema, systemInstruction);
+      const useStream = typeof onDelta === "function" && !schema && typeof target.generateContentStream === "function";
+      if (useStream) {
+        const streamResult = await Promise.race([
+          target.generateContentStream(request || prompt, { signal: requestSignal }),
+          abortPromise,
+        ]);
+        // Race every chunk against the abort, so a stalled stream still ends at the timeout.
+        const iterator = streamResult.stream[Symbol.asyncIterator]();
+        try {
+          for (;;) {
+            const { value: chunk, done } = await Promise.race([iterator.next(), abortPromise]);
+            if (done) break;
+            const delta = typeof chunk?.text === "function" ? chunk.text() : "";
+            if (delta) { streamed = true; onDelta(delta); }
+          }
+        } catch (error) {
+          iterator.return?.().catch(() => {});
+          throw error;
+        }
+        response = await Promise.race([streamResult.response, abortPromise]);
+      } else {
+        const result = await Promise.race([
+          target.generateContent(request || prompt, { signal: requestSignal }),
+          abortPromise,
+        ]);
+        response = result.response;
+      }
+      signal?.throwIfAborted();
       const source = response.inferenceSource === InferenceSource.ON_DEVICE ? "ON_DEVICE"
         : response.inferenceSource === InferenceSource.IN_CLOUD ? "IN_CLOUD" : "UNKNOWN";
       const log = Object.freeze({ task, requestedMode: mode, source, durationMs: Math.round(this.now() - started),
+        model: source === "ON_DEVICE" ? "Gemini Nano" : this.policy.cloudModel,
+        contextChars, maxContextChars: this.policy.localContextChars,
         reason: route.local && mode === InferenceMode.ONLY_IN_CLOUD ? `device_${deviceAtStart}` : route.reason,
         fallback: route.local && source === "IN_CLOUD",
         fallbackReason: route.local && source === "IN_CLOUD" ? mode === InferenceMode.ONLY_IN_CLOUD ? deviceAtStart : "unknown" : null,
@@ -114,7 +166,7 @@ export class HybridInference {
         outputTokens: response.usageMetadata?.candidatesTokenCount || 0,
         thinkingTokens: response.usageMetadata?.thoughtsTokenCount || 0,
         finalAnswer, at: new Date().toISOString() });
-      this.record(log); return { response, source, log };
+      this.record(log); return { response, source, log, streamed };
     } catch (error) {
       this.record({ task, requestedMode: mode, source: "UNKNOWN", durationMs: Math.round(this.now() - started),
         reason: route.reason, error: signal?.aborted ? "aborted" : "inference_failed",

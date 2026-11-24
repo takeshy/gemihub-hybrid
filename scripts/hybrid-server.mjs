@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { createSampleShops } from "./sample-shops.mjs";
 import { address } from "./hybrid-neighborhood.mjs";
+import { createTownMcpHandler } from "./town-mcp.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const site = resolve(root, "site");
 const deployedOrigin = "https://gemihub-hybrid-2026.web.app";
@@ -36,10 +37,12 @@ await new Promise(resolve => backend.listen(0, "127.0.0.1", resolve));
 const backendPort = backend.address().port;
 const mime = { ".html": "text/html", ".js": "application/javascript", ".mjs": "application/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".txt": "text/plain" };
 const rewritten = new Set(["shop-registry.js", "agent-manifest.json", "reservation_finder.network.json", "reservation_finder.hocon"]);
+const townMcp = createTownMcpHandler({ siteDir: site, deployedOrigin, publicOrigin });
 const server = createServer(async (req, res) => {
   try {
     const path = new URL(req.url, publicOrigin).pathname;
     if (path === "/healthz") { res.end("ok"); return; }
+    if (path === "/api/mcp") { await townMcp(req, res); return; }
     const sampleAccess = await sampleShops.route(req, res, path);
     if (sampleAccess === "handled") return;
     if (/^\/s\/|^\/api\/public\/|^\/api\/ai\/(?:config|session)$|^\/assets\//.test(path)) {

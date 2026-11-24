@@ -2,10 +2,11 @@
 
 **端末内で答え、街とつながる。** gemihub を拡張した #BuildHybridAI 2026 の
 Web / Chrome 向け提出作品です。街案内と店舗の来店者向けAIが、Firebase AI Logic
-で端末内とクラウドの推論を使い分けます。[公開サイト](https://hybrid.gemihub.net/)
+で端末内とクラウドの推論を使い分けます。[公開サイト](https://hybrid.gemihub.net/) · [Devpost](https://devpost.com/software/gemihub-hybrid) · [デモ動画](https://youtu.be/7SislWBHabl)
 
 [実装ブリーフ](specs/BUILD_HYBRID_AI.md)に対象範囲と受け入れ条件を記載しています。
 来店者向けのテキスト推論はFirebase AI Logicを使い、APIキーの入力は不要です。
+また、街案内ポータル自身も読み取り専用 MCP エンドポイント（`/api/mcp`）を公開しています。
 
 [English](README.md) · [日本語](README_ja.md)
 
@@ -39,7 +40,7 @@ Web / Chrome 向け提出作品です。街案内と店舗の来店者向けAI�
 ## 主な使用技術
 
 - **Google Gemini API**
-  - 店舗検索・照会：`gemini-4-hydrogen`（low）
+  - ハイブリッド来店者テキスト推論：Firebase AI Logic、Gemini Nano / `gemini-3.5-flash-lite`
   - 音声対話：`gemini-3.8-live`
   - 個店テーマ・ページのHTML/CSS生成：`gemini-4-argon`
   - 画面自動レビュー・ジャンル分類補助

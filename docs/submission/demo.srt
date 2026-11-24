@@ -1,0 +1,67 @@
+1
+00:00:00,050 --> 00:00:04,987
+Hi, this is Gemihub Hybrid: local answers, connected communities.
+
+2
+00:00:04,987 --> 00:00:17,325
+Our existing platform, gemihub, already lets independent neighborhood shops create their own bespoke websites and booking pages simply by chatting with AI, with no templates and no web agency needed.
+
+3
+00:00:17,325 --> 00:00:19,950
+A town guide then connects those shops together.
+
+4
+00:00:19,950 --> 00:00:30,862
+Here is the problem: once a shop publishes its site, sending every routine question like opening hours to a cloud LLM creates unpredictable traffic costs for a small business.
+
+5
+00:00:30,862 --> 00:00:43,087
+For Build Hybrid AI 2026, I extended gemihub with a Firebase AI Logic hybrid inference layer for both the town guide and shop assistants, with no visitor API keys required.
+
+6
+00:00:43,900 --> 00:00:50,637
+On supported Chrome devices, standalone questions about a single shop's published facts use prefer on-device mode.
+
+7
+00:00:50,637 --> 00:01:03,175
+Gemini Nano answers directly in the browser, and the badge reports the real inference source from the Firebase AI Logic SDK: On-device, with zero cloud inference cost for common FAQs.
+
+8
+00:01:03,990 --> 00:01:17,177
+When a visitor compares multiple shops, asks follow-ups, or exceeds our input threshold, our routing policy switches to cloud-only mode with Gemini 3.5 Flash-Lite, protected by Firebase App Check.
+
+9
+00:01:17,177 --> 00:01:23,952
+Both the cloud model and input limits can be tuned live via Firebase Remote Config without redeploying.
+
+10
+00:01:24,750 --> 00:01:29,675
+Inside Robata Akari's own assistant, the same handoff happens in one chat.
+
+11
+00:01:29,675 --> 00:01:34,837
+First, opening hours are answered On-device using only this shop's published facts.
+
+12
+00:01:34,837 --> 00:01:37,525
+Next, booking a table switches to Cloud.
+
+13
+00:01:37,525 --> 00:01:47,637
+Existing deterministic MCP tools verify live availability and pricing, and the confirmation modal ensures the model never confirms a reservation on its own.
+
+14
+00:01:48,440 --> 00:01:55,290
+And if a visitor's browser doesn't support Gemini Nano, or while the model is still downloading, chat never blocks.
+
+15
+00:01:55,290 --> 00:02:00,227
+Firebase AI Logic falls back cleanly to the cloud and labels it honestly.
+
+16
+00:02:00,227 --> 00:02:06,152
+Try the live demo at hybrid dot gemihub dot net, and check out our MIT-licensed code on GitHub.
+
+17
+00:02:06,152 --> 00:02:07,302
+Thanks for watching!

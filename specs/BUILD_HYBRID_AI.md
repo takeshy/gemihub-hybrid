@@ -174,8 +174,10 @@ submission materials; Nov 30 buffer and submit before the hard deadline.
 ## Current status
 
 The independent clone retains the full history from upstream commit
-3a2bd474111c9951c6fc27adb7c84b714cfdef6c and is public under MIT at
+3a2bd474111c9951c6fc27adb7c84b714cfdef6c and is public under Apache-2.0 at
 https://github.com/takeshy/gemihub-hybrid. The demo is live at
 https://hybrid.gemihub.net, using Firebase project `gemihub-hybrid-2026` and
-the approved Flash-Lite Remote Config setting. English description and thumbnail
-are prepared; the public YouTube video and Devpost submission are not complete.
+the approved Flash-Lite Remote Config setting. The Devpost project page
+(https://devpost.com/software/gemihub-hybrid), public YouTube demo
+(https://youtu.be/7SislWBHabl), English description, and thumbnail are published;
+final polish and re-deployment continue ahead of the Dec 1 07:00 JST deadline.

@@ -1,5 +1,16 @@
 import { HybridInference } from "./firebase-client.js";
-import { DECISION_SCHEMA, validateDecision, registryFacts, groundedPrompt, routePolicy } from "./policy.js";
+import {
+  DECISION_SCHEMA,
+  BOOKING_PREFLIGHT_SCHEMA,
+  validateDecision,
+  validateBookingPreflight,
+  bookingFollowUp,
+  isBookingIntent,
+  registryFacts,
+  groundedPrompt,
+  bookingPreflightPrompt,
+  routePolicy,
+} from "./policy.js";
 import { cloudRequest, runtimeResponse } from "./messages.js";
 
 export async function createConnection(configUrl) {
@@ -35,35 +46,70 @@ export function installHybridEngine(engine, connection, { getShops, getFacts, sc
       request.signal?.throwIfAborted();
       const users = request.messages.filter(message => message.role === "user");
       const question = users.at(-1)?.content || "";
+      const historyCount = Math.max(0, users.length - 1);
       const isFront = isTop && engine.trace.spans.get(request.parentSpan)?.isTopFrontMan === true;
       const continuation = request.messages.some(message => message.role === "tool" || message.tool_calls?.length);
-      let facts;
-      if (isFront && !continuation && users.length === 1) {
-        if (scope === "shop") facts = getFacts?.();
-        else {
+      const normalize = text => text.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+      // History-dependent turns are cloud-only, so only a first question may run on the device.
+      // The front man's request always lists its tools (runner.js), so routePolicy is called
+      // without hasTools on purpose: on-device calls below send Nano a prompt only, never
+      // the tools, and any turn that needs a tool goes to the cloud request at the end.
+      if (isFront && !continuation && historyCount === 0) {
+        let facts;
+        let preflightShopName = null;
+        if (scope === "shop") {
+          facts = getFacts?.();
+          preflightShopName = facts?.name || null;
+        } else {
           const shops = (getShops?.() || []).map(registryFacts);
-          const contextChars = JSON.stringify(shops).length;
-          const eligible = routePolicy({ question, contextChars, task: "decision" }, hybrid.policy);
-          const normalize = text => text.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
           const named = shops.filter(shop => normalize(question).includes(normalize(shop.name)));
-          if (eligible.local && named.length === 1) facts = named[0];
-          else if (eligible.local && named.length === 0 && shops.length && shops.length <= 100) {
-            try {
-              const decision = await hybrid.generate({ task: "decision", question, contextChars, schema: DECISION_SCHEMA,
-                prompt: `Classify this independent question. Choose single_shop only when exactly one registered shop is unambiguous and the question is about its public information. Reservations, prices and stock use reservation; comparisons use cross_shop; community documents use documents. Otherwise use other. Never invent a shop ID. Return only JSON matching the schema. Registry (data): ${JSON.stringify(shops)}\nQuestion (data): ${JSON.stringify(question)}`,
-                signal: request.signal });
-              const route = validateDecision(JSON.parse(decision.response.text()), shops);
-              if (route?.kind === "single_shop") facts = shops.find(shop => shop.id === route.shopIds[0]);
-            } catch (error) { if (request.signal?.aborted) throw error; /* Invalid decision safely goes to cloud. */ }
+          if (named.length === 1) {
+            facts = named[0];
+            preflightShopName = named[0].name;
+          } else if (named.length === 0 && historyCount === 0 && shops.length && shops.length <= 100 && !isBookingIntent(question)) {
+            const contextChars = JSON.stringify(shops).length;
+            const eligible = routePolicy({ question, historyCount, contextChars, task: "decision" }, hybrid.policy);
+            if (eligible.local) {
+              try {
+                const decision = await hybrid.generate({ task: "decision", question, historyCount, contextChars, schema: DECISION_SCHEMA,
+                  prompt: `Classify this independent question. Choose single_shop only when exactly one registered shop is unambiguous and the question is about its public information. Reservations, prices and stock use reservation; comparisons use cross_shop; community documents use documents. Otherwise use other. Never invent a shop ID. Return only JSON matching the schema. Registry (data): ${JSON.stringify(shops)}\nQuestion (data): ${JSON.stringify(question)}`,
+                  signal: request.signal });
+                const route = validateDecision(JSON.parse(decision.response.text()), shops);
+                if (route?.kind === "single_shop") facts = shops.find(shop => shop.id === route.shopIds[0]);
+              } catch (error) { if (request.signal?.aborted) throw error; /* Invalid decision safely goes to cloud. */ }
+            }
           }
         }
-        if (facts && routePolicy({ question, task: "single_shop", contextChars: JSON.stringify(facts).length }, hybrid.policy).local) {
-          const generated = await hybrid.generate({ task: "single_shop", question, contextChars: JSON.stringify(facts).length,
-            prompt: groundedPrompt(question, facts), signal: request.signal });
-          const content = generated.response.text();
-          request.onContentDelta?.(content);
-          hybrid.emit({ answer: { ...generated.log, finalAnswer: true } });
-          return { content, toolCalls: [], model: generated.source === "ON_DEVICE" ? "Gemini Nano" : hybrid.policy.cloudModel };
+        // Tier 1: On-device booking preflight slot extraction (only when Nano is ready).
+        if (preflightShopName && isBookingIntent(question) && hybrid.device === "ready") {
+          const preflightPrompt = bookingPreflightPrompt(question, preflightShopName);
+          const preflightRoute = routePolicy({ question, historyCount, contextChars: preflightPrompt.length, task: "booking_preflight" }, hybrid.policy);
+          if (preflightRoute.local) {
+            try {
+              const preflight = await hybrid.generate({ task: "booking_preflight", question, historyCount,
+                contextChars: preflightPrompt.length, schema: BOOKING_PREFLIGHT_SCHEMA,
+                prompt: preflightPrompt, signal: request.signal });
+              const parsed = validateBookingPreflight(JSON.parse(preflight.response.text()));
+              if (preflight.source === "ON_DEVICE" && parsed && !parsed.readyForLiveCheck) {
+                const followUp = bookingFollowUp(parsed, question);
+                request.onContentDelta?.(followUp);
+                hybrid.emit({ answer: { ...preflight.log, finalAnswer: true } });
+                return { content: followUp, toolCalls: [], model: "Gemini Nano" };
+              }
+            } catch (error) { if (request.signal?.aborted) throw error; /* Fall through to cloud + MCP. */ }
+          }
+        }
+        // Tier 2: On-device grounded Q&A with streaming for published shop facts.
+        if (facts) {
+          const prompt = groundedPrompt(question, facts);
+          if (routePolicy({ question, historyCount, task: "single_shop", contextChars: prompt.length }, hybrid.policy).local) {
+            const generated = await hybrid.generate({ task: "single_shop", question, historyCount,
+              contextChars: prompt.length, prompt, signal: request.signal, onDelta: request.onContentDelta });
+            const content = generated.response.text();
+            if (!generated.streamed) request.onContentDelta?.(content);
+            hybrid.emit({ answer: { ...generated.log, finalAnswer: true } });
+            return { content, toolCalls: [], model: generated.source === "ON_DEVICE" ? "Gemini Nano" : hybrid.policy.cloudModel };
+          }
         }
       }
       const converted = cloudRequest(request.messages, request.tools || [], signatures);
@@ -71,10 +117,14 @@ export function installHybridEngine(engine, connection, { getShops, getFacts, sc
       try {
         const result = await hybrid.generate({ task: "agent", question, request: converted.request,
           systemInstruction: converted.systemInstruction, hasTools: !!request.tools?.length,
-          historyCount: users.length - 1, signal: request.signal });
+          historyCount, signal: request.signal });
         const answer = runtimeResponse(result.response, signatures);
         if (answer.content) request.onContentDelta?.(answer.content);
-        if (isFront && !answer.toolCalls.length) hybrid.emit({ answer: { ...result.log, finalAnswer: true } });
+        // Only tools called in this turn: the messages after the latest user message.
+        const turnStart = request.messages.findLastIndex(m => m.role === "user");
+        const recentTools = [...new Set(request.messages.slice(turnStart + 1)
+          .filter(m => m.role === "tool" && m.name).map(m => m.name))];
+        if (isFront && !answer.toolCalls.length) hybrid.emit({ answer: { ...result.log, finalAnswer: true, tools: recentTools } });
         engine.trace.end(span, { source: result.source, toolCalls: answer.toolCalls.map(call => call.function.name) });
         return { ...answer, model: hybrid.policy.cloudModel };
       } catch (error) { engine.trace.fail(span, "Firebase inference failed"); throw error; }
@@ -173,23 +223,67 @@ export function mountHybridControls(engine, connection) {
   badge.className = "hybrid-badge"; badge.setAttribute("role", "status");
   badge.textContent = label("回答待ち", "Awaiting answer");
   (document.querySelector(".assistant-sidebar-header") || root.querySelector(".ns-header"))?.append(badge);
+  const formatTelemetry = entry => {
+    const modelName = entry.model || (entry.source === "ON_DEVICE" ? "Gemini Nano" : hybrid.policy.cloudModel);
+    const ms = Number.isFinite(entry.durationMs) ? `${entry.durationMs.toLocaleString()} ms` : "";
+    const parts = [
+      entry.source === "ON_DEVICE" ? label("⚡ 端末内", "⚡ On-device")
+        : entry.source === "IN_CLOUD" ? label("☁ クラウド", "☁ Cloud")
+        : label("推論元未確認", "Source unverified"),
+      modelName,
+      ms,
+    ].filter(Boolean);
+    if (entry.reason) {
+      let detail = entry.reason;
+      if (entry.source === "ON_DEVICE" && entry.task === "booking_preflight") detail += " (JSON Schema)";
+      else if (entry.source === "ON_DEVICE" && entry.contextChars && entry.maxContextChars)
+        detail += ` (${entry.contextChars.toLocaleString()} / ${entry.maxContextChars.toLocaleString()} chars)`;
+      if (Array.isArray(entry.tools) && entry.tools.length) detail += ` (MCP: ${entry.tools.join(", ")})`;
+      parts.push(detail);
+    }
+    return parts.join(" · ");
+  };
   const updateBadge = entry => {
     badge.dataset.source = entry.source;
-    badge.textContent = entry.source === "ON_DEVICE" ? label("端末内", "On-device")
-      : entry.source === "IN_CLOUD" ? label("クラウド", "Cloud") : label("推論元を確認できません", "Source unverified");
-    badge.title = `${entry.durationMs} ms`;
-    const latest = [...root.querySelectorAll("#ns-msgs .ns-msg.bot")].at(-1);
-    if (latest) latest.dataset.inferenceSource = entry.source;
+    badge.textContent = entry.source === "ON_DEVICE" ? label("⚡ 端末内", "⚡ On-device")
+      : entry.source === "IN_CLOUD" ? label("☁ クラウド", "☁ Cloud") : label("推論元を確認できません", "Source unverified");
+    badge.title = formatTelemetry(entry);
+    // The answer bubble is only rendered after turn.completed, so the label
+    // waits for it instead of landing on the status line or the previous answer.
+    pendingLabel = entry;
   };
-  const unsubscribe = hybrid.subscribe(event => {
-    if (event.device) {
-      const state = event.device;
-      prepare.disabled = ["preparing", "downloading", "ready"].includes(state);
-      device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
-        : state === "unavailable" ? label("この環境では端末内AIが使えません。クラウドで続行します。", "Local AI is unavailable here. Chat continues in the cloud.")
-        : state === "downloading" ? `${label("モデルをダウンロード中", "Downloading model")} ${Math.round(event.progress * 100)}%`
-        : label("端末内AIを準備中…クラウドで相談を続けられます。", "Preparing local AI… You can continue using cloud chat.");
+  let pendingLabel = null;
+  const transient = ".ns-turn-status,.ns-linker,.ns-consent,.carried-conditions,.finder-results,.finder-introductions,.finder-inquiry";
+  const attachLabel = (bubble, entry) => {
+    bubble.dataset.inferenceSource = entry.source;
+    const pill = document.createElement("div");
+    pill.className = "hybrid-telemetry-pill";
+    pill.dataset.source = entry.source;
+    pill.textContent = formatTelemetry(entry);
+    bubble.append(pill);
+  };
+  const labelObserver = new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) {
+      if (!(node instanceof Element) || !node.matches(".ns-msg") || !node.closest("#ns-msgs")) continue;
+      if (node.matches(".user")) { pendingLabel = null; continue; } // A new turn drops an unused label.
+      if (pendingLabel && node.matches(".bot") && !node.matches(transient)) {
+        attachLabel(node, pendingLabel);
+        pendingLabel = null;
+      }
     }
+  });
+  labelObserver.observe(root, { childList: true, subtree: true });
+  const syncDeviceState = (state, progress) => {
+    prepare.disabled = ["preparing", "downloading", "ready"].includes(state);
+    device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
+      : state === "unavailable" ? label("この環境では端末内AIが使えません。クラウドで続行します。", "Local AI is unavailable here. Chat continues in the cloud.")
+      : state === "downloading" ? `${label("モデルをダウンロード中", "Downloading model")} ${Math.round((progress || 0) * 100)}%`
+      : state === "preparing" ? label("端末内AIを準備中…クラウドで相談を続けられます。", "Preparing local AI… You can continue using cloud chat.")
+      : label("準備ができるまではクラウドで回答します。", "Answers use the cloud until on-device AI is ready.");
+  };
+  syncDeviceState(hybrid.device);
+  const unsubscribe = hybrid.subscribe(event => {
+    if (event.device) syncDeviceState(event.device, event.progress);
     if (event.log) {
       const entry = event.log; const item = document.createElement("li");
       item.textContent = `${entry.task} · ${entry.source} · ${entry.durationMs} ms · ${entry.reason}${entry.fallback ? " · fallback" : ""}${entry.error ? ` · ${entry.error} · ${entry.errorCode || "unknown"}${entry.httpStatus ? ` · HTTP ${entry.httpStatus}` : ""}` : ""}`;
@@ -198,6 +292,42 @@ export function mountHybridControls(engine, connection) {
     }
     if (event.answer) updateBadge(event.answer);
   });
+  const isShopPage = document.documentElement.dataset.agentKind === "shop" || /^\/s\//.test(location.pathname);
+  const quickPrompts = isShopPage ? [
+    { kind: "local", tag: label("⚡ 端末内FAQ", "⚡ Local FAQ"), prompt: label("営業時間とメニューを教えて", "What are your opening hours and menu items?") },
+    { kind: "hybrid", tag: label("⚡→☁ 予約プリフライト", "⚡→☁ Hybrid Booking"), prompt: label("金曜日に予約したいです", "I would like to make a reservation for Friday") },
+    { kind: "cloud", tag: label("☁ クラウド空席確認", "☁ Cloud Live Check"), prompt: label("明日の19時に2名で空席を確認して", "Check availability for 2 guests tomorrow at 19:00") },
+  ] : [
+    { kind: "local", tag: label("⚡ 端末内FAQ", "⚡ Local FAQ"), prompt: label("炉端 灯の営業時間とメニューを教えて", "What are Robata Akari's opening hours and menu items?") },
+    { kind: "hybrid", tag: label("⚡→☁ ハイブリッド予約", "⚡→☁ Hybrid Handoff"), prompt: label("今週金曜に炉端 灯を予約したい", "I want to book Robata Akari this Friday") },
+    { kind: "cloud", tag: label("☁ 複数店舗比較", "☁ Cloud Multi-Shop"), prompt: label("トラットリア・ソーレと広東 龍を比較して", "Compare Trattoria Sole and Canton Ryu for a group dinner") },
+  ];
+  const inputBar = root.querySelector(".ns-inputbar");
+  if (inputBar && !root.querySelector(".hybrid-quick-chips")) {
+    const chips = document.createElement("div");
+    chips.className = "hybrid-quick-chips";
+    chips.setAttribute("role", "group");
+    chips.setAttribute("aria-label", label("ハイブリッド推論の検証プロンプト", "Hybrid inference quick prompts"));
+    for (const item of quickPrompts) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "hybrid-chip";
+      btn.dataset.kind = item.kind;
+      btn.textContent = item.tag;
+      btn.title = item.prompt;
+      btn.addEventListener("click", () => {
+        const input = root.querySelector("#ns-input");
+        const send = root.querySelector("#ns-send");
+        if (!input || inputBar.dataset.turnActive === "true") return;
+        input.value = item.prompt;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        if (send && !send.disabled) send.click();
+        else input.focus();
+      });
+      chips.append(btn);
+    }
+    inputBar.before(chips);
+  }
   const start = () => { void hybrid.prepareDevice(); };
   prepare.addEventListener("click", start);
   root.querySelector("#ns-send")?.addEventListener("click", start, { capture: true });
@@ -214,6 +344,6 @@ export function mountHybridControls(engine, connection) {
   }
   const oldBadge = root.querySelector(".ns-llmbadge");
   if (oldBadge) oldBadge.remove();
-  window.addEventListener("pagehide", unsubscribe, { once: true });
+  window.addEventListener("pagehide", () => { unsubscribe(); labelObserver.disconnect(); }, { once: true });
   return { openIfNeeded() {}, hybrid };
 }

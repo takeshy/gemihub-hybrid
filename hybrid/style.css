@@ -10,4 +10,16 @@ html[data-embedded="true"] #ai-settings-open.hybrid-settings-open{display:inline
 .hybrid-flag{display:flex;gap:.4rem;margin:.4rem 0 0}
 .hybrid-flag input{width:100%;min-width:0;padding:.4rem .5rem;font:12px ui-monospace,monospace}
 .hybrid-flag button{padding:.35rem .65rem;font:inherit}
-.ns-msg.bot[data-inference-source]::after{display:block;font-size:.7rem;opacity:.8;margin-top:.6rem}.ns-msg.bot[data-inference-source="ON_DEVICE"]::after{content:"On-device"}.ns-msg.bot[data-inference-source="IN_CLOUD"]::after{content:"Cloud"}
+.ns-msg.bot[data-inference-source]:not(:has(.hybrid-telemetry-pill))::after{display:block;font-size:.7rem;opacity:.8;margin-top:.6rem}.ns-msg.bot[data-inference-source="ON_DEVICE"]:not(:has(.hybrid-telemetry-pill))::after{content:"On-device"}.ns-msg.bot[data-inference-source="IN_CLOUD"]:not(:has(.hybrid-telemetry-pill))::after{content:"Cloud"}
+.hybrid-telemetry-pill{display:inline-flex;flex-wrap:wrap;align-items:center;gap:.25rem;margin-top:.55rem;padding:.2rem .55rem;border-radius:999px;border:1px solid #cbd2dc;background:#f4f6f8;color:#26303c;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:100%;overflow-wrap:anywhere}
+.hybrid-telemetry-pill[data-source="ON_DEVICE"]{background:#e5f4ea;color:#17582d;border-color:#8dc9a1}
+.hybrid-telemetry-pill[data-source="IN_CLOUD"]{background:#eaf1ff;color:#193d83;border-color:#a5bbed}
+.hybrid-quick-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.45rem .65rem;border-top:1px solid #dde3ea;background:#f8fafc}
+.hybrid-chip{display:inline-flex;align-items:center;padding:.3rem .65rem;border-radius:999px;border:1px solid #b6c4ce;background:#fff;color:#1f2937;font:600 12px/1.3 inherit;cursor:pointer;transition:background .15s,border-color .15s}
+.hybrid-chip:hover{background:#eef4fb;border-color:#7ea1d4}
+.hybrid-chip[data-kind="local"]{border-color:#8dc9a1;color:#17582d;background:#f2faf5}
+.hybrid-chip[data-kind="local"]:hover{background:#e5f4ea}
+.hybrid-chip[data-kind="hybrid"]{border-color:#d8b88a;color:#7a4400;background:#fdf8f0}
+.hybrid-chip[data-kind="hybrid"]:hover{background:#faefd9}
+.hybrid-chip[data-kind="cloud"]{border-color:#a5bbed;color:#193d83;background:#f2f6ff}
+.hybrid-chip[data-kind="cloud"]:hover{background:#e4edff}
