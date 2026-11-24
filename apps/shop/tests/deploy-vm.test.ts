@@ -5,6 +5,13 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
+function testBash() {
+  if (process.platform !== "win32") return "bash";
+  const git = spawnSync("git", ["--exec-path"], { encoding: "utf8" });
+  assert.equal(git.status, 0, "The Windows test uses Bash from Git for Windows.");
+  return resolve(git.stdout.trim(), "../../../bin/bash.exe");
+}
+
 async function run(failures: number, deployStatus = 0, enabled = "true", probeStatus = 255) {
   const dir = await mkdtemp(join(tmpdir(), "deploy-vm-test-"));
   try {
@@ -28,9 +35,26 @@ if (args[0] === 'compute' && args[1] === 'ssh') {
 }
 `;
     for (const name of ["gcloud", "mkdir", "chmod", "sleep"]) await writeFile(join(bin, name), fake, { mode: 0o755 });
-    const result = spawnSync("bash", [resolve("infra/deploy-vm.sh"), "project", "zone", "instance", "registry/app:version", enabled], {
+    const launcher = `set -e
+fixture_bin=$1
+fixture_tmp=$2
+shift 2
+if command -v cygpath >/dev/null; then
+  fixture_bin=$(cygpath -u "$fixture_bin")
+  fixture_tmp=$(cygpath -u "$fixture_tmp")
+  export MSYS2_ARG_CONV_EXCL=--command=
+fi
+export PATH="$fixture_bin:$PATH"
+export TMPDIR="$fixture_tmp"
+if [[ $(command -v gcloud) != "$fixture_bin/gcloud" ]]; then
+  echo "Expected the test gcloud stub" >&2
+  exit 126
+fi
+exec bash "$@"`;
+    const result = spawnSync(testBash(), ["-c", launcher, "deploy-vm-test", bin, dir,
+      "./infra/deploy-vm.sh", "project", "zone", "instance", "registry/app:version", enabled], {
       // The Node-based command fakes must not inherit the test runner protocol.
-      env: { ...process.env, NODE_TEST_CONTEXT: undefined, PATH: `${bin}:${process.env.PATH}`, TMPDIR: dir,
+      env: { ...process.env, NODE_TEST_CONTEXT: undefined,
         DEPLOY_TEST_LOG: log, DEPLOY_TEST_FAILURES: String(failures), DEPLOY_TEST_DEPLOY_STATUS: String(deployStatus), DEPLOY_TEST_PROBE_STATUS: String(probeStatus) },
       encoding: "utf8",
     });

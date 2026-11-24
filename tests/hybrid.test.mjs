@@ -150,6 +150,27 @@ test("invalid classification cannot invent a local shop context", async () => {
   assert.equal(calls.length, 1); assert.equal(calls[0].task, "agent");
 });
 
+test("the town guide previews only verified on-device FAQ chunks", async () => {
+  const { engine, hybrid } = engineFixture();
+  const events = [];
+  const received = [];
+  hybrid.emit = event => events.push(event);
+  hybrid.generate = async ({ onDelta }) => {
+    onDelta("Hours: ", InferenceSource.ON_DEVICE);
+    onDelta("unconfirmed source");
+    onDelta("cloud text", InferenceSource.IN_CLOUD);
+    return { response: { text: () => "Hours: 17:00." }, log: {}, source: "ON_DEVICE", streamed: true };
+  };
+  await engine.top.llm.chat({
+    parentSpan: "front",
+    messages: [{ role: "user", content: "What are Akari's opening hours?" }],
+    tools: [],
+    onContentDelta: delta => received.push(delta),
+  });
+  assert.deepEqual(events.filter(event => event.faqDelta), [{ faqDelta: "Hours: " }]);
+  assert.deepEqual(received, ["Hours: ", "unconfirmed source", "cloud text"]);
+});
+
 test("startup availability probe and 250ms preparation race eliminate first-turn cloud forcing", async () => {
   const originalLM = globalThis.LanguageModel;
   try {
@@ -194,8 +215,8 @@ test("streaming local answers emit deltas incrementally without duplicate full-t
     factory: () => ({
       generateContentStream: async () => ({
         stream: (async function* () {
-          yield { text: () => "Open " };
-          yield { text: () => "17:00-23:30." };
+          yield { text: () => "Open ", inferenceSource: InferenceSource.ON_DEVICE };
+          yield { text: () => "17:00-23:30.", inferenceSource: InferenceSource.ON_DEVICE };
         })(),
         response: Promise.resolve({ inferenceSource: InferenceSource.ON_DEVICE, text: () => "Open 17:00-23:30." }),
       }),
@@ -205,11 +226,11 @@ test("streaming local answers emit deltas incrementally without duplicate full-t
     task: "single_shop",
     question: "What are the hours?",
     prompt: "Published facts",
-    onDelta: delta => chunks.push(delta),
+    onDelta: (delta, source) => chunks.push([delta, source]),
   });
   assert.equal(result.streamed, true);
   assert.equal(result.source, "ON_DEVICE");
-  assert.deepEqual(chunks, ["Open ", "17:00-23:30."]);
+  assert.deepEqual(chunks, [["Open ", InferenceSource.ON_DEVICE], ["17:00-23:30.", InferenceSource.ON_DEVICE]]);
 });
 
 test("a stream that stalls after its first chunk still ends when the turn is aborted", async () => {

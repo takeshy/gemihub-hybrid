@@ -1,3 +1,4 @@
+import { InferenceSource } from "firebase/ai";
 import { HybridInference } from "./firebase-client.js";
 import {
   DECISION_SCHEMA,
@@ -103,8 +104,14 @@ export function installHybridEngine(engine, connection, { getShops, getFacts, sc
         if (facts) {
           const prompt = groundedPrompt(question, facts);
           if (routePolicy({ question, historyCount, task: "single_shop", contextChars: prompt.length }, hybrid.policy).local) {
+            const onDelta = request.onContentDelta && ((delta, source) => {
+              request.onContentDelta(delta);
+              if (scope === "finder" && source === InferenceSource.ON_DEVICE && !request.signal?.aborted) {
+                hybrid.emit({ faqDelta: delta });
+              }
+            });
             const generated = await hybrid.generate({ task: "single_shop", question, historyCount,
-              contextChars: prompt.length, prompt, signal: request.signal, onDelta: request.onContentDelta });
+              contextChars: prompt.length, prompt, signal: request.signal, onDelta });
             const content = generated.response.text();
             if (!generated.streamed) request.onContentDelta?.(content);
             hybrid.emit({ answer: { ...generated.log, finalAnswer: true } });
@@ -254,7 +261,14 @@ export function mountHybridControls(engine, connection) {
     pendingLabel = entry;
   };
   let pendingLabel = null;
-  const transient = ".ns-turn-status,.ns-linker,.ns-consent,.carried-conditions,.finder-results,.finder-introductions,.finder-inquiry";
+  const messages = root.querySelector("#ns-msgs");
+  const inputBar = root.querySelector(".ns-inputbar");
+  let preview = null;
+  const clearPreview = () => {
+    preview?.remove();
+    preview = null;
+  };
+  const transient = ".ns-turn-status,.hybrid-faq-preview,.ns-linker,.ns-consent,.carried-conditions,.finder-results,.finder-introductions,.finder-inquiry";
   const attachLabel = (bubble, entry) => {
     bubble.dataset.inferenceSource = entry.source;
     const pill = document.createElement("div");
@@ -264,16 +278,25 @@ export function mountHybridControls(engine, connection) {
     bubble.append(pill);
   };
   const labelObserver = new MutationObserver(records => {
-    for (const record of records) for (const node of record.addedNodes) {
-      if (!(node instanceof Element) || !node.matches(".ns-msg") || !node.closest("#ns-msgs")) continue;
-      if (node.matches(".user")) { pendingLabel = null; continue; } // A new turn drops an unused label.
-      if (pendingLabel && node.matches(".bot") && !node.matches(transient)) {
-        attachLabel(node, pendingLabel);
-        pendingLabel = null;
+    for (const record of records) {
+      if (record.type === "attributes" && inputBar.dataset.turnActive !== "true") clearPreview();
+      for (const node of record.addedNodes) {
+        if (!(node instanceof Element) || !node.matches(".ns-msg") || node.closest("#ns-msgs") !== messages) continue;
+        if (node.matches(".user")) {
+          pendingLabel = null;
+          clearPreview();
+        } else if (node.matches(".bot") && !node.matches(transient)) {
+          clearPreview();
+          if (pendingLabel) {
+            attachLabel(node, pendingLabel);
+            pendingLabel = null;
+          }
+        }
       }
     }
   });
   labelObserver.observe(root, { childList: true, subtree: true });
+  if (inputBar) labelObserver.observe(inputBar, { attributes: true, attributeFilter: ["data-turn-active"] });
   const syncDeviceState = (state, progress) => {
     prepare.disabled = ["preparing", "downloading", "ready"].includes(state);
     device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
@@ -284,6 +307,18 @@ export function mountHybridControls(engine, connection) {
   };
   syncDeviceState(hybrid.device);
   const unsubscribe = hybrid.subscribe(event => {
+    if (event.faqDelta && messages && inputBar?.dataset.turnActive === "true") {
+      const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 48;
+      if (!preview) {
+        preview = document.createElement("div");
+        preview.className = "ns-msg bot hybrid-faq-preview";
+        preview.setAttribute("aria-hidden", "true");
+        messages.append(preview);
+      }
+      // The final bubble is rendered and labelled by the existing turn handler.
+      preview.append(event.faqDelta);
+      if (atBottom) messages.scrollTop = messages.scrollHeight;
+    }
     if (event.device) syncDeviceState(event.device, event.progress);
     if (event.log) {
       const entry = event.log; const item = document.createElement("li");
@@ -303,7 +338,6 @@ export function mountHybridControls(engine, connection) {
     { kind: "hybrid", tag: label("⚡→☁ ハイブリッド予約", "⚡→☁ Hybrid Handoff"), prompt: label("今週金曜に炉端 灯を予約したい", "I want to book Robata Akari this Friday") },
     { kind: "cloud", tag: label("☁ 複数店舗比較", "☁ Cloud Multi-Shop"), prompt: label("トラットリア・ソーレと広東 龍を比較して", "Compare Trattoria Sole and Canton Ryu for a group dinner") },
   ];
-  const inputBar = root.querySelector(".ns-inputbar");
   if (inputBar && !root.querySelector(".hybrid-quick-chips")) {
     const chips = document.createElement("div");
     chips.className = "hybrid-quick-chips";

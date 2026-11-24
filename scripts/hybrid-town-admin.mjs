@@ -14,8 +14,9 @@ export async function initializeTown({ root, data, origin }) {
   const site = resolve(data, "site");
   await mkdir(site, { recursive: true });
   await mkdir(resolve(data, "admin"), { recursive: true });
+  const linkType = process.platform === "win32" ? "junction" : "dir";
   for (const name of ["src", "vendor", "site/runtime"]) {
-    try { await symlink(resolve(root, name), resolve(data, name), "dir"); }
+    try { await symlink(resolve(root, name), resolve(data, name), linkType); }
     catch (error) { if (error.code !== "EEXIST") throw error; }
   }
   await copyFile(resolve(root, "site/index.html"), resolve(site, "index.html"));

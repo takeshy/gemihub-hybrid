@@ -156,7 +156,7 @@ export class HybridInference {
             const delta = typeof chunk?.text === "function" ? chunk.text() : "";
             if (delta) {
               if (!streamed) firstTokenMs = Math.round(this.now() - started);
-              streamed = true; onDelta(delta);
+              streamed = true; onDelta(delta, chunk.inferenceSource);
             }
           }
         } catch (error) {

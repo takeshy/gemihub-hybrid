@@ -14,6 +14,7 @@ html[data-embedded="true"] #ai-settings-open.hybrid-settings-open{display:inline
 .hybrid-telemetry-pill{display:inline-flex;flex-wrap:wrap;align-items:center;gap:.25rem;margin-top:.55rem;padding:.2rem .55rem;border-radius:999px;border:1px solid #cbd2dc;background:#f4f6f8;color:#26303c;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:100%;overflow-wrap:anywhere}
 .hybrid-telemetry-pill[data-source="ON_DEVICE"]{background:#e5f4ea;color:#17582d;border-color:#8dc9a1}
 .hybrid-telemetry-pill[data-source="IN_CLOUD"]{background:#eaf1ff;color:#193d83;border-color:#a5bbed}
+.ns-msgs:has(> .hybrid-faq-preview) > .ns-turn-status{display:none}
 .hybrid-quick-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.45rem .65rem;border-top:1px solid #dde3ea;background:#f8fafc}
 .hybrid-chip{display:inline-flex;align-items:center;padding:.3rem .65rem;border-radius:999px;border:1px solid #b6c4ce;background:#fff;color:#1f2937;font:600 12px/1.3 inherit;cursor:pointer;transition:background .15s,border-color .15s}
 .hybrid-chip:hover{background:#eef4fb;border-color:#7ea1d4}

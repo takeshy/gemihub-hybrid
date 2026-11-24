@@ -1,21 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { WebSocket } from "ws";
 import type { LiveConnectParameters, LiveServerMessage, Session } from "@google/genai";
 import { publicAi, memoryAiState } from "../server/public-ai.ts";
 import { createPublicLiveUpgrade } from "../server/public-live.ts";
 
-test("public voice authenticates the site session, fixes model/tools, relays PCM/results and cleans up", async t => {
+test("public voice authenticates the site session, fixes model/tools, relays PCM/results and cleans up", { timeout: 10000 }, async t => {
   let base = "", parameters: LiveConnectParameters | undefined, ended = 0;
+  const sessions = new EventEmitter();
   const audio: unknown[] = [], replies: any[] = [];
   const env = { GEMINI_API_KEY: "server-voice-secret", SESSION_SECRET: "fixture-secret", PUBLIC_AI_LIVE_MODEL: "fixture-live-model" };
   const gateway = publicAi({ env, state: memoryAiState() });
   const server = createServer((req, res) => { void gateway.handle(req, res, [base]); });
   server.on("upgrade", createPublicLiveUpgrade({ env, authorize: gateway.authorizeLive, allowedOrigins: async () => [base], connector: async value => {
     parameters = value;
-    return { sendRealtimeInput(input: unknown) { audio.push(input); }, sendToolResponse(input: unknown) { replies.push(input); }, close() { ended++; } } as unknown as Session;
+    return { sendRealtimeInput(input: unknown) { audio.push(input); }, sendToolResponse(input: unknown) { replies.push(input); }, close() { sessions.emit("ended", ++ended); } } as unknown as Session;
   } }));
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as any).port}`;
@@ -51,7 +52,7 @@ test("public voice authenticates the site session, fixes model/tools, relays PCM
   const switching = await next; assert.equal(switching.guide, true);
   next = message(); deliver({ toolCallCancellation: { ids: ["cancelled"] } });
   assert.deepEqual(await next, { type: "cancel", id: switching.id });
-  const closed = once(ws, "close"); ws.close(); await closed;
+  const closed = Promise.all([once(ws, "close"), once(sessions, "ended")]); ws.close(); await closed;
   assert.equal(ended, 1);
   const shopSocket=await open();
   const shopMessage=()=>once(shopSocket,"message").then(([data])=>JSON.parse(String(data)));
@@ -65,7 +66,7 @@ test("public voice authenticates the site session, fixes model/tools, relays PCM
   assert.ok(replies.at(-1).functionResponses[0].response.error);
   next=shopMessage();deliver({toolCall:{functionCalls:[{id:"shop-question",name:"consult",args:{question:"What does this shop sell?"}}]}});
   assert.equal((await next).guide,false);
-  const shopClosed=once(shopSocket,"close");shopSocket.close();await shopClosed;
+  const shopClosed = Promise.all([once(shopSocket, "close"), once(sessions, "ended")]); shopSocket.close(); await shopClosed;
   assert.equal(ended,2);
   const invalid = await open();
   const refused = once(invalid, "close"); invalid.send(JSON.stringify({ type: "start", token: "forged", language: "ja" }));

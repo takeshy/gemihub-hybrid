@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { request } from "node:http";
+import { request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,9 +16,25 @@ test("the mounted town admin sends a normal invitation and the recipient gets th
   const source = fileURLToPath(new URL("../../../", import.meta.url));
   const root = await mkdtemp(join(tmpdir(), "hybrid-town-invitation-"));
   const store = new Store(":memory:");
-  const entryPath = process.env.OWNER_EMAIL_ENTRY_PATH;
+  const previous = Object.fromEntries(
+    ["APP_ORIGIN", "PARENT_INTEGRATION_SECRET", "PARENT_MAIL_URL", "ACCESS_PASSWORD", "OWNER_EMAIL_ENTRY_PATH"]
+      .map(key => [key, process.env[key]]),
+  );
   process.env.OWNER_EMAIL_ENTRY_PATH = "/?shop=1";
   const shop = createApp(store);
+  let admin: Server | undefined;
+  t.after(async () => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    for (const server of [admin, shop]) {
+      if (!server) continue;
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+    await store.close();
+    await rm(root, { recursive: true, force: true });
+  });
   const integrationSecret = "hybrid-test-integration-secret".repeat(2);
   const operator = "operator@example.test";
   const judge = "test-only-hybrid-judge-invitation".repeat(2);
@@ -49,26 +65,15 @@ test("the mounted town admin sends a normal invitation and the recipient gets th
     },
   });
   await initializeTown({ root: source, data: root, origin });
-  const admin = await startTownAdmin({ origin, data: root, shopPort: port, auth, env: { PARENT_INTEGRATION_SECRET: integrationSecret } });
-  const adminOrigin = `http://127.0.0.1:${(admin.address() as AddressInfo).port}`;
+  const adminServer = await startTownAdmin({ origin, data: root, shopPort: port, auth, env: { PARENT_INTEGRATION_SECRET: integrationSecret } });
+  admin = adminServer;
+  const adminOrigin = `http://127.0.0.1:${(adminServer.address() as AddressInfo).port}`;
   const settings = {
     APP_ORIGIN: origin, PARENT_INTEGRATION_SECRET: integrationSecret,
     PARENT_MAIL_URL: adminOrigin + "/api/internal/mail",
     ACCESS_PASSWORD: "test-only-invitation-mode",
   };
-  const previous = Object.fromEntries(Object.keys(settings).map(key => [key, process.env[key]]));
   Object.assign(process.env, settings);
-  t.after(async () => {
-    for (const [key, value] of Object.entries({ ...previous, OWNER_EMAIL_ENTRY_PATH: entryPath })) {
-      if (value === undefined) delete process.env[key]; else process.env[key] = value;
-    }
-    for (const server of [admin, shop]) {
-      server.closeAllConnections();
-      await new Promise<void>(resolve => server.close(() => resolve()));
-    }
-    await store.close();
-    await rm(root, { recursive: true, force: true });
-  });
   const adminRequest = (path: string, cookie = "", data?: unknown) => new Promise<Response>((resolve, reject) => {
     const req = request(adminOrigin + adminPath + path, {
       method: data === undefined ? "GET" : "POST",

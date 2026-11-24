@@ -15,7 +15,10 @@ async function fixture(t, options = {}) {
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, "site"));
   await cp(join(source, "src"), join(root, "src"), { recursive: true });
-  for (const path of ["vendor", "site/runtime"]) await symlink(join(source, path), join(root, path), "dir");
+  const linkType = process.platform === "win32" ? "junction" : "dir";
+  for (const path of ["vendor", "site/runtime"]) {
+    await symlink(join(source, path), join(root, path), linkType);
+  }
   for (const path of ["site/shops.json", ...generatedFiles]) { await mkdir(join(root, path, ".."), { recursive: true }); await cp(join(source, path), join(root, path)); }
   // Admin fixtures exercise loopback/production validation independently of the demo hostname.
   const published = JSON.parse(await readFile(join(source, "site/shops.json"), "utf8"));

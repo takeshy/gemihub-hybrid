@@ -117,7 +117,9 @@ test('attachments stay private until used in a published design; marked screensh
   const {createSiteImages} = await import('../admin/site-images.mjs'), sharp = (await import('sharp')).default;
   const root=await fixture(t), images=createSiteImages({root}), data=(await sharp({create:{width:40,height:30,channels:3,background:'#e32236'}}).png().toBuffer()).toString('base64');
   const {imageId}=await images.upload({name:'写真.png',mimeType:'image/png',data});assert.equal((await images.list()).length,1);
-  assert.equal((await stat(join(root,'admin/site-images',imageId+'.webp'))).mode&0o077,0);
+  const savedImage = await stat(join(root, 'admin/site-images', imageId + '.webp'));
+  assert.ok(savedImage.isFile());
+  if (process.platform !== 'win32') assert.equal(savedImage.mode & 0o077, 0);
   await assert.rejects(stat(join(root,'site/page-images',imageId+'.webp')),{code:'ENOENT'});
   const calls=[], editor=createSiteEditor({root,configured:true,generate:async input=>{calls.push(input);return{config:{...input.current,title:input.request,html:input.current.html+(input.current.html.includes('data-image-id=')?'':`<img data-image-id="${imageId}" alt="添付した写真">`)},summary:['添付画像を配置しました。']};}}),initial=await editor.get();
   const draft=await editor.propose({request:'写真を配置',revision:initial.revision,media:{mimeType:'image/png',data},imageIds:[imageId]},operator,[]);

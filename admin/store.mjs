@@ -66,7 +66,10 @@ export function createShopStore({ root, production = false, build = buildSite, w
     try {
       await mkdir(join(stage, "site"));
       // The fixed runtime and build inputs are read only throughout staging.
-      for (const path of ["src", "vendor", "site/runtime"]) await symlink(join(root, path), join(stage, path), "dir");
+      const linkType = process.platform === "win32" ? "junction" : "dir";
+      for (const path of ["src", "vendor", "site/runtime"]) {
+        await symlink(join(root, path), join(stage, path), linkType);
+      }
       await writeFile(join(stage, "site/shops.json"), serialize(config));
       await build({ root: pathToFileURL(stage + sep), production, stdio: "pipe" });
       const files = [...generatedFiles, "admin/cache.json", "site/shops.json"];
