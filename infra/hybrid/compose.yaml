@@ -3,19 +3,21 @@ services:
   hybrid:
     image: ${HYBRID_IMAGE:?HYBRID_IMAGE is required}
     restart: unless-stopped
-    command: [node, --max-old-space-size=160, --import, tsx, scripts/hybrid-server.mjs]
-    mem_limit: 384m
+    command: [node, "--max-old-space-size=${HYBRID_NODE_HEAP_MB:-160}", --import, tsx, scripts/hybrid-server.mjs]
+    mem_limit: ${HYBRID_MEMORY_LIMIT:-384m}
     cpu_shares: 256
     user: node
     read_only: true
     tmpfs: ["/tmp:size=96m,mode=1777"]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    env_file: ["${HYBRID_RUNTIME_ENV:-/dev/null}"]
+    volumes:
+      - /var/lib/gemihub-hybrid:/data
     environment:
       APP_ORIGIN: https://hybrid.gemihub.net
       PORT: '8080'
-      HYBRID_JUDGE_INVITE: ${HYBRID_JUDGE_INVITE:-}
-      HYBRID_JUDGE_UNTIL: ${HYBRID_JUDGE_UNTIL:-}
+      HOME: /tmp
     networks:
       dev:
         aliases: [gemihub-hybrid]

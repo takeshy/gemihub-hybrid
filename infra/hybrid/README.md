@@ -24,8 +24,47 @@ refuses unexpected existing hybrid configuration. An upstream startup script
 can regenerate its Caddyfile, so reapply the `route` step after such a change.
 Do not run inherited deployment scripts for this clone.
 
-To enable the shop workspace, set `HYBRID_JUDGE_INVITE` to a random base64url
-token (32 characters or more) and `HYBRID_JUDGE_UNTIL` to an ISO 8601 expiry.
-Pass them as environment variables for local testing or in a private
-`/opt/gemihub-hybrid/judge.env` file with mode 0600 on the VM. Share
-`/judge#<token>` with the judges through the testing instructions field.
+## 街の管理画面と店舗作成
+
+街の管理画面は `https://hybrid.gemihub.net/judge/admin/` にあります。
+運営者が「Sign in with Google」から Gmail の送信を承認すると、「Invite a shop」
+から招待メールを送れます。飲食店・その他のお店の店主はメールのリンクを開いて
+「Build your shop with AI」に進みます。サロンの店主は招待先の Google アカウントでログインします。
+
+1. `gemihub-hybrid-2026` で Gmail API、Firestore、Cloud Storage、Vertex AI を準備します。
+   店舗用には既存アプリと同じ Firestore Standard / Native mode と、非公開の店舗ファイル用バケットを使います。
+   サロンでカレンダー連携も使う場合は Google Calendar API を有効にします。
+   ランタイムのサービスアカウントには、このプロジェクトの店舗 DB、バケット、Vertex AI に必要な権限を
+   付与します。[Firestore のデータベース作成](https://docs.cloud.google.com/firestore/native/docs/manage-databases)
+2. 同じプロジェクトで OAuth のウェブアプリ用クライアントを作り、
+   承認済みリダイレクト URI に次の二つを登録します。OAuth の公開範囲がテスト中の場合は、
+   Gmail を承認する運営者と Google で入る店主をテストユーザーに追加します。
+   [Google OAuth のウェブアプリ設定](https://developers.google.com/identity/protocols/oauth2/web-server)
+
+   ```text
+   https://hybrid.gemihub.net/judge/admin/auth/google/callback
+   https://hybrid.gemihub.net/auth/google/callback
+   ```
+
+3. [town.env.example](town.env.example) を基に VM の
+   `/opt/gemihub-hybrid/town.env` を作り、所有者を root、権限を 0600 にします。
+   `PARENT_ADMIN_EMAILS` に普段使っている Gmail アカウントを設定し、
+   `SESSION_SECRET`、`PARENT_AUTH_SECRET`、`PARENT_INTEGRATION_SECRET` にはそれぞれ別の
+   32 文字以上の乱数を設定します。Vertex AI で利用可能なモデル名を `VERTEX_MODEL` に指定します。
+   店舗画面のデザイン生成に別モデルを使う場合は `GEMINI_DESIGN_MODEL` も指定します。
+4. VM の `/var/lib/gemihub-hybrid` を UID 1000 が読み書きできる非公開ディレクトリとして用意し、
+   Hybrid 専用のサービスアカウントの認証ファイルを `google-runtime.json` として、
+   UID 1000 の読み取り専用に配置します。街の店舗一覧と暗号化済み Gmail 接続は同じ
+   ディレクトリに保存されます。認証ファイルや環境ファイルは Git やイメージに含めません。
+5. `infra/hybrid` の上記手順で Hybrid 専用コンテナを更新し、街の管理画面に自分の
+   Google アカウントでログインして Gmail の送信を承認します。
+
+信頼できる審査員に街の運営操作を体験してもらう場合は、専用の
+`HYBRID_TOWN_JUDGE_INVITE`（32 文字以上の base64url）と
+`HYBRID_TOWN_JUDGE_UNTIL`（ISO 8601 の期限）を設定し、先に運営者が Gmail の送信を承認します。
+`/judge#<token>` を開いた審査員は、その街の店舗一覧を編集し、運営者の Gmail から
+実際に招待を送れます。招待 URL は対象の審査員だけに共有してください。
+
+公開用の架空店舗と予約は引き続きメモリ内にあり、管理画面から作った店舗は
+Hybrid 専用 Firestore に保存されます。実メール・Vertex AI・店舗の公開は、
+専用設定を有効にした環境でそれぞれ確認してください。

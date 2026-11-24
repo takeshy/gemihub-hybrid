@@ -56,10 +56,10 @@ The town guide also exposes a public read-only MCP endpoint at `/api/mcp`
 (`list_town_shops`, `query_shop_facts`, `search_local_events`) so external agents
 can inspect published neighborhood facts without touching reservations.
 
-The judge invitation opens a private **Shop workspace** where you can describe
-a fictional shop, review and publish its storefront, and edit its details.
-The shop is available in that browser for up to two hours. For local invitation
-configuration, see the [deployment guide](infra/hybrid/README.md).
+With operator access configured, the judge invitation opens the Gemihub town
+administration interface. Operators can send a shop invitation, and invited
+owners can use Gemihub's conversational shop builder. See the
+[deployment guide](infra/hybrid/README.md) for the Hybrid operator setup.
 
 New runtime code: [`hybrid/`](hybrid/) and [`scripts/town-mcp.mjs`](scripts/town-mcp.mjs),
 with regression tests in [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs).

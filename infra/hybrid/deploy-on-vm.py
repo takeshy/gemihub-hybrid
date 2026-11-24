@@ -32,12 +32,15 @@ def container(image):
         token = json.load(response)['access_token']
     with tempfile.TemporaryDirectory(prefix='gemihub-hybrid-registry-') as credentials:
         env = {**os.environ, 'DOCKER_CONFIG': credentials, 'HYBRID_IMAGE': image}
+        town_env = ROOT / 'town.env'
+        if town_env.is_file():
+            env['HYBRID_RUNTIME_ENV'] = str(town_env)
         run('docker', 'login', '-u', 'oauth2accesstoken', '--password-stdin',
             'https://asia-northeast1-docker.pkg.dev', input=token.encode(), env=env,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         compose = ['docker-compose']
-        if (ROOT / 'judge.env').is_file():
-            compose.extend(['--env-file', str(ROOT / 'judge.env')])
+        if town_env.is_file():
+            compose.extend(['--env-file', str(town_env)])
         compose.extend(['-p', 'gemihub-hybrid', '-f', str(ROOT / 'compose.yaml')])
         run(*compose, 'pull', 'hybrid', env=env)
         run(*compose, 'up', '-d', '--no-deps', 'hybrid', env=env)

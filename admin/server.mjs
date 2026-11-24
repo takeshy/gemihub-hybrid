@@ -11,6 +11,8 @@ import { createSiteDesignGenerator } from "./site-editor-ai.mjs";
 import { createSiteImages } from "./site-images.mjs";
 import { createSiteCapture } from "./site-capture.mjs";
 import { createChatDocuments, createDocumentImporter } from "./chat-documents.mjs";
+import { translateAdminMessage } from "./i18n.js";
+import { localizeAdminHtml } from "./localize-html.mjs";
 
 async function body(req, limit = 1024 * 1024) {
   if (!/^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] || "")) {
@@ -27,24 +29,34 @@ async function body(req, limit = 1024 * 1024) {
   catch { throw new Error("JSONを読み込めませんでした"); }
 }
 
-export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToPath(new URL("../", import.meta.url)), production = false, store = createShopStore({ root, production }), resolver = resolveShop, geminiApiKey = process.env.GEMINI_API_KEY || "", cuisineSuggester = suggestCuisine, auth = createGoogleAuth({ root }), integrationSecret = process.env.PARENT_INTEGRATION_SECRET || "", shopOrigin = process.env.SHOP_ADMIN_ORIGIN || "http://127.0.0.1:3000", publicOrigin = process.env.PARENT_ORIGIN?.startsWith("https://") ? process.env.PARENT_ORIGIN : "", fetch: fetchImpl = globalThis.fetch, capture = createSiteCapture() } = {}) {
+export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToPath(new URL("../", import.meta.url)), production = false, store = createShopStore({ root, production }), resolver = resolveShop, geminiApiKey = process.env.GEMINI_API_KEY || "", cuisineSuggester = suggestCuisine, basePath = "", locale = "ja", enableSiteEditor = true, auth = createGoogleAuth({ root, basePath }), integrationSecret = process.env.PARENT_INTEGRATION_SECRET || "", shopOrigin = process.env.SHOP_ADMIN_ORIGIN || "http://127.0.0.1:3000", publicOrigin = process.env.PARENT_ORIGIN?.startsWith("https://") ? process.env.PARENT_ORIGIN : "", finderUrl = process.env.AGENT_PARENT_URL || "http://localhost:8090", fetch: fetchImpl = globalThis.fetch, capture = createSiteCapture() } = {}) {
   const external = publicOrigin ? new URL(publicOrigin) : null;
-  if (external && (external.protocol !== "https:" || external.origin !== publicOrigin)) throw new Error("公開管理画面のURLはHTTPSのオリジンを指定してください");
-  const siteEditor = createSiteEditor({ root, configured: !!geminiApiKey, generate: createSiteDesignGenerator({ apiKey: geminiApiKey, fetch: fetchImpl }) });
-  const siteImages = createSiteImages({ root });
+  if (external && (external.origin !== publicOrigin || (external.protocol !== "https:" &&
+      !(external.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(external.hostname)))))
+    throw new Error("公開管理画面のURLはHTTPSのオリジンを指定してください");
+  if (basePath && !/^\/(?:[a-z0-9-]+\/)*[a-z0-9-]+$/.test(basePath)) throw new Error("Invalid admin base path");
+  const siteEditor = enableSiteEditor ? createSiteEditor({ root, configured: !!geminiApiKey, generate: createSiteDesignGenerator({ apiKey: geminiApiKey, fetch: fetchImpl, locale }) }) : null;
+  const siteImages = enableSiteEditor ? createSiteImages({ root }) : null;
   const chatDocuments = createChatDocuments({ root });
   const importDocument = createDocumentImporter({ apiKey: geminiApiKey, fetch: fetchImpl });
-  const publicPage = new URL(process.env.AGENT_PARENT_URL || "http://localhost:8090");
+  const publicPage = new URL(finderUrl);
   if (publicPage.username || publicPage.password || (publicPage.protocol !== "https:" && !(publicPage.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(publicPage.hostname)))) throw new Error("お店さがしの公開URLを確認してください");
   return createServer(async (req, res) => {
     const send = (status, data) => {
       req.resume();
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+      if (locale === "en" && data && typeof data === "object" && !Array.isArray(data)) {
+        data = { ...data };
+        for (const key of ["error", "message", "setupMessage", "warning"]) {
+          if (typeof data[key] === "string") data[key] = translateAdminMessage(locale, data[key]);
+        }
+      }
       res.end(JSON.stringify(data));
     };
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Content-Language", locale);
     res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     try {
       // Private server-to-server mail uses its shared secret independently of browser hosts/origins.
@@ -60,6 +72,11 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
       const origin = external?.origin || `http://${req.headers.host}`;
       const url = new URL(req.url, origin);
       if (url.origin !== origin) return send(403, { error: "接続先が不正です" });
+      if (!url.pathname.startsWith(`${basePath}/`)) return send(404, { error: "見つかりません" });
+      url.pathname = url.pathname.slice(basePath.length);
+      if (!siteEditor && url.pathname === "/page-editor" && ["GET", "HEAD"].includes(req.method)) {
+        res.writeHead(302, { Location: `${basePath}/` }); res.end(); return;
+      }
       if (!["GET", "HEAD"].includes(req.method) && req.headers.origin !== origin) return send(403, { error: "管理画面と同じOriginから操作してください" });
       const oauthReturn = req.method === "GET" && ["/auth/google/callback", "/auth/demo"].includes(url.pathname);
       const pageNavigation = req.method === "GET" && url.pathname === "/" && req.headers["sec-fetch-mode"] === "navigate" && req.headers["sec-fetch-dest"] === "document";
@@ -67,15 +84,25 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
       if (auth && req.method === "GET" && url.pathname === "/auth/google") return await auth.begin(res, origin);
       if (auth && req.method === "GET" && url.pathname === "/auth/google/callback") return await auth.callback(req, res, url, origin);
       if (auth?.demo && req.method === "GET" && url.pathname === "/auth/demo") return await auth.demo(res, url, origin);
+      if (auth?.demo && basePath && req.method === "POST" && url.pathname === "/auth/demo") {
+        const input = await body(req, 1024);
+        return await auth.demo(res, url, origin, input?.invite ?? "");
+      }
       const user = auth ? await auth.session(req) : { email: "test-operator@example.com" };
       if (req.method === "GET" && url.pathname === "/api/session") return send(200, auth ? auth.status(user) : { user, configured: true });
       if (req.method === "POST" && url.pathname === "/api/logout") { if (auth) await auth.logout(req, res, origin); return send(200, { ok: true }); }
       if (url.pathname.startsWith("/api/") && !user) return send(401, { error: "運営者としてGoogleにログインしてください" });
-      if (req.method === "GET" && url.pathname === "/api/chat-documents") return send(200, await chatDocuments.get());
+      if (req.method === "GET" && url.pathname === "/api/chat-documents")
+        return send(200, { ...await chatDocuments.get(), pdfImportAvailable: !!geminiApiKey });
       if (req.method === "POST" && url.pathname === "/api/chat-documents/import") return send(200, await importDocument(await body(req, 8 * 1024 * 1024)));
       if (req.method === "PUT" && url.pathname === "/api/chat-documents") return send(200, await chatDocuments.save(await body(req, 8 * 1024 * 1024)));
       const documentMatch = url.pathname.match(/^\/api\/chat-documents\/([a-f0-9-]{36})$/);
       if (req.method === "DELETE" && documentMatch) return send(200, await chatDocuments.delete(documentMatch[1], req.headers["if-match"]));
+      if (req.method === "GET" && url.pathname === "/api/site") {
+        const editor = siteEditor ? await siteEditor.get() : { editorAvailable: false };
+        return send(200, { ...editor, publicUrl: publicPage.href });
+      }
+      if (!siteEditor && url.pathname.startsWith("/api/site/")) return send(404, { error: "見つかりません" });
       if (req.method === "GET" && url.pathname === "/api/site/images") return send(200, await siteImages.list());
       const imageMatch = url.pathname.match(/^\/api\/site\/images\/([a-f0-9]{64})$/);
       if (req.method === "GET" && imageMatch) return send(200, await siteImages.read(imageMatch[1]));
@@ -86,7 +113,6 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
         const html = await siteEditor.preview(input.sourceId || "published", (await store.get()).shops, input.revision);
         return send(200, await capture({ html, width: input.width }));
       }
-      if (req.method === "GET" && url.pathname === "/api/site") return send(200, { ...await siteEditor.get(), publicUrl: publicPage.href });
       if (req.method === "GET" && url.pathname === "/api/site/preview") {
         const html = await siteEditor.preview(url.searchParams.get("source") || "published", (await store.get()).shops);
         res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
@@ -105,7 +131,7 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
         const target = new URL(shopOrigin);
         if (target.protocol !== "https:" && !(target.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(target.hostname))) return send(503, { error: "店舗アプリのURL設定を確認してください" });
         const input = await body(req);
-        const response = await fetchImpl(new URL("/api/platform/invitations", target), { method: "POST", redirect: "error", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json", Origin: target.origin, Authorization: `Bearer ${integrationSecret}` }, body: JSON.stringify({ email: input.email, name: input.name, industry: input.industry, senderEmail: user.email }) });
+        const response = await fetchImpl(new URL("/api/platform/invitations", target), { method: "POST", redirect: "error", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json", Origin: target.origin, Authorization: `Bearer ${integrationSecret}`, ...(locale === "en" && { "X-Gemihub-Language": locale }) }, body: JSON.stringify({ email: input.email, name: input.name, industry: input.industry, senderEmail: user.email }) });
         if (!response.ok) { const error = await response.json().catch(() => ({})); return send(response.status, { error: error.error || "招待メールを送信できませんでした" }); }
         await response.body?.cancel();
         return send(200, { ok: true, message: "招待メールを送りました。" });
@@ -129,10 +155,17 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
       }
       const match = url.pathname.match(/^\/api\/shops\/([^/]+)$/);
       if (req.method === "DELETE" && match) return send(200, await store.delete(decodeURIComponent(match[1]), req.headers["if-match"]));
-      const assets = { "/chat-documents-ui.js": ["chat-documents-ui.js", "text/javascript"], "/page-editor": ["dist/index.html", "text/html"], "/editor.js": ["dist/editor.js", "text/javascript"], "/editor.css": ["dist/editor.css", "text/css"], "/": ["index.html", "text/html"], "/index.html": ["index.html", "text/html"], "/admin.js": ["admin.js", "text/javascript"], "/site-editor.js": ["site-editor.js", "text/javascript"], "/admin.css": ["admin.css", "text/css"], "/shop-data.js": ["../site/shop-data.js", "text/javascript"] };
+      const assets = { "/i18n.js": ["i18n.js", "text/javascript"], "/en.json": ["en.json", "application/json"], "/chat-documents-ui.js": ["chat-documents-ui.js", "text/javascript"], "/page-editor": ["dist/index.html", "text/html"], "/editor.js": ["dist/editor.js", "text/javascript"], "/editor.css": ["dist/editor.css", "text/css"], "/": ["index.html", "text/html"], "/index.html": ["index.html", "text/html"], "/admin.js": ["admin.js", "text/javascript"], "/site-editor.js": ["site-editor.js", "text/javascript"], "/admin.css": ["admin.css", "text/css"], "/shop-data.js": ["../site/shop-data.js", "text/javascript"] };
       if (["GET", "HEAD"].includes(req.method) && Object.hasOwn(assets, url.pathname)) {
         const [file, type] = assets[url.pathname];
-        const data = await readFile(new URL(file, import.meta.url));
+        let data = await readFile(new URL(file, import.meta.url));
+        if (type === "text/html" && (basePath || locale === "en")) {
+          let html = localizeAdminHtml(data.toString(), locale);
+          if (basePath) html = html.replace("<html ", `<html data-admin-base="${basePath}" `)
+            .replace(/(?:href|src)="\/(?:admin\.css|admin\.js|editor\.css|editor\.js|auth\/google)"/g,
+              attribute => attribute.replace('="/', `="${basePath}/`));
+          data = Buffer.from(html);
+        }
         res.writeHead(200, { "Content-Type": `${type}; charset=utf-8` });
         return res.end(req.method === "HEAD" ? undefined : data);
       }

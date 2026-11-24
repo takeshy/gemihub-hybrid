@@ -1,4 +1,9 @@
 .git
+**/town.env
+**/google-runtime.json
+**/client_secret_*.json
+admin/auth.json
+admin/auth.json.*.tmp
 .firebase-agent-skills
 .firebase
 admin/site-editor.json

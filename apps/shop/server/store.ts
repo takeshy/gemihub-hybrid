@@ -110,7 +110,7 @@ export class Store {
       (!mode &&
         process.env.DEMO_MODE === "true" &&
         process.env.NODE_ENV !== "production");
-    if (mode && mode !== ":memory:")
+    if (mode && mode !== ":memory:" && mode !== "firestore")
       throw new Error(
         tr("ファイル保存は廃止しました。Firestore を設定してください"),
       );

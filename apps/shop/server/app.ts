@@ -321,7 +321,7 @@ export function createApp(
   const pageFiles = storefrontFiles || (store.memory ? memoryStorefrontFiles(store) : bucketStorefrontFiles());
   const ownerToken = (shop: Shop) => store.ownerToken(shop);
   const serviceMail = platformSend || platformMailer();
-  const ownerLogin = ownerEmailLogin(store, serviceMail);
+  const ownerLogin = ownerEmailLogin(store, serviceMail, process.env.OWNER_EMAIL_ENTRY_PATH);
   const mailReady = async (shop: Shop) => !!(platformSend || process.env.PARENT_MAIL_URL || process.env.PLATFORM_GMAIL_REFRESH_TOKEN || await ownerToken(shop));
   const mailForShop = async (shop: Shop, to: string, subject: string, text: string, cc: string[] = [], attachments: import("./google.ts").MailAttachment[] = []) => {
     if (platformSend || process.env.PARENT_MAIL_URL || process.env.PLATFORM_GMAIL_REFRESH_TOKEN) return serviceMail(to, subject, text, cc, attachments);
@@ -1475,7 +1475,7 @@ export function createApp(
                 ...(user.role === "owner" && isAdmin(user.email) ? { admin: true } : {}),
               }
             : null,
-          demo: demoEnabled(),
+          demo: store.memory && demoEnabled(),
           aiName: (await currentProvider()) === "openai" ? "GPT" : "Gemini",
           hosted: hosted?.slug,
           invite: accessPasswordEnabled(),
@@ -1923,7 +1923,7 @@ export function createApp(
         fail(404, tr("見つかりません"));
       }
       if (path === "/api/demo-login" && method === "POST" && !publicHost) {
-        if (!demoEnabled()) fail(404, tr("見つかりません"));
+        if (!store.memory || !demoEnabled()) fail(404, tr("見つかりません"));
         const input = z
           .object({
             role: z.enum(["owner", "customer"]),
@@ -3714,7 +3714,7 @@ export function createApp(
         // customer. The session is left alone, so a demo owner trying their own storefront stays the owner.
         const shopper = async (shop: Shop): Promise<User | undefined> => {
           if (user?.role === "customer" && user.shopId === shop.id) return user;
-          if (shop.published?.industry === "restaurant" || !demoShoppersEnabled()) return undefined;
+          if (!store.memory || shop.published?.industry === "restaurant" || !demoShoppersEnabled()) return undefined;
           const demo: User = { email: demoCustomerEmail, name: tr("デモのお客様"), role: "customer", shopId: shop.id };
           await ensureDemoCustomer(demo, shop.id);
           return demo;

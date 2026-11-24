@@ -31,3 +31,8 @@ admin/chat-documents.json.*.tmp
 site/chat-documents.json
 site/chat-documents.json.*.tmp
 **/judge.env
+**/town.env
+**/google-runtime.json
+**/client_secret_*.json
+admin/auth.json
+admin/auth.json.*.tmp

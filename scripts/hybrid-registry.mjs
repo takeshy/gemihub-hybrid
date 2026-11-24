@@ -10,7 +10,8 @@ const shops = rows.map(({ slug, config }, index) => ({ id: slug, name: config.na
   pageUrl: `${origin}/s/${slug}/`, reservationEnabled: true, reservationUrl: `${origin}/s/${slug}/reserve`,
   networkUrl: `${origin}/s/${slug}/agent/reservation_concierge` }));
 const facts = Object.fromEntries(rows.map(({ slug, config }) => [slug, {
-  hours: hoursText(config), products: config.menus.filter(menu => menu.active).map(menu => menu.name),
+  sourcePageUrl: `${origin}/s/${slug}/`, hours: hoursText(config),
+  products: config.menus.filter(menu => menu.active).map(menu => menu.name),
 }]));
 await writeFile(new URL("../site/shops.json", import.meta.url), JSON.stringify({ version: 1, shops }, null, 2) + "\n");
 await writeFile(new URL("../site/shop-public-facts.json", import.meta.url), JSON.stringify(facts, null, 2) + "\n");

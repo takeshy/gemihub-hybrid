@@ -63,16 +63,17 @@ export function serverMetadata() {
   };
 }
 
-export async function loadTownData({ siteDir, deployedOrigin, publicOrigin }) {
+export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin, publicOrigin }) {
   const rewrite = value => typeof value === "string" && deployedOrigin && publicOrigin
     ? value.replaceAll(deployedOrigin, publicOrigin) : value;
   const [shopsRaw, factsRaw, docsRaw] = await Promise.all([
     readFile(resolve(siteDir, "shops.json"), "utf8").then(JSON.parse).catch(() => ({ shops: [] })),
-    readFile(resolve(siteDir, "shop-public-facts.json"), "utf8").then(JSON.parse).catch(() => ({})),
+    readFile(resolve(factsDir, "shop-public-facts.json"), "utf8").then(JSON.parse).catch(() => ({})),
     readFile(resolve(siteDir, "chat-documents.json"), "utf8").then(JSON.parse).catch(() => ({ version: 1, documents: [] })),
   ]);
   const shops = (Array.isArray(shopsRaw?.shops) ? shopsRaw.shops : []).map(shop => {
-    const extra = factsRaw?.[shop.id] || {};
+    const facts = factsRaw?.[shop.id];
+    const extra = facts && rewrite(facts.sourcePageUrl) === rewrite(shop.pageUrl) ? facts : {};
     return {
       id: shop.id,
       name: shop.name,
@@ -162,7 +163,7 @@ async function readJsonBody(req, maxBytes = 16384) {
   catch { return { parseError: true }; }
 }
 
-export function createTownMcpHandler({ siteDir, deployedOrigin, publicOrigin }) {
+export function createTownMcpHandler({ siteDir, factsDir, deployedOrigin, publicOrigin }) {
   const hits = new Map();
   let globalHits = [];
   const allowed = key => {
@@ -183,7 +184,7 @@ export function createTownMcpHandler({ siteDir, deployedOrigin, publicOrigin }) 
   const townData = () => {
     if (!cached || Date.now() - cached.at > 30000) {
       const at = Date.now();
-      const pending = loadTownData({ siteDir, deployedOrigin, publicOrigin });
+      const pending = loadTownData({ siteDir, factsDir, deployedOrigin, publicOrigin });
       cached = { at, pending };
       pending.catch(() => { if (cached?.pending === pending) cached = null; });
     }

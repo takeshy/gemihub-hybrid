@@ -13,7 +13,7 @@ export function trustedIntegration(req, secret = process.env.PARENT_INTEGRATION_
 }
 
 /** Operator sessions and Gmail grants stay on the server. The public finder needs no session. */
-export function createGoogleAuth({ root, env = process.env, oauthFactory = redirect => new google.auth.OAuth2(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, redirect), send = async (client, message) => google.gmail({ version: "v1", auth: client }).users.messages.send(message) }) {
+export function createGoogleAuth({ root, env = process.env, basePath = "", oauthFactory = redirect => new google.auth.OAuth2(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, redirect), send = async (client, message) => google.gmail({ version: "v1", auth: client }).users.messages.send(message) }) {
   const file = join(root, "admin/auth.json");
   const admins = new Set((env.PARENT_ADMIN_EMAILS || "").split(",").map(email => email.trim().toLowerCase()).filter(Boolean));
   const secret = env.PARENT_AUTH_SECRET || env.SESSION_SECRET || "";
@@ -39,7 +39,7 @@ export function createGoogleAuth({ root, env = process.env, oauthFactory = redir
     const data = Buffer.from(text, "base64url"), cipher = createDecipheriv("aes-256-gcm", key(), data.subarray(0, 12));
     cipher.setAuthTag(data.subarray(12, 28)); return Buffer.concat([cipher.update(data.subarray(28)), cipher.final()]).toString("utf8");
   };
-  const sessionCookie = (origin, name, value, age) => `${name}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${origin.startsWith("https:") ? "; Secure" : ""}`;
+  const sessionCookie = (origin, name, value, age) => `${name}=${value}; HttpOnly; SameSite=Lax; Path=${basePath || "/"}; Max-Age=${age}${origin.startsWith("https:") ? "; Secure" : ""}`;
   return {
     async session(req) {
       if (!configured) return null;
@@ -54,9 +54,9 @@ export function createGoogleAuth({ root, env = process.env, oauthFactory = redir
     async begin(res, origin) {
       if (!configured) fail(503, "運営者のGoogleログイン設定が必要です。");
       if (env.PARENT_ORIGIN && env.PARENT_ORIGIN.replace(/\/$/, "") !== origin) {
-        res.writeHead(302, { Location: new URL("/auth/google", env.PARENT_ORIGIN).href }); res.end(); return;
+        res.writeHead(302, { Location: new URL(`${basePath}/auth/google`, env.PARENT_ORIGIN).href }); res.end(); return;
       }
-      const redirect = `${env.PARENT_ORIGIN || origin}/auth/google/callback`;
+      const redirect = `${env.PARENT_ORIGIN || origin}${basePath}/auth/google/callback`;
       const client = oauthFactory(redirect), state = randomBytes(32).toString("base64url"), verifier = randomBytes(48).toString("base64url");
       await transact(data => {
         const now = Date.now();
@@ -90,20 +90,22 @@ export function createGoogleAuth({ root, env = process.env, oauthFactory = redir
         data.sessions[digest(id)] = { email, expires: Date.now() + 8 * 3600000 };
       });
       res.setHeader("Set-Cookie", [sessionCookie(origin, "finder_oauth", "", 0), sessionCookie(origin, "finder_operator", id, 8 * 3600)]);
-      res.writeHead(302, { Location: "/" }); res.end();
+      res.writeHead(302, { Location: `${basePath}/` }); res.end();
     },
     /** A shared demo link signs visitors in as the operator who already connected Gmail. Disabled unless a long token is configured. */
-    async demo(res, url, origin) {
+    async demo(res, url, origin, invitation = url.searchParams.get("token")) {
       const token = env.PARENT_DEMO_LOGIN_TOKEN || "";
-      if (!configured || token.length < 32 || !same(url.searchParams.get("token"), token)) fail(404, "見つかりません");
+      const until = env.PARENT_DEMO_LOGIN_UNTIL ? Date.parse(env.PARENT_DEMO_LOGIN_UNTIL) : Infinity;
+      if (!configured || !(Date.now() < until) || token.length < 32 || !same(invitation, token)) fail(404, "見つかりません");
+      const expires = Math.min(Date.now() + 8 * 3600000, until);
       const id = randomBytes(32).toString("base64url");
       await transact(data => {
         const email = data.sender;
         if (!admins.has(email) || !data.accounts[email]) fail(503, "運営者が先にGoogleでログインしてください。");
-        data.sessions[digest(id)] = { email, expires: Date.now() + 8 * 3600000 };
+        data.sessions[digest(id)] = { email, expires };
       });
-      res.setHeader("Set-Cookie", sessionCookie(origin, "finder_operator", id, 8 * 3600));
-      res.writeHead(302, { Location: "/" }); res.end();
+      res.setHeader("Set-Cookie", sessionCookie(origin, "finder_operator", id, Math.max(0, Math.floor((expires - Date.now()) / 1000))));
+      res.writeHead(basePath ? 303 : 302, { Location: `${basePath}/` }); res.end();
     },
     async logout(req, res, origin) {
       const id = cookie(req, "finder_operator");

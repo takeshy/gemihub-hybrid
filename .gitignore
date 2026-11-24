@@ -30,3 +30,6 @@ site/chat-documents.json
 site/chat-documents.json.*.tmp
 site/chat-document-files/
 judge.env
+town.env
+google-runtime.json
+client_secret_*.json

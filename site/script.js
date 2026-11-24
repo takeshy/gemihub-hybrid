@@ -181,12 +181,6 @@ export class App {
     App.render("init");
   }
 
-  static addSampleShop(shop) {
-    if (App.page.shops.some(item => item.id === shop.id)) return;
-    App.page.shops.push(shop);
-    App.renderDirectory();
-  }
-
   static renderDirectory() {
     const shops = App.page.shops;
     document.getElementById("shop-count").textContent = String(shops.length);

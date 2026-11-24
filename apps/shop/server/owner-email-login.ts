@@ -14,7 +14,7 @@ type Challenge = { email: string; origin: string; expires: number; industry: "re
 const invalid = () => Object.assign(new Error(tr("認証リンクが無効か、有効期限が切れています。メールを送り直してください。")), { status: 400 });
 const denied = () => Object.assign(new Error(tr("サロンの運営にはGoogleログインが必要です。")), { status: 403 });
 const lifetime = 15 * 60000;
-export function ownerEmailLogin(store: Store, send: PlatformMailer) {
+export function ownerEmailLogin(store: Store, send: PlatformMailer, entryPath = "/") {
   const existingShop = async (email: string) => (await store.list<Shop>("shop")).find(shop => shop.owner === email && !isArchivedShop(shop));
   async function check(token: unknown, origin: string) {
     if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw invalid();
@@ -50,7 +50,7 @@ export function ownerEmailLogin(store: Store, send: PlatformMailer) {
       const token = randomBytes(32).toString("base64url"), key = digest(token);
       const value: Challenge = { ...input, origin, expires: Date.now() + lifetime, ...(invitation ? { invitation: true } : {}) };
       await store.put("ownerEmailLogin", key, value);
-      const url = new URL("/", origin); url.hash = new URLSearchParams({ "owner-login": token }).toString();
+      const url = new URL(entryPath, origin); url.hash = new URLSearchParams({ "owner-login": token }).toString();
       try { await send(input.email, invitation ? tr("お店の管理に招待されました") : tr("お店の管理へのログイン"), tr("{0}\n次のリンクを開いて、メールアドレスを確認してください。\n\n{1}\n\nリンクは15分間有効で、1回だけ使えます。心当たりがない場合は、このメールを無視してください。", invitation ? tr("お店の管理に招待されました。") : tr("ログインのリクエストを受け付けました。"), url.href), [], [], senderEmail); }
       catch { await store.delete("ownerEmailLogin", key); throw Object.assign(new Error(tr("メールを送信できませんでした。しばらくしてからお試しください。")), { status: 503 }); }
       return { ok: true };
