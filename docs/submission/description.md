@@ -57,13 +57,19 @@ A single reservation can also require multiple model turns. After hitting daily 
 
 ## Accomplishments that we're proud of
 
-- Verified real on-device (`ON_DEVICE`) answers in desktop Chrome alongside cloud fallback (`IN_CLOUD`) on unsupported browsers and full deterministic reservation confirmation in the same chat.
-- Reduced multi-turn cloud usage by combining on-device JSON Schema slot preflight with streaming local Q&A and per-message SDK-verified telemetry pills.
-- Shipped a live public read-only Town Guide MCP endpoint (`/api/mcp`) exposing `list_town_shops`, `query_shop_facts`, and `search_local_events`.
+What I am most proud of is building a model where a storefront created simply through natural conversation can offer visitors an AI assistant at low, predictable cost—and where connecting those individual shops into a single town guide creates a better experience for all three sides:
+
+- **For independent shops**: Owners can publish an AI-assisted storefront without engineering effort or fear of runaway cloud bills, because routine published-fact questions and booking preflight run on the visitor's own device.
+- **For visitors**: People exploring the neighborhood get fast, multilingual answers and a seamless handoff from town-wide discovery to a confirmed reservation, without hunting across scattered pages or waiting for manual replies.
+- **For the neighborhood as a whole**: Each shop keeps its own voice while coming together as one connected town—and with the new public read-only Town Guide MCP endpoint (`/api/mcp` exposing `list_town_shops`, `query_shop_facts`, and `search_local_events`), external agents can also discover published shops and local events.
+
+On the engineering side, I verified real on-device (`ON_DEVICE`) answers in desktop Chrome alongside automatic cloud fallback (`IN_CLOUD`) on unsupported browsers and full deterministic reservation confirmation in the same chat, with SDK-verified telemetry pills on every reply.
 
 ## What we learned
 
-Hybrid AI works best as a staged handoff rather than a binary FAQ-vs-chat switch. Gemini Nano excels at bounded, structured preflight work (identifying a shop, checking whether booking parameters are complete, and answering published facts), while cloud models and deterministic MCP tools handle multi-shop synthesis and authoritative state changes.
+When neighborhood and shop information is organized with clear, ontology-like structure, even a compact on-device model like Gemini Nano becomes surprisingly capable—accurately answering published-fact questions, identifying the right shop, and extracting structured booking parameters locally. At the same time, that same structured foundation is what lets cloud AI and MCP scale outward—from one shop to a whole neighborhood, and eventually from one town to another.
+
+The biggest takeaway is that hybrid AI works best when we balance **the expressive freedom of natural language** (letting shopkeepers tell their story in their own words and visitors ask anything conversationally) with **well-formalized data structures** (bounded shop facts, schemas, and deterministic tools) that both on-device and cloud models can rely on.
 
 ## What's next for Gemihub Hybrid
 
