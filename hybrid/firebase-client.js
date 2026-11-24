@@ -34,8 +34,21 @@ export class HybridInference {
       if (status === "available" && this.device === "not_prepared") {
         this.device = "ready";
         this.emit({ device: this.device });
+        void this.warmDevice();
       }
     } catch { /* Unsupported browsers stay not_prepared and use cloud fallback. */ }
+  }
+  // The SDK creates a fresh Chrome session for every on-device call. Holding one
+  // idle session keeps Gemini Nano loaded, so the first question does not pay the
+  // model load. This runs no inference; answers still go through Firebase AI Logic.
+  async warmDevice() {
+    if (this.warmSession || this.warming || !globalThis.LanguageModel?.create) return;
+    this.warming = (async () => {
+      try { this.warmSession = await globalThis.LanguageModel.create({ ...ON_DEVICE_IO }); }
+      catch { /* Warm-up is optional; the SDK still creates its own session. */ }
+      finally { this.warming = null; }
+    })();
+    return this.warming;
   }
   async loadPolicy() {
     try {
@@ -88,6 +101,7 @@ export class HybridInference {
         const available = await globalThis.LanguageModel?.availability(ON_DEVICE_IO);
         this.device = available === "available" ? "ready" : "unavailable";
         this.emit({ device: this.device });
+        if (this.device === "ready") void this.warmDevice();
       }).catch(() => { this.device = "unavailable"; this.emit({ device: this.device }); })
       .finally(() => { this.preparing = null; });
     return this.preparing;
@@ -114,6 +128,7 @@ export class HybridInference {
     const started = this.now();
     let response;
     let streamed = false;
+    let firstTokenMs = null;
     const controller = new AbortController();
     const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
     const timeout = setTimeout(() => controller.abort(new DOMException("Inference timed out. Please try again.", "TimeoutError")), task === "decision" || task === "booking_preflight" ? 8000 : 45000);
@@ -139,7 +154,10 @@ export class HybridInference {
             const { value: chunk, done } = await Promise.race([iterator.next(), abortPromise]);
             if (done) break;
             const delta = typeof chunk?.text === "function" ? chunk.text() : "";
-            if (delta) { streamed = true; onDelta(delta); }
+            if (delta) {
+              if (!streamed) firstTokenMs = Math.round(this.now() - started);
+              streamed = true; onDelta(delta);
+            }
           }
         } catch (error) {
           iterator.return?.().catch(() => {});
@@ -157,7 +175,7 @@ export class HybridInference {
       const source = response.inferenceSource === InferenceSource.ON_DEVICE ? "ON_DEVICE"
         : response.inferenceSource === InferenceSource.IN_CLOUD ? "IN_CLOUD" : "UNKNOWN";
       const log = Object.freeze({ task, requestedMode: mode, source, durationMs: Math.round(this.now() - started),
-        model: source === "ON_DEVICE" ? "Gemini Nano" : this.policy.cloudModel,
+        firstTokenMs, model: source === "ON_DEVICE" ? "Gemini Nano" : this.policy.cloudModel,
         contextChars, maxContextChars: this.policy.localContextChars,
         reason: route.local && mode === InferenceMode.ONLY_IN_CLOUD ? `device_${deviceAtStart}` : route.reason,
         fallback: route.local && source === "IN_CLOUD",

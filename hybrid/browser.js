@@ -225,7 +225,8 @@ export function mountHybridControls(engine, connection) {
   (document.querySelector(".assistant-sidebar-header") || root.querySelector(".ns-header"))?.append(badge);
   const formatTelemetry = entry => {
     const modelName = entry.model || (entry.source === "ON_DEVICE" ? "Gemini Nano" : hybrid.policy.cloudModel);
-    const ms = Number.isFinite(entry.durationMs) ? `${entry.durationMs.toLocaleString()} ms` : "";
+    const ms = Number.isFinite(entry.durationMs) ? `${entry.durationMs.toLocaleString()} ms`
+      + (Number.isFinite(entry.firstTokenMs) ? ` (${label("初回表示", "first token")} ${entry.firstTokenMs.toLocaleString()} ms)` : "") : "";
     const parts = [
       entry.source === "ON_DEVICE" ? label("⚡ 端末内", "⚡ On-device")
         : entry.source === "IN_CLOUD" ? label("☁ クラウド", "☁ Cloud")
@@ -286,7 +287,7 @@ export function mountHybridControls(engine, connection) {
     if (event.device) syncDeviceState(event.device, event.progress);
     if (event.log) {
       const entry = event.log; const item = document.createElement("li");
-      item.textContent = `${entry.task} · ${entry.source} · ${entry.durationMs} ms · ${entry.reason}${entry.fallback ? " · fallback" : ""}${entry.error ? ` · ${entry.error} · ${entry.errorCode || "unknown"}${entry.httpStatus ? ` · HTTP ${entry.httpStatus}` : ""}` : ""}`;
+      item.textContent = `${entry.task} · ${entry.source} · ${entry.durationMs} ms${Number.isFinite(entry.firstTokenMs) ? ` (TTFT ${entry.firstTokenMs} ms)` : ""} · ${entry.reason}${entry.fallback ? " · fallback" : ""}${entry.error ? ` · ${entry.error} · ${entry.errorCode || "unknown"}${entry.httpStatus ? ` · HTTP ${entry.httpStatus}` : ""}` : ""}`;
       log.prepend(item); while (log.children.length > 30) log.lastElementChild.remove();
       if (entry.finalAnswer) updateBadge(entry);
     }

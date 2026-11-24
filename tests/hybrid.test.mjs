@@ -358,3 +358,26 @@ test("the MCP label lists only tools called in the current turn", async () => {
   ] });
   assert.deepEqual(answers.at(-1).tools, []);
 });
+
+test("a ready device keeps one idle Nano session warm and logs first-token latency", async () => {
+  const originalLM = globalThis.LanguageModel;
+  try {
+    let created = 0;
+    globalThis.LanguageModel = { availability: async () => "available", create: async () => { created += 1; return {}; } };
+    let clock = 0;
+    const hybrid = new HybridInference({}, { ai: {}, now: () => (clock += 100),
+      factory: () => ({ generateContentStream: async () => ({
+        stream: (async function* () { yield { text: () => "Open" }; yield { text: () => " 17:00." }; })(),
+        response: Promise.resolve({ inferenceSource: InferenceSource.ON_DEVICE, text: () => "Open 17:00." }),
+      }) }) });
+    await hybrid.probeAvailability();
+    await hybrid.warming;
+    await hybrid.warmDevice();
+    assert.equal(created, 1);
+    const result = await hybrid.generate({ task: "single_shop", question: "What are the hours?", prompt: "Facts", onDelta() {} });
+    assert.equal(result.log.firstTokenMs, 100);
+    assert.ok(result.log.durationMs > result.log.firstTokenMs);
+  } finally {
+    globalThis.LanguageModel = originalLM;
+  }
+});
