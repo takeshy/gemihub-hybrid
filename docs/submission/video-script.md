@@ -1,21 +1,22 @@
 # Gemihub Hybrid — #BuildHybridAI 2026 Demo Video Script (English)
 
-- **Target length:** ~2:35–2:45 (strictly under the 3:00 limit)
+- **Target length:** ~2:35–2:40 (strictly under the 3:00 limit)
 - **Live demo URL:** `https://hybrid.gemihub.net/`
-- **Repository:** `https://github.com/takeshy/gemihub-hybrid` (MIT License)
+- **Public Town Guide MCP:** `https://hybrid.gemihub.net/api/mcp`
+- **Repository:** `https://github.com/takeshy/gemihub-hybrid` (Apache-2.0 License)
 - **Clips folder:** `output/demo/clips/` (recorded at 1280×720, English UI)
 
 ---
 
 ## Clipchamp Assembly & Narration Script
 
-### Scene 1 — Existing Foundation & The Problem (0:00–0:35)
+### Scene 1 — Existing Foundation & The Problem (0:00–0:43) *(reuse existing clip)*
 **Visuals:**
 1. `00-existing-builder-images/02-interview.jpg` (3s) — overlay text: `Existing gemihub feature: conversational storefront builder`
 2. `00-existing-builder-images/22-pen.jpg` (3s)
 3. `00-existing-builder-images/05-provisional-page.jpg` (3s)
 4. `01-storefronts.webm` (Robata Akari, Trattoria Sole, Canton Ryu — trim/speed up to ~10–12s)
-5. Transition into `02-finder-on-device.webm` (opening seconds showing the town guide)
+5. Transition into `02-finder-on-device.webm` (opening seconds showing the town guide and quick-test chips)
 
 **Narration (Clipchamp TTS):**
 > Hi, this is Gemihub Hybrid — local answers, connected communities.
@@ -26,52 +27,57 @@
 
 ---
 
-### Scene 2 — Town Guide: On-Device Inference (0:35–1:05)
+### Scene 2 — Town Guide: Instant On-Device Inference & Telemetry Pill (0:43–1:06) *(re-record)*
 **Visuals:**
-- `02-finder-on-device.webm`
-  - Question: `What are the opening hours for Robata Akari?`
-  - Highlight the green **`On-device`** badge and the diagnostics log (`single_shop · ON_DEVICE · ... ms`).
+- `02-finder-on-device-v2.webm`
+  - Click the **`⚡ Local FAQ`** quick-test chip (`What are Robata Akari's opening hours and menu items?`).
+  - Show the streaming answer appearing on the very first turn (no setup modal click needed when Nano is already downloaded).
+  - Highlight the inline telemetry pill directly under the reply: **`⚡ On-device · Gemini Nano · ... ms · published_shop_facts`**.
 
 **Narration (Clipchamp TTS):**
-> On supported Chrome devices, standalone questions about a single shop's published facts use PREFER_ON_DEVICE.
-> Gemini Nano answers directly in the browser, and the badge reports the real inferenceSource from the Firebase AI Logic SDK: On-device — zero cloud inference cost for common FAQs.
+> On supported Chrome devices, the app probes Gemini Nano availability at startup so the very first turn runs locally with PREFER_ON_DEVICE.
+> Gemini Nano streams answers about a shop's published facts right in the browser, and every reply displays an inline telemetry pill from the Firebase AI Logic SDK: On-device, model, latency, and routing reason — zero cloud cost for common FAQs.
 
 ---
 
-### Scene 3 — Town Guide: Cloud Cross-Shop Comparison (1:05–1:35)
+### Scene 3 — Town Guide: Cloud Comparison & Public Town MCP (1:06–1:28) *(re-record)*
 **Visuals:**
-- `03-finder-cloud-compare.webm`
-  - Question: `Compare Robata Akari and Trattoria Sole for a dinner with friends.`
-  - Highlight the blue **`Cloud`** badge, the cross-shop comparison, and shop cards.
+- `03-finder-cloud-compare-v2.webm`
+  - Click the **`☁ Cloud Multi-Shop`** quick-test chip (`Compare Trattoria Sole and Canton Ryu for a group dinner`).
+  - Highlight the inline **`☁ Cloud · gemini-3.5-flash-lite`** pill under the reply and the shop comparison cards.
+  - Optional 3-second overlay/inset showing `GET https://hybrid.gemihub.net/api/mcp` JSON (`list_town_shops`, `query_shop_facts`, `search_local_events`).
 
 **Narration (Clipchamp TTS):**
-> When a visitor compares multiple shops, asks follow-ups, or exceeds our input threshold, our routing policy switches to ONLY_IN_CLOUD with gemini-3.5-flash-lite, protected by Firebase App Check.
-> Both the cloud model and input limits can be tuned live via Firebase Remote Config without redeploying.
+> Comparisons across shops, allergy or price questions, and follow-ups route to ONLY_IN_CLOUD with Gemini 3.5 Flash-Lite, protected by Firebase App Check and tunable via Remote Config.
+> The town guide also exposes a public read-only MCP endpoint at `/api/mcp`, so external agents can discover published shops and local events.
 
 ---
 
-### Scene 4 — Shop Assistant: On-Device Q&A → Cloud Booking (1:35–2:15)
+### Scene 4 — Shop Assistant: On-Device Booking Preflight → Cloud MCP Booking (1:28–2:12) *(re-record)*
 **Visuals:**
-- `04-shop-hybrid-booking.webm`
-  - Step 1: `What are your opening hours?` → **`On-device`** badge
-  - Step 2: `I'd like to reserve seats for 2 guests on Nov 25 at 19:00. Name is Hybrid Demo, phone 09000000001.` → **`Cloud`** badge → MCP tool execution → **Make this reservation?** confirmation modal → **Reserve** → booking confirmed.
+- `04-shop-hybrid-booking-v2.webm` (inside Robata Akari's reservation assistant)
+  - Step 1: Click **`⚡→☁ Hybrid Booking`** (`I would like to make a reservation for Friday`).
+    - Show **`⚡ On-device · Gemini Nano · ... ms · booking_preflight (JSON Schema)`** — Nano extracts partial slots on-device and deterministic code asks for the missing time and party size without any cloud call.
+  - Step 2: Reply `2 guests at 19:00, name is Hybrid Demo, phone 09000000001.`
+    - Show the handoff to **`☁ Cloud · gemini-3.5-flash-lite · ... (MCP: check_availability)`** → **Make this reservation?** confirmation modal → click **Reserve** → booking confirmed.
 
 **Narration (Clipchamp TTS):**
-> Inside Robata Akari's own assistant, the same handoff happens in one chat.
-> First, opening hours are answered On-device using only this shop's published facts.
-> Next, booking a table switches to Cloud. Existing deterministic MCP tools verify live availability and pricing, and the confirmation modal ensures the model never confirms a reservation on its own.
+> Inside Robata Akari's own assistant, booking starts on-device too.
+> When a visitor says they want to book for Friday without a time or party size, Gemini Nano extracts the partial slots as structured JSON, and deterministic code asks for the missing details — still zero cloud calls.
+> Once the date, time, and party size are complete, the chat hands off to the cloud. Existing deterministic MCP tools check live seats and pricing, and the confirmation modal ensures the model never confirms a reservation on its own.
 
 ---
 
-### Scene 5 — Graceful Cloud Fallback & Wrap-up (2:15–2:40)
+### Scene 5 — Graceful Cloud Fallback & Wrap-up (2:12–2:38) *(reuse fallback clip + update end card)*
 **Visuals:**
-- `05-cloud-fallback.webm`
+- `05-cloud-fallback.webm` (reuse existing clip)
   - Non-Nano browser answers the same question with **`Cloud`** badge and diagnostics showing `IN_CLOUD · device_unavailable · fallback`.
-- End card (3–5s):
+- End card (4–5s):
   - **Gemihub Hybrid** — Local answers, connected communities
   - Live Demo: `https://hybrid.gemihub.net/`
-  - GitHub (MIT): `https://github.com/takeshy/gemihub-hybrid`
+  - Town Guide MCP: `https://hybrid.gemihub.net/api/mcp`
+  - GitHub (Apache-2.0): `https://github.com/takeshy/gemihub-hybrid`
 
 **Narration (Clipchamp TTS):**
 > And if a visitor's browser doesn't support Gemini Nano — or while the model is still downloading — chat never blocks. Firebase AI Logic falls back cleanly to the cloud and labels it honestly.
-> Try the live demo at hybrid.gemihub.net, and check out our MIT-licensed code on GitHub. Thanks for watching!
+> Try the live demo at hybrid.gemihub.net, and check out our Apache-2.0 licensed code on GitHub. Thanks for watching!

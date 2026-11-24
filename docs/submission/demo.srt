@@ -19,49 +19,49 @@ Here is the problem: once a shop publishes its site, sending every routine quest
 For Build Hybrid AI 2026, I extended gemihub with a Firebase AI Logic hybrid inference layer for both the town guide and shop assistants, with no visitor API keys required.
 
 6
-00:00:43,900 --> 00:00:50,637
-On supported Chrome devices, standalone questions about a single shop's published facts use prefer on-device mode.
+00:00:43,500 --> 00:00:52,500
+On supported Chrome devices, the app probes Gemini Nano availability at startup so the very first turn runs locally with prefer on-device mode.
 
 7
-00:00:50,637 --> 00:01:03,175
-Gemini Nano answers directly in the browser, and the badge reports the real inference source from the Firebase AI Logic SDK: On-device, with zero cloud inference cost for common FAQs.
+00:00:52,500 --> 00:01:05,500
+Gemini Nano streams answers about a shop's published facts right in the browser, and every reply displays an inline telemetry pill from the Firebase AI Logic SDK: On-device, model, latency, and routing reason, with zero cloud cost for common FAQs.
 
 8
-00:01:03,990 --> 00:01:17,177
-When a visitor compares multiple shops, asks follow-ups, or exceeds our input threshold, our routing policy switches to cloud-only mode with Gemini 3.5 Flash-Lite, protected by Firebase App Check.
+00:01:06,000 --> 00:01:18,000
+Comparisons across shops, allergy or price questions, and follow-ups route to cloud-only mode with Gemini 3.5 Flash-Lite, protected by Firebase App Check and tunable via Remote Config.
 
 9
-00:01:17,177 --> 00:01:23,952
-Both the cloud model and input limits can be tuned live via Firebase Remote Config without redeploying.
+00:01:18,000 --> 00:01:27,500
+The town guide also exposes a public read-only MCP endpoint at /api/mcp, so external agents can discover published shops and local events.
 
 10
-00:01:24,750 --> 00:01:29,675
-Inside Robata Akari's own assistant, the same handoff happens in one chat.
+00:01:28,000 --> 00:01:33,000
+Inside Robata Akari's own assistant, booking starts on-device too.
 
 11
-00:01:29,675 --> 00:01:34,837
-First, opening hours are answered On-device using only this shop's published facts.
+00:01:33,000 --> 00:01:46,500
+When a visitor says they want to book for Friday without a time or party size, Gemini Nano extracts the partial slots as structured JSON, and deterministic code asks for the missing details, still with zero cloud calls.
 
 12
-00:01:34,837 --> 00:01:37,525
-Next, booking a table switches to Cloud.
+00:01:46,500 --> 00:01:55,000
+Once the date, time, and party size are complete, the chat hands off to the cloud.
 
 13
-00:01:37,525 --> 00:01:47,637
-Existing deterministic MCP tools verify live availability and pricing, and the confirmation modal ensures the model never confirms a reservation on its own.
+00:01:55,000 --> 00:02:11,000
+Existing deterministic MCP tools check live seats and pricing, and the confirmation modal ensures the model never confirms a reservation on its own.
 
 14
-00:01:48,440 --> 00:01:55,290
+00:02:11,500 --> 00:02:19,500
 And if a visitor's browser doesn't support Gemini Nano, or while the model is still downloading, chat never blocks.
 
 15
-00:01:55,290 --> 00:02:00,227
+00:02:19,500 --> 00:02:25,000
 Firebase AI Logic falls back cleanly to the cloud and labels it honestly.
 
 16
-00:02:00,227 --> 00:02:06,152
-Try the live demo at hybrid dot gemihub dot net, and check out our MIT-licensed code on GitHub.
+00:02:25,000 --> 00:02:34,500
+Try the live demo at hybrid.gemihub.net, and check out our Apache-2.0 licensed code on GitHub.
 
 17
-00:02:06,152 --> 00:02:07,302
+00:02:34,500 --> 00:02:37,000
 Thanks for watching!
