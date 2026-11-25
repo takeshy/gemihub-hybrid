@@ -18,6 +18,12 @@ sudo python3 deploy-on-vm.py container asia-northeast1-docker.pkg.dev/geminihub-
 sudo python3 deploy-on-vm.py route
 ```
 
+The container step records an image in `image.env` only after it passes the
+health check. Before pulling and again after a healthy start, it removes local
+images of the `hybrid` repository except the new image and the previous healthy
+one, so repeated deploys do not fill the VM disk. Images of the existing dev
+stack are in other repositories and are never removed.
+
 The route step validates and backs up the current Caddyfile, appends only the
 missing hybrid hostnames (`hybrid.gemihub.net` for the town and
 `shop.hybrid.gemihub.net` for the shop builder) and reloads Caddy without

@@ -13,6 +13,7 @@ import urllib.request
 ROOT = Path('/opt/gemihub-hybrid')
 ORIGINALS = ['gemihub-dev_app_1', 'gemihub-dev_challenge-demo_1', 'gemihub-dev_caddy_1']
 IMAGE_PREFIX = 'asia-northeast1-docker.pkg.dev/geminihub-486523/gemihub-dev/hybrid:'
+HYBRID_REPOSITORY = IMAGE_PREFIX[:-1]
 
 def run(*args, **kwargs):
     return subprocess.run(args, check=True, **kwargs)
@@ -21,10 +22,46 @@ def original_ids():
     return run('docker', 'inspect', '--format', '{{.Id}}', *ORIGINALS,
                capture_output=True, text=True).stdout
 
+def last_healthy_image():
+    """The image recorded after its last successful health check, if any."""
+    try:
+        match = re.fullmatch(r'HYBRID_IMAGE=(\S+)\n?', (ROOT / 'image.env').read_text())
+    except FileNotFoundError:
+        return None
+    return match.group(1) if match and match.group(1).startswith(IMAGE_PREFIX) else None
+
+def running_image():
+    check = subprocess.run(['docker', 'inspect', '--format', '{{.Config.Image}}', 'gemihub-hybrid_hybrid_1'],
+                           capture_output=True, text=True)
+    return check.stdout.strip() if check.returncode == 0 else None
+
+def prune_hybrid_images(keep):
+    """Remove local images of the hybrid repository only, except `keep`.
+
+    Images of the existing dev stack live in other repositories and are never listed here.
+    `docker rmi` without -f also refuses any image a container still uses.
+    """
+    keep = {image for image in keep if image}
+    listed = run('docker', 'images', HYBRID_REPOSITORY, '--format', '{{.Repository}}:{{.Tag}} {{.ID}}',
+                 capture_output=True, text=True).stdout
+    for line in listed.splitlines():
+        if not line.strip():
+            continue
+        reference, image_id = line.rsplit(' ', 1)
+        if not reference.startswith(IMAGE_PREFIX) or reference in keep:
+            continue
+        target = image_id if reference.endswith(':<none>') else reference
+        removed = subprocess.run(['docker', 'rmi', target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if removed.returncode == 0:
+            print(f'Removed old hybrid image {reference}.')
+
 def container(image):
     if not image.startswith(IMAGE_PREFIX) or not re.fullmatch(r'[a-zA-Z0-9._-]+', image[len(IMAGE_PREFIX):]):
         raise ValueError('Only the dedicated hybrid image is allowed.')
     before = original_ids()
+    previous = last_healthy_image()
+    # Free space before pulling: a full disk must not stop the new image from starting.
+    prune_hybrid_images({previous, running_image(), image})
     request = urllib.request.Request(
         'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
         headers={'Metadata-Flavor': 'Google'})
@@ -44,7 +81,6 @@ def container(image):
         compose.extend(['-p', 'gemihub-hybrid', '-f', str(ROOT / 'compose.yaml')])
         run(*compose, 'pull', 'hybrid', env=env)
         run(*compose, 'up', '-d', '--no-deps', 'hybrid', env=env)
-    (ROOT / 'image.env').write_text(f'HYBRID_IMAGE={image}\n')
     for attempt in range(20):
         check = subprocess.run(['docker', 'exec', 'gemihub-hybrid_hybrid_1', 'node', '-e',
             "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"],
@@ -54,8 +90,12 @@ def container(image):
         time.sleep(1)
     else:
         raise RuntimeError('The new hybrid container did not become healthy.')
+    # Record only an image that passed the health check, so it stays the rollback target.
+    (ROOT / 'image.env').write_text(f'HYBRID_IMAGE={image}\n')
     if original_ids() != before:
         raise RuntimeError('An existing dev container changed unexpectedly.')
+    # Keep the new image and the previous healthy one for a rollback.
+    prune_hybrid_images({image, previous if previous != image else None})
     print('Hybrid container healthy; all existing container IDs unchanged.')
 
 def site_blocks(text):
