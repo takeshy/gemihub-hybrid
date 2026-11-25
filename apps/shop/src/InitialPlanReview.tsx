@@ -5,6 +5,7 @@ import { ScreenGallery } from "./ScreenGallery";
 import { FunctionalOverview } from "./FunctionalOverview";
 export function InitialPlanReview({shopId,plan,busy,onBack,onAccept}:{shopId:string;plan:Plan;busy:boolean;onBack:()=>void;onAccept:()=>void}) {
   return <section className="request-review" aria-label={tr("下記の画面でいいですか？")}><span className="pill">{tr("まだお客様には公開されません")}</span><h3>{tr("下記の画面でいいですか？")}</h3><p>{tr("まずは、お店のページでできることを確認しましょう。")}</p>
+    {plan.themeProposal && <p className="notice" role="status">{tr("いまは標準のデザインで表示しています。お店専用のデザインはAIが作成中で、できあがったら管理画面でお知らせします。")}</p>}
     <ScreenGallery config={plan.config} shopId={shopId}/>
     {plan.themeReview?.rendered && <p className="small muted">{tr("修正後のPC・スマートフォンの画面をAIで確認しました。")}</p>}
     <FunctionalOverview config={plan.config}/>

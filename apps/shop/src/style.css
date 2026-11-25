@@ -3270,3 +3270,11 @@ body.visual-chat-open { --visual-chat-width: 380px; padding-right: var(--visual-
 .demo-owner-login-row { display: flex; gap: 8px; }
 .demo-owner-login-row input { flex: 1; min-width: 0; padding: 9px 10px; border: 1px solid var(--line, #d8d8d8); border-radius: 8px; font: inherit; }
 .demo-owner-login p { margin: 0; }
+/* The shop's own AI design is announced here once it is ready. */
+.theme-proposal-notice { border-left: 4px solid var(--green); }
+.theme-proposal-notice p { margin: 0 0 10px; line-height: 1.7; }
+.theme-proposal-notice .actions { flex-wrap: wrap; }
+.theme-proposal-spinner { display: inline-block; width: 12px; height: 12px; margin-right: 8px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: theme-proposal-spin 1s linear infinite; }
+@keyframes theme-proposal-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .theme-proposal-spinner { animation: none; } }
+.theme-proposal-review .actions { flex-wrap: wrap; }

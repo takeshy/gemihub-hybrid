@@ -110,7 +110,7 @@ import {
   sendMail,
 } from "./google.ts";
 import { fromMinor, toMinor, regionOf, currencyOf, dateIn, formatMinor, formatMoney, zonedDate } from "../shared/region.ts";
-import { themeImageIds } from "../shared/presentation.ts";
+import { themeImageIds, type Theme } from "../shared/presentation.ts";
 import { judgeActive, judgeInvite, judgeUntil, judgeAiLimit, judgeEmailDomain, judgeCallerNumber, judgePhoneSettings, judgePhonePin, isJudgeEmail, isJudgeCustomerEmail, isAdmin, accessPasswordEnabled, accessPasswordMatches, secretMatches, demoGoogleUnavailable, type DemoGoogle, type JudgeMail, type JudgeUsage } from "./judge.ts";
 import { converse, draftText, type ShopData } from "./assistant.ts";
 import { paypalOps, relevantProposals } from "./paypal-ops.ts";
@@ -202,6 +202,8 @@ type Plan = {
   requiresSetup?: boolean;
   themeRunId?: string;
   themeReview?: { attempts: number; approved: boolean; rendered?: boolean };
+  /** The shop's own AI design is being made separately and will be offered once ready. */
+  themeProposal?: true;
   chat?: ChatReference;
   local?: boolean;
   settingsSection?: LiveSection;
@@ -212,6 +214,21 @@ type Plan = {
   /** The owner's request text, recorded in history.md when the plan is published. */
   request?: string;
 };
+/** The shop's own AI design, generated after the shop opens with the built-in design. */
+type ThemeProposal = {
+  shopId: string;
+  status: "generating" | "ready" | "failed" | "dismissed" | "applied";
+  themeRunId: string;
+  request: string;
+  imageIds: string[];
+  config: ShopConfig;
+  theme?: Theme;
+  startedAt: number;
+  updatedAt: number;
+  error?: string;
+};
+/** A job that has not reported for this long was lost (for example, to a restart) and can be retried. */
+const themeProposalStaleMs = 30 * 60 * 1000;
 type Job = {
   id: string;
   shopId: string;
@@ -529,6 +546,42 @@ export function createApp(
       catch (error) { console.warn(`Storefront ${shop.id}: image ${id} left out of the public page`, error); }
     });
     return images;
+  }
+  const themeJobs = new Set<string>();
+  // Runs the shop's first AI design outside any request; progress is saved so a retry can resume it.
+  async function runThemeProposal(proposal: ThemeProposal) {
+    if (themeJobs.has(proposal.shopId)) return;
+    themeJobs.add(proposal.shopId);
+    const finish = async (update: Partial<ThemeProposal>) => {
+      const latest = await store.get<ThemeProposal>("themeProposal", proposal.shopId);
+      // A newer job or the owner's decision replaces this one.
+      if (latest && latest.startedAt !== proposal.startedAt) return;
+      await store.put("themeProposal", proposal.shopId, { ...proposal, ...update, updatedAt: Date.now() });
+    };
+    try {
+      const shop = await store.shop(proposal.shopId);
+      if (!shop || isArchivedShop(shop)) return;
+      const images = await readRequestImages(store, shop, proposal.imageIds, crmFiles, "");
+      const run = await (intelligence.initialTheme || createInitialTheme)({ config: proposal.config, request: proposal.request, images }, {
+        state: await store.get<ThemeRun>("initialThemeRun", proposal.themeRunId),
+        save: async state => { await store.put("initialThemeRun", proposal.themeRunId, state); await finish({ status: "generating" }); },
+        checkContrast: candidate => (intelligence.themeContrast || checkInitialThemeContrast)(candidate, images),
+      });
+      await finish({ status: "ready", theme: run.candidate, error: undefined });
+    } catch (error) {
+      const message = error instanceof Error ? error.message.slice(0, 600) : tr("デザインを作成できませんでした");
+      console.error(JSON.stringify({ event: "theme_proposal_failed", shopId: proposal.shopId, error: message }));
+      await finish({ status: "failed", error: message }).catch(() => {});
+    } finally { themeJobs.delete(proposal.shopId); }
+  }
+  function startThemeProposal(input: Omit<ThemeProposal, "status" | "startedAt" | "updatedAt">) {
+    const proposal: ThemeProposal = { ...input, status: "generating", startedAt: Date.now(), updatedAt: Date.now() };
+    return store.put("themeProposal", proposal.shopId, proposal).then(() => { void runThemeProposal(proposal); return proposal; });
+  }
+  function themeProposalView(proposal: ThemeProposal | undefined) {
+    if (!proposal || proposal.status === "dismissed" || proposal.status === "applied") return { status: "none" as const };
+    const lost = proposal.status === "generating" && !themeJobs.has(proposal.shopId) && Date.now() - proposal.updatedAt > themeProposalStaleMs;
+    return { status: lost ? "failed" as const : proposal.status, startedAt: proposal.startedAt, ...(proposal.status === "ready" ? { theme: proposal.theme } : {}), ...(lost ? { error: tr("デザインの作成が中断されました。もう一度作成できます。") } : proposal.error ? { error: proposal.error } : {}) };
   }
   async function savePublicShop(shop: Shop) {
     let dropped: StorefrontRelease[] = [];
@@ -3429,6 +3482,7 @@ export function createApp(
               await store.put("shopChatGeneration", generation.chat.id, generation);
             };
             await saveGeneration({});
+            let proposalText = input.text;
             try {
               const proposed = input.config
                 ? {
@@ -3436,7 +3490,7 @@ export function createApp(
                     summary: planSummary(current, releaseConfig!),
                   }
                 : await intelligence.propose(
-                    visual
+                    proposalText = visual
                       ? tr("ペンで選んだ対象 {0} のみ変更する。予約ルール・料金・所要時間など他の箇所は一切変えない。依頼：{1}", input.visual!.target, input.text)
                       : input.intent ? `${requestIntentInstruction[input.intent]}\n${historicalContext}${savedChat ? conversationContext(savedChat).map(message => `${message.role === "user" ? tr("店主") : "AI"}: ${message.text}`).join("\n") : input.text}` : input.text,
                     visual?.config || current,
@@ -3445,7 +3499,7 @@ export function createApp(
                     images,
                     // A new shop takes the region from the owner's first visit; later ones keep their own.
                     (visual?.config || current) ? (visual?.config || current)!.region : fresh.regionDefault,
-                    themeRunId ? { state: themeState, ...(interviewFacts ? { shopName: interviewFacts.name, reservationsEnabled: interviewFacts.reservationsEnabled, articles: interviewFacts.articles, introductions: interviewFacts.introductions } : {}), save: async state => {
+                    themeRunId ? { deferTheme: true, state: themeState, ...(interviewFacts ? { shopName: interviewFacts.name, reservationsEnabled: interviewFacts.reservationsEnabled, articles: interviewFacts.articles, introductions: interviewFacts.introductions } : {}), save: async state => {
                       await store.put("initialThemeRun", themeRunId, state);
                       await saveGeneration({ stage: state.candidate ? "reviewing" : state.feedback.length ? "repairing" : "generating", attempts: state.attempts, preview: initialThemePreview(state) });
                     }, checkContrast: candidate => (intelligence.themeContrast || checkInitialThemeContrast)(candidate, images) } : undefined,
@@ -3475,6 +3529,8 @@ export function createApp(
               }
               // A live shop must stay bookable; refuse here so no unusable plan is left behind.
               if (fresh.publication === "public" && !canPublishShop(proposed.config)) fail(400, tr("公開中のお店には、予約できるメニューが1件以上必要です。"));
+              // A first proposal without a theme opens with the built-in design; the shop's own design is made meanwhile.
+              const deferredTheme = !!themeRunId && !proposed.config.appearance?.theme && !(demoEnabled() && !process.env.GOOGLE_CLOUD_PROJECT);
               const plan: Plan = {
                 id: localPlanId || chatPlanId || randomUUID(),
                 local: !!input.local,
@@ -3483,6 +3539,7 @@ export function createApp(
                 base: fresh.revision,
                 ...proposed,
                 ...(themeRunId ? { themeRunId } : {}),
+                ...(deferredTheme ? { themeProposal: true as const } : {}),
                 approved: false,
                 requiresSetup: !current && !input.config,
                 createdAt: Date.now(),
@@ -3496,6 +3553,7 @@ export function createApp(
               await store.put("plan", plan.id, plan);
               if (input.chat) await attachChatPlan(store,fresh,user!.email,input.chat,plan.id);
               await saveGeneration({ stage: "complete", planId: plan.id, preview: undefined });
+              if (deferredTheme) await startThemeProposal({ shopId: fresh.id, themeRunId: themeRunId!, request: proposalText.slice(0, 10000), imageIds: planImageIds, config: plan.config });
               return json(res, plan);
             } catch (error) {
               await saveGeneration({ stage: "failed" }).catch(() => {});
@@ -3534,6 +3592,22 @@ export function createApp(
             const config = await effective(fresh);
             const posts = publicPosts(await postsFor(fresh));
             return json(res, { config, posts, publication: fresh.publication || "public", revision: fresh.revision, hash: contentHash({ config, posts }) });
+          }
+          if (action === "theme-proposal" && method === "GET") {
+            assertOwner(user, fresh);
+            return json(res, themeProposalView(await store.get<ThemeProposal>("themeProposal", fresh.id)));
+          }
+          if (/^theme-proposal\/(?:retry|dismiss|applied)$/.test(action) && method === "POST") {
+            assertOwner(user, fresh);
+            const proposal = await store.get<ThemeProposal>("themeProposal", fresh.id) || fail(404, tr("デザインの提案がありません"));
+            const verb = action.split("/")[1];
+            if (verb === "retry") {
+              if (themeProposalView(proposal).status !== "failed") fail(409, tr("デザインは作成中か、作成済みです"));
+              const { status: _status, startedAt: _started, updatedAt: _updated, error: _error, theme: _theme, ...input } = proposal;
+              return json(res, themeProposalView(await startThemeProposal(input)));
+            }
+            await store.put("themeProposal", fresh.id, { ...proposal, status: verb === "dismiss" ? "dismissed" : "applied", updatedAt: Date.now() });
+            return json(res, { status: "none" });
           }
           if (action === "publication" && method === "POST") {
             assertOwner(user, fresh);

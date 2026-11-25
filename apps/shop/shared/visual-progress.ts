@@ -1,5 +1,8 @@
 export const visualModelTimeoutMs = 180000;
-export const visualGenerationTimeoutMs = 8 * 60 * 1000;
+/** Whole HTML/CSS design generation; slower design models can need several minutes per answer. */
+export const visualDesignTimeoutMs = 10 * 60 * 1000;
+/** One visual edit: identification, design generation, repairs and the rendered review together. */
+export const visualGenerationTimeoutMs = 20 * 60 * 1000;
 export type VisualStage = "waiting" | "preparing" | "identifying" | "generating" | "reviewing" | "repairing" | "complete" | "failed";
 export type VisualGenerationProgress = {
   shopId: string; visualId: string; requestId: string; stage: VisualStage;

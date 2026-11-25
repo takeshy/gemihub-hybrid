@@ -99,7 +99,11 @@ export function providerReady(provider: AiProvider) {
 
 function googleTextModel() { return process.env.GEMINI_MODEL || process.env.VERTEX_MODEL || (process.env.GEMINI_API_KEY ? "gemini-4-hydrogen" : ""); }
 function googleThinking() { return { thinkingLevel: ({ low: ThinkingLevel.LOW, medium: ThinkingLevel.MEDIUM, high: ThinkingLevel.HIGH } as Record<string, ThinkingLevel>)[process.env.GEMINI_THINKING_LEVEL || "low"] || ThinkingLevel.LOW }; }
+let vertexOverride: Pick<GoogleGenAI, "models"> | undefined;
+/** Tests replace the Vertex AI client; production always builds a real one. */
+export function setVertexClient(client: Pick<GoogleGenAI, "models"> | undefined) { vertexOverride = client; }
 function vertexClient(location = process.env.GOOGLE_CLOUD_LOCATION || "global") {
+  if (vertexOverride) return vertexOverride;
   if (process.env.GEMINI_API_KEY && process.env.GOOGLE_AI_AUTH !== "vertex") return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   return new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT, location });
 }
@@ -179,10 +183,20 @@ export async function generateJson(input: { system: string; contents: Content[];
       }, signal ? { signal, maxRetries: 0 } : undefined));
       return response.output_text || "{}";
     }
-    const response = await withDeadline(input.timeoutMs, signal => vertexClient(input.location).models.generateContent({
+    const request = (signal?: AbortSignal) => ({
       model: textModel("vertex", input.purpose), contents: input.contents,
       config: { responseMimeType: "application/json", responseJsonSchema: input.schema, systemInstruction: input.system, thinkingConfig: googleThinking(), ...(signal ? { abortSignal: signal } : {}) },
-    }));
+    });
+    if (input.purpose === "design") {
+      // Whole HTML/CSS designs can take longer than the HTTP client's five-minute wait for response
+      // headers. Streaming starts the response at once and keeps data arriving until the JSON is complete.
+      return await withDeadline(input.timeoutMs, async signal => {
+        let text = "";
+        for await (const chunk of await vertexClient(input.location).models.generateContentStream(request(signal))) text += chunk.text || "";
+        return text || "{}";
+      });
+    }
+    const response = await withDeadline(input.timeoutMs, signal => vertexClient(input.location).models.generateContent(request(signal)));
     return response.text || "{}";
   });
 }

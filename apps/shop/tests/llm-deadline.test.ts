@@ -6,9 +6,9 @@ import { proposeVisualAppearance } from "../server/visual.ts";
 import { sample } from "../server/domain.ts";
 import { standardTheme } from "../shared/theme-editing.ts";
 import { sharedThemeCss } from "../shared/theme-styles.ts";
-import { visualGenerationTimeoutMs, visualModelTimeoutMs } from "../shared/visual-progress.ts";
+import { visualDesignTimeoutMs, visualGenerationTimeoutMs } from "../shared/visual-progress.ts";
 
-test("each visual model call gets 180 seconds and a retry leaves room for rendered review", { timeout: 5000 }, async t => {
+test("each visual design call gets its design limit and a retry leaves room for rendered review", { timeout: 5000 }, async t => {
   const key = process.env.OPENAI_API_KEY, model = process.env.OPENAI_MODEL;
   process.env.OPENAI_API_KEY = "test";process.env.OPENAI_MODEL = "test-model";
   t.after(() => {
@@ -36,7 +36,8 @@ test("each visual model call gets 180 seconds and a retry leaves room for render
   t.mock.timers.tick(90001);
   assert.equal(signals.length, 1, "the former 30/45/90-second limits must not abort a call");
   assert.equal(signals[0].aborted, false);
-  t.mock.timers.tick(visualModelTimeoutMs - 90001 + 1);
+  // Design calls get their own, longer limit for slower design models.
+  t.mock.timers.tick(visualDesignTimeoutMs - 90001 + 1);
   const result = await pending;
   assert.equal(signals.length, 2);
   assert.deepEqual(retries, [2], "the progress observer sees the model retry");

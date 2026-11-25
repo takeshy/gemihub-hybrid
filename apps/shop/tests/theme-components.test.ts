@@ -8,6 +8,7 @@ import { proposeVisualAppearance, validateVisualChange, visualTargets } from "..
 import { scopedConfig } from "../server/pages.ts";
 import { designOf, restoreDesign } from "../server/design-versions.ts";
 import { exampleTheme } from "../src/stories/themes.ts";
+import { visualDesignTimeoutMs } from "../shared/visual-progress.ts";
 
 const config = () => shopSchema.parse({ ...structuredClone(sample), appearance: { accent: "sage", layout: "standard", imageUrl: "", theme: structuredClone(exampleTheme) } });
 
@@ -59,7 +60,7 @@ test("an icon-only AI edit receives relevant components and preserves every unre
     assert.equal(context.screens, undefined);
     assert.equal(context.screenDefaults, undefined);
     assert.equal(context.themeDefault, undefined);
-    assert.equal(request.timeoutMs, 180000, "each generation call gets its own 180-second limit");
+    assert.equal(request.timeoutMs, visualDesignTimeoutMs, "each design generation call gets its own design limit");
     assert.ok(context.componentElements.some((element: { selector: string; description: string }) => element.selector === ".booking-summary .line-flower" && element.description.includes("Text flower")), "the real booking glyph is identified independently of SVG styles");
     assert.ok(!("appearance" in (request.schema.properties as object)));
     assert.doesNotMatch(JSON.stringify(request.schema), /"(?:minItems|maxItems)":/);

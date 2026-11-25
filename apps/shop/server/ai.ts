@@ -94,6 +94,8 @@ export async function propose(
     if (themeContext.shopName) config.name = themeContext.shopName;
     if (themeContext.articles) config.appearance = { accent: "sage", layout: "standard", imageUrl: "", ...config.appearance, articles: themeContext.articles };
     config = initialIntroductionPages(config, themeContext.introductions);
+    // The shop can open at once with the built-in design; its own AI design follows as a proposal.
+    if (themeContext.deferTheme) return { config, summary: planSummary(current, config), themeReview: undefined };
     const run = await createInitialTheme({ config, request: text, images }, themeContext);
     config = shopSchema.parse({ ...config, appearance: { accent: "sage", layout: "standard", imageUrl: "", ...config.appearance, theme: run.candidate! } });
     return { config, summary: planSummary(current, config), themeReview: { attempts: run.attempts, approved: true } };

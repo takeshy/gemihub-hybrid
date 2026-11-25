@@ -61,6 +61,7 @@ import "./ManagementTypography.css";
 import { LegacyNotes } from "./LegacyNotes";
 import { JudgeStart, JudgeMenu, JudgeBar, AccessPassword } from "./JudgeAccess";
 import { ShopReset } from "./ShopReset";
+import { ThemeProposalNotice } from "./ThemeProposalNotice";
 import { ImageLibrary } from "./ImageLibrary";
 import { articleKinds } from "../shared/article-features";
 import { Admin } from "./Admin";
@@ -79,6 +80,8 @@ export type Plan = {
   approved: boolean;
   requiresSetup?: boolean;
   themeReview?: { attempts: number; approved: boolean; rendered?: boolean };
+  /** The shop's own AI design is being made separately and will be offered once ready. */
+  themeProposal?: true;
   chat?: ChatReference;
   base: number;
 };
@@ -591,6 +594,7 @@ function Dashboard({
               <Manual />
             ) : (
               <>
+                {shop.published && shop.isOwner && <ThemeProposalNotice key={shop.id} shopId={shop.id} reload={load} />}
                 {shop.published && shop.publication === "provisional" && <section className="notice publication-status" aria-label={tr("公開状態")}>
                   <div className="publication-status-top"><div><h2>{tr("仮公開中")}</h2>
                   <p>{tr("ページを用意した店主だけがログインして見られます。")}</p></div>
