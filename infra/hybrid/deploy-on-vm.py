@@ -81,7 +81,8 @@ def container(image):
         compose.extend(['-p', 'gemihub-hybrid', '-f', str(ROOT / 'compose.yaml')])
         run(*compose, 'pull', 'hybrid', env=env)
         run(*compose, 'up', '-d', '--no-deps', 'hybrid', env=env)
-    for attempt in range(20):
+    # Town administration loads Firestore and rebuilds the town site at start, which can take a minute.
+    for attempt in range(120):
         check = subprocess.run(['docker', 'exec', 'gemihub-hybrid_hybrid_1', 'node', '-e',
             "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
