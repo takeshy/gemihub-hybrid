@@ -4,7 +4,7 @@ import { Models } from "@google/genai";
 import { initialInterviewReply, type InitialInterviewContext } from "../server/initial-interview.ts";
 import { explainSystem } from "../server/ai.ts";
 import { sample } from "../server/domain.ts";
-import { initialInterviewFacts, requestIntentInstruction, restaurantFeatureQuestion, reservationChoiceQuestion, initialSetupDemoReply } from "../server/request-intent.ts";
+import { initialInterviewFacts, initialFeatureQuestion, requestIntentInstruction, restaurantFeatureQuestion, reservationChoiceQuestion, initialSetupDemoReply } from "../server/request-intent.ts";
 import type { generateJson } from "../server/llm.ts";
 
 type ModelInput = Parameters<typeof generateJson>[0];
@@ -169,4 +169,17 @@ test("reservation choices use actual labels and preserve previous feature select
   const english = initialInterviewFacts([...restaurantStart, { role: "assistant", text: "Choose features.\n1. Blog\n2. No reservations\n3. With reservations" }, { role: "user", text: "1 and 2" }]);
   assert.equal(english.reservationsEnabled, false);
   assert.equal(english.articles?.blogs, true);
+});
+
+test("invited shops of the other kind are asked whether to take reservations; salons are not", () => {
+  const start = [{ role: "user", text: "店名は月の雑貨。ロゴはなし。" }, { role: "assistant", text: initialFeatureQuestion }, { role: "user", text: "ブログ" }];
+  assert.equal(initialInterviewFacts(start, { industry: "other" }).question, reservationChoiceQuestion);
+  assert.equal(initialInterviewFacts(start, { industry: "nail" }).question, undefined);
+  assert.equal(initialInterviewFacts(start).question, undefined, "without an invitation, an unnamed industry is not assumed");
+  const answered = [...start, { role: "assistant", text: reservationChoiceQuestion }, { role: "user", text: "2" }];
+  const facts = initialInterviewFacts(answered, { industry: "other" });
+  assert.equal(facts.reservationsEnabled, false);
+  assert.equal(facts.question, undefined);
+  // A restaurant named in the chat is still asked even when its draft started with the default industry.
+  assert.equal(initialInterviewFacts([{ role: "user", text: "店名は灯。飲食店です。ロゴはなし。" }, { role: "assistant", text: initialFeatureQuestion }, { role: "user", text: "ブログ" }], { industry: "nail" }).question, reservationChoiceQuestion);
 });

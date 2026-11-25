@@ -38,7 +38,7 @@ function featureDenied(text: string, kind: InitialFeature) {
     || /\b(?:no(?: need(?: for)?)?|without|except|(?:do not|don't) (?:want|need)|remove|omit|disable|exclude)\s+(?:a\s+)?$/i.test(text.slice(0, start));
 }
 const asksFinalDetails = (text: string) => /(?:ほか|他)に伝えたいことは?ありますか/.test(text.replace(/\s/g, "")) || /anything else (?:you[’']?d like to add|to add|you would like to (?:add|share))\s*\?/i.test(text);
-export function initialInterviewFacts(messages: { role: string; text: string; detail?: { imageIds?: string[] } }[]) {
+export function initialInterviewFacts(messages: { role: string; text: string; detail?: { imageIds?: string[] } }[], options: { industry?: string } = {}) {
   let name: string | undefined; let logoKnown = false; let awaiting: "name" | "logo" | "features" | undefined;
   let reservationsEnabled: boolean | undefined;
   let reservationChoices = new Map<number, boolean>();
@@ -93,7 +93,10 @@ export function initialInterviewFacts(messages: { role: string; text: string; de
     if (/商品.{0,12}(?:紹介|ページ)|サービス紹介|product.{0,12}(?:page|introduction)/i.test(message.text) && !/商品.{0,8}(?:不要|なし|いらな)|no product/i.test(message.text)) introductions = { staff: introductions?.staff || false, products: true };
     awaiting = undefined;
   }
-  const needsReservationChoice = restaurantRequested(messages.filter(message => message.role === "user").map(message => message.text).join("\n")) && articles !== undefined && reservationsEnabled === undefined;
+  // Salons always take reservations; restaurants and other shops choose. An invitation names the industry,
+  // while a draft started without one still defaults to a salon, so a restaurant mentioned in the chat also counts.
+  const choosesReservations = options.industry === "restaurant" || options.industry === "other" || restaurantRequested(messages.filter(message => message.role === "user").map(message => message.text).join("\n"));
+  const needsReservationChoice = choosesReservations && articles !== undefined && reservationsEnabled === undefined;
   return { name, logoKnown, reservationsEnabled, articles, introductions, question: !name ? tr(shopNameQuestion) : !logoKnown ? tr(messages.filter(m => m.role === "assistant").some(m => [logoQuestion, tr(logoQuestion), logoUploadQuestion, tr(logoUploadQuestion)].includes(m.text)) ? logoUploadQuestion : logoQuestion) : needsReservationChoice ? tr(reservationChoiceQuestion) : undefined };
 }
 export function answeredFinalDetails(messages:{role:string;text:string}[]) {
@@ -104,7 +107,7 @@ export function answeredFinalDetails(messages:{role:string;text:string}[]) {
 }
 export const adaptiveQuestionInstruction = "質問する前に、今回の回答と保存済みの会話から、分かっていること・まだ不明なことを整理してください。回答済みの内容を聞き直さず、画面案や依頼をまとめるために本当に必要な不明点だけを一つずつ質問してください。まとめて回答された内容もすべて考慮し、質問の順番や選択肢を回答に合わせて変えてください。固定の質問一覧を順番に消化しないでください。必要な情報が揃っていれば追加質問をせず提案へ進みます。不明点を勝手に確定せず、相談だけなら提案や変更のための質問を強制しないでください。";
 export const requestIntentInstruction: Record<RequestIntent, string> = {
-  get "create-shop"() { return tr("初めてのお店づくりです。業種が不明な場合だけ『どういう業種のお店ですか？』と業種を聞いてください。希望の機能が不明なら『追加したい機能を次から選んでください。』と業種に合う機能を1.、2.の番号付きで提示してください。飲食店では予約を必須にせず、機能を選ぶ場面で「予約あり（予約フォーム・AI相談）」と「予約なし（店舗情報のみ）」を別の番号付き選択肢として示し、どちらかを選べるようにしてください。すでに予約の有無が指定されていれば聞き直さず、予約なしの選択を後の画面案や公開時にも維持してください。飲食店には会員登録・ログイン・会員限定お問い合わせを案内しないでください。飲食店以外はお店の紹介・予約・お問い合わせを含めます。追加できるブログ・お知らせ・スタッフ紹介・商品やサービス紹介をそれぞれ別の選択肢にして、番号でも言葉でも複数選べるようにし、追加機能は「なし」でも進めます。希望がすでに伝えられていれば機能の選択は省きます。追加ページの希望が未確認の場合だけ『それ以外に欲しいページはありますか？』と聞いてください。『紹介と予約だけでいい』など希望の範囲が明確なら、この質問も省きます。これらは会話の例であり、固定の必須手順ではありません。業種と必要な機能・ページが分かり、不明点が解消したらchangeRequest=trueとして最後の確認へ進めます。必要な情報が揃ってもすぐ画面案へ進まず、必ず最後に『ほかに伝えたいことはありますか？』と質問し、ready=falseで返答を待ってください。その質問への返答を受け、追加内容も確認できてからready=trueにします。必要な確認が残る場合はready=falseにしてください。スタッフ・料金・営業時間は必須にせず、仮の設定を確定した事実として扱わないでください。後からスタッフや料金を決められるという説明は、聞かれない限りしないでください。"); },
+  get "create-shop"() { return tr("初めてのお店づくりです。業種が不明な場合だけ『どういう業種のお店ですか？』と業種を聞いてください。希望の機能が不明なら『追加したい機能を次から選んでください。』と業種に合う機能を1.、2.の番号付きで提示してください。飲食店とその他のお店（ネイルサロン・美容室以外）では予約を必須にせず、機能を選ぶ場面で「予約あり（予約フォーム・AI相談）」と「予約なし（店舗情報のみ）」を別の番号付き選択肢として示し、どちらかを選べるようにしてください。すでに予約の有無が指定されていれば聞き直さず、予約なしの選択を後の画面案や公開時にも維持してください。飲食店には会員登録・ログイン・会員限定お問い合わせを案内しないでください。ネイルサロン・美容室はお店の紹介・予約・お問い合わせを含めます。その他のお店はお店の紹介・お問い合わせを含め、予約の有無を選んでもらいます。追加できるブログ・お知らせ・スタッフ紹介・商品やサービス紹介をそれぞれ別の選択肢にして、番号でも言葉でも複数選べるようにし、追加機能は「なし」でも進めます。希望がすでに伝えられていれば機能の選択は省きます。追加ページの希望が未確認の場合だけ『それ以外に欲しいページはありますか？』と聞いてください。『紹介と予約だけでいい』など希望の範囲が明確なら、この質問も省きます。これらは会話の例であり、固定の必須手順ではありません。業種と必要な機能・ページが分かり、不明点が解消したらchangeRequest=trueとして最後の確認へ進めます。必要な情報が揃ってもすぐ画面案へ進まず、必ず最後に『ほかに伝えたいことはありますか？』と質問し、ready=falseで返答を待ってください。その質問への返答を受け、追加内容も確認できてからready=trueにします。必要な確認が残る場合はready=falseにしてください。スタッフ・料金・営業時間は必須にせず、仮の設定を確定した事実として扱わないでください。後からスタッフや料金を決められるという説明は、聞かれない限りしないでください。"); },
   get consult() { return tr("相談のみです。質問への回答と説明を行い、設定の変更や新規ページの作成は依頼されていません。変更プランは作成しないでください。"); },
   get modify() { return tr("公開後のお店への変更依頼です。既存の設定やページの修正と、新しいページの追加のどちらも受け付けます。どうしたいかが分からなければ短く聞いてください。依頼された箇所だけを変更し、新しいページは目的・載せたい内容・お客様向けメニューに表示する名前を確認して、新規のIDとアドレスでpagesに追加してください。"); },
   get "new-page"() { return tr("新しいページの作成依頼です。目的・載せたい内容・お客様向けメニューに表示する名前を確認し、新規のIDとアドレスでpagesに追加してください。既存のページ・予約メニュー・料金・勤務・営業時間は変更しないでください。"); },

@@ -62,6 +62,7 @@ import { LegacyNotes } from "./LegacyNotes";
 import { JudgeStart, JudgeMenu, JudgeBar, AccessPassword } from "./JudgeAccess";
 import { ShopReset } from "./ShopReset";
 import { ThemeProposalNotice } from "./ThemeProposalNotice";
+import { blocksPublication, type ThemeProposalStatus } from "../shared/theme-proposal";
 import { ImageLibrary } from "./ImageLibrary";
 import { articleKinds } from "../shared/article-features";
 import { Admin } from "./Admin";
@@ -442,6 +443,8 @@ function Dashboard({
   const creating = !!shop?.isOwner && !shop.published;
   const publiclyPublished = !!shop?.published && shop.publication !== "provisional";
   const takesReservations = !shop?.published || reservationsEnabled(shop.published);
+  const [designStatus, setDesignStatus] = useState<ThemeProposalStatus>("none");
+  useEffect(() => { setDesignStatus("none"); }, [shop?.id]);
   const shopRegion = shop?.published ? regionOf(shop.published) : shop?.regionDefault || regionOf(null);
   // The dashboard needs a published configuration; staff of an unpublished shop start on their own page.
   const fallbackTab = shop?.published ? "dashboard" : "staff";
@@ -594,13 +597,16 @@ function Dashboard({
               <Manual />
             ) : (
               <>
-                {shop.published && shop.isOwner && <ThemeProposalNotice key={shop.id} shopId={shop.id} reload={load} />}
+                {shop.published && shop.isOwner && <ThemeProposalNotice key={shop.id} shopId={shop.id} reload={load} onStatusChange={setDesignStatus} />}
                 {shop.published && shop.publication === "provisional" && <section className="notice publication-status" aria-label={tr("公開状態")}>
                   <div className="publication-status-top"><div><h2>{tr("仮公開中")}</h2>
                   <p>{tr("ページを用意した店主だけがログインして見られます。")}</p></div>
                   {shop.isOwner && <div className="publication-next-step"><b>{tr("お客様への公開はこちら")}</b>
-                    <a className="button primary" data-publication-preview-link href={`/publication-preview/${shop.id}`}>{tr("画面を確認して本番公開へ ")}<span aria-hidden="true">→</span></a>
-                    <p>{tr("次の画面で表示を確かめてから、本番公開できます。")}</p>
+                    {blocksPublication(designStatus)
+                      ? <><button type="button" className="primary" disabled aria-describedby="publication-design-wait">{tr("画面を確認して本番公開へ ")}<span aria-hidden="true">→</span></button>
+                        <p id="publication-design-wait">{designStatus === "generating" ? tr("お店専用のデザインができあがるまで、本番公開はお待ちください。") : tr("上のお知らせでデザインを決めると、本番公開へ進めます。")}</p></>
+                      : <><a className="button primary" data-publication-preview-link href={`/publication-preview/${shop.id}`}>{tr("画面を確認して本番公開へ ")}<span aria-hidden="true">→</span></a>
+                        <p>{tr("次の画面で表示を確かめてから、本番公開できます。")}</p></>}
                   </div>}</div>
                   <p>{tr("スタッフ・メニュー・料金・営業時間などは、それぞれの設定メニューで更新できます。")}</p>
                   <p className="editing-guidance">{tr("デザインは各画面の編集画面で更新してください。")}<button className="text-button" onClick={() => setTab("try")}>{tr("AIとお店をつくる →")}</button><br />{tr("全体的な表示や機能の修正は")}<button className="text-button" onClick={() => setTab("build")}>{tr("ページ追加・機能変更")}</button>{tr("で相談できます。")}</p>

@@ -57,8 +57,15 @@ test("a new shop opens with the built-in design at once and its own AI design ar
   await call(`/api/shops/${shop.id}/plans/${plan.id}/approve`, {});
   await call(`/api/shops/${shop.id}/plans/${plan.id}/publish`, { publication: "provisional" });
   assert.equal((await store.shop(shop.id))!.publication, "provisional");
+  // Public publication waits for the design and then for the owner's decision.
+  const publishPublicly = async () => {
+    const preview = await call(`/api/shops/${shop.id}/publication-preview`);
+    return fetch(origin + `/api/shops/${shop.id}/publication`, { method: "POST", headers: { Origin: origin, Cookie: "gemihub_session=proposal-owner", "Content-Type": "application/json" }, body: JSON.stringify({ publication: "public", revision: preview.revision, hash: preview.hash }) });
+  };
+  assert.equal((await publishPublicly()).status, 409);
   gate.resolve();
   const ready = await until("ready");
+  assert.equal((await publishPublicly()).status, 409);
   assert.deepEqual(ready.theme, theme);
 
   // Applying uses the normal theme release path and leaves every other setting unchanged.
@@ -72,6 +79,7 @@ test("a new shop opens with the built-in design at once and its own AI design ar
   for (const key of ["name", "menus", "staff", "hours", "rules"] as const) assert.deepEqual(live.config[key], snapshot.config[key]);
   assert.deepEqual(await call(`/api/shops/${shop.id}/theme-proposal/applied`, {}), { status: "none" });
   assert.deepEqual(await proposal(), { status: "none" });
+  assert.equal((await publishPublicly()).status, 200, "once decided, the shop can be published publicly");
   assert.equal(themeCalls, 1);
 
   // A failed design can be created again; a design in progress cannot be started twice.

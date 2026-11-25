@@ -62,6 +62,7 @@ import { z } from "zod";
 import { Store, bookingLockKey, mailLockKey, postLockKey, isArchivedShop, type Shop, type User } from "./store.ts";
 import { resetShop } from "./shop-reset.ts";
 import { listOnParent, type ParentListing } from "./parent-registry.ts";
+import { blocksPublication } from "../shared/theme-proposal.ts";
 import { preserveDesignVersion, retireDesignVersions, pruneDesignVersions, nextDesignPublication, currentDesignPublication, restoreDesign, sameDesign, parseTargetKey, targetKey, versionsFor, targetLabel, indexedDesignVersions, hasCurrentDesignIndex, sameAsCurrent } from "./design-versions.ts";
 import { createInitialTheme, initialThemeConfig, initialIntroductionPages, initialThemePreview, type ThemeRun } from "./initial-theme.ts";
 import { publicAi, memoryAiState } from "./public-ai.ts";
@@ -576,7 +577,8 @@ export function createApp(
   }
   function startThemeProposal(input: Omit<ThemeProposal, "status" | "startedAt" | "updatedAt">) {
     const proposal: ThemeProposal = { ...input, status: "generating", startedAt: Date.now(), updatedAt: Date.now() };
-    return store.put("themeProposal", proposal.shopId, proposal).then(() => { void runThemeProposal(proposal); return proposal; });
+    // The job runs after this request ends, so it must not inherit the request's store locks.
+    return store.put("themeProposal", proposal.shopId, proposal).then(() => { void store.detached(() => runThemeProposal(proposal)); return proposal; });
   }
   function themeProposalView(proposal: ThemeProposal | undefined) {
     if (!proposal || proposal.status === "dismissed" || proposal.status === "applied") return { status: "none" as const };
@@ -637,7 +639,7 @@ export function createApp(
     if (!chat) return plan;
     const reply = chat.messages.find(message => message.role === "assistant" && message.requestId === plan.chat!.requestId);
     if (!reply) return plan;
-    const facts = initialInterviewFacts(chat.messages.filter(message => message.sequence <= reply.sequence));
+    const facts = initialInterviewFacts(chat.messages.filter(message => message.sequence <= reply.sequence), { industry: shop.draft?.industry });
     let config = plan.config;
     if (facts.reservationsEnabled !== undefined) config = { ...config, reservationsEnabled: facts.reservationsEnabled };
     if (facts.articles) config = { ...config, appearance: { accent: "sage", layout: "standard", imageUrl: "", ...config.appearance, articles: facts.articles } };
@@ -3187,7 +3189,7 @@ export function createApp(
             const images = await loadImages(fresh.published ? imageIds : input.imageIds);
             const excluded = new Set(savedChat?.messages.slice(-25).map(message=>message.id) || []);
             const relatedHistory = fresh.published ? await searchConversationHistory(store,fresh,user!.email,input.question,excluded) : [];
-            const interview = !fresh.published ? initialInterviewFacts(savedChat?.messages || [...input.messages, { role: "user", text: input.question, detail: { imageIds: input.imageIds } }]) : undefined;
+            const interview = !fresh.published ? initialInterviewFacts(savedChat?.messages || [...input.messages, { role: "user", text: input.question, detail: { imageIds: input.imageIds } }], { industry: fresh.draft?.industry }) : undefined;
             const response = interview?.question ? { answer: interview.question, changeRequest: true, ready: false } : await intelligence.explainSystem(input.intent ? `${requestIntentInstruction[input.intent]}\n${input.question}` : input.question, config, demoEnabled() && !process.env.GOOGLE_CLOUD_PROJECT, { messages: savedChat ? conversationContext({...savedChat,messages:savedChat.messages.filter(message => message.requestId !== input.chat!.requestId)}) : input.messages, history: fresh.history, initialSetup:!fresh.published, relatedHistory, searchHistory:query=>searchConversationHistory(store,fresh,user!.email,query,excluded), ...(!fresh.published ? {facts: interview, region: fresh.regionDefault || regionOf(config), availableImageIds: imageIds, loadImages} : {}), ...(images.length ? { images } : {}) });
             if (fresh.published && !same(config, await effective(fresh))) fail(409, tr("回答中にお店の仕様が変わりました。現在の仕様を更新して質問し直してください"));
             let answer: {answer:string;changeRequest:boolean;ready?:boolean} = input.intent === "consult" ? { ...response, changeRequest: false, ready: false } : response;
@@ -3472,7 +3474,7 @@ export function createApp(
             const relatedHistory = input.intent ? await searchConversationHistory(store,fresh,user!.email,input.text,new Set(savedChat?.messages.slice(-24).map(message=>message.id) || [])) : [];
             const historicalContext = relatedHistory.length ? tr("参照用の過去の会話です。今回の変更依頼でも、反映済みという意味でもありません。現在の設定を優先してください。\n{0}\n今回の会話と依頼:\n", JSON.stringify(relatedHistory)) : "";
             // Read once: the interview's answers steer the theme and are laid over the proposal below.
-            const interviewFacts = savedChat ? initialInterviewFacts(savedChat.messages) : undefined;
+            const interviewFacts = savedChat ? initialInterviewFacts(savedChat.messages, { industry: fresh.draft?.industry }) : undefined;
             const themeRunId = !current && !input.config ? digest(`${fresh.id}:initial-theme:${chatPlanId || input.text}:${planImageIds.join(",")}`) : undefined;
             const themeState = themeRunId ? await store.get<ThemeRun>("initialThemeRun", themeRunId) : undefined;
             let generation: ChatGeneration | undefined = input.chat ? { shopId: fresh.id, email: user!.email, chat: input.chat, base: fresh.revision, stage: "preparing", attempts: 0, startedAt: Date.now(), updatedAt: Date.now() } : undefined;
@@ -3618,6 +3620,8 @@ export function createApp(
             const posts = publicPosts(await postsFor(fresh));
             if (input.hash !== contentHash({ config, posts })) fail(409, tr("プレビュー後に内容が変わりました。最新の内容を読み直して確認してください"));
             if (!canPublishShop(config)) fail(400, tr("本番公開する前に、予約できるメニューを1件以上登録してください。"));
+            if (fresh.publication !== "public" && blocksPublication(themeProposalView(await store.get<ThemeProposal>("themeProposal", fresh.id)).status))
+              fail(409, tr("お店専用のデザインを決めてから本番公開してください。"));
             let town: ParentListing = "skipped";
             if (fresh.publication !== "public") {
               fresh.publication = "public";

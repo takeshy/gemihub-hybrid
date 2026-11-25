@@ -12,7 +12,7 @@ const homeScreen: PreviewScreen = { id: "about", get name() { return tr("お店�
 const pollMs = 15000;
 
 /** The shop opens with the built-in design while its own AI design is made; this offers it once ready. */
-export function ThemeProposalNotice({ shopId, reload }: { shopId: string; reload: () => Promise<unknown> }) {
+export function ThemeProposalNotice({ shopId, reload, onStatusChange }: { shopId: string; reload: () => Promise<unknown>; onStatusChange?: (status: Proposal["status"]) => void }) {
   const api = useApi();
   const [proposal, setProposal] = useState<Proposal>({ status: "none" });
   const [review, setReview] = useState<{ before: ShopConfig; after: ShopConfig; snapshot: Snapshot }>();
@@ -35,6 +35,7 @@ export function ThemeProposalNotice({ shopId, reload }: { shopId: string; reload
     return () => { alive = false; if (timer) clearTimeout(timer); };
   }, [shopId, api, pollKey]);
   useEffect(() => { if (review) dialog.current?.showModal(); }, [review]);
+  useEffect(() => { onStatusChange?.(proposal.status); }, [proposal.status, onStatusChange]);
   const act = async (work: () => Promise<void>) => {
     setBusy(true); setError("");
     try { await work(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }

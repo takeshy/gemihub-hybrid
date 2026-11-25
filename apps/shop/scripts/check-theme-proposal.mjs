@@ -18,8 +18,27 @@ const origin = `http://127.0.0.1:${server.address().port}`; process.env.APP_ORIG
 const shop = await store.createShop("owner@example.com"); shop.published = structuredClone(sample); shop.publication = "provisional"; await store.saveShop(shop);
 const user = { email: shop.owner, name: "Owner", role: "owner", shopId: shop.id }; await store.put("user", user.email, user);
 const sid = randomUUID(); await store.put("session", digest(sid), { user, expires: Date.now() + 3600000 });
-await store.put("themeProposal", shop.id, { shopId: shop.id, status: "ready", themeRunId: "x", request: "r", imageIds: [], config: sample, theme, startedAt: Date.now(), updatedAt: Date.now() });
+await store.put("themeProposal", shop.id, { shopId: shop.id, status: "generating", themeRunId: "x", request: "r", imageIds: [], config: sample, startedAt: Date.now(), updatedAt: Date.now() });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ["--no-sandbox"] });
+// While the design is being made, public publication cannot start from either screen.
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 900 }, locale: "en-US" });
+  await context.addCookies([{ name: "gemihub_session", value: sid, url: origin }]);
+  const page = await context.newPage();
+  await page.goto(`${origin}/?lang=en`);
+  await page.locator(".theme-proposal-notice[data-status=generating]").waitFor();
+  assert.equal(await page.getByRole("button", { name: /Review screens and publish/ }).isDisabled(), true);
+  assert.equal(await page.locator("[data-publication-preview-link]").count(), 0);
+  await page.goto(`${origin}/publication-preview/${shop.id}?lang=en`);
+  const publish = page.getByRole("button", { name: "Publish publicly", exact: true });
+  await publish.waitFor();
+  await page.getByText(/AI is creating your shop's own design/).waitFor();
+  assert.equal(await publish.isDisabled(), true);
+  await page.screenshot({ path: `${out}/tp-generating-preview-390.png`, fullPage: true });
+  await context.close();
+  console.log("en 390px: publication waits while the design is being made.");
+}
+await store.put("themeProposal", shop.id, { shopId: shop.id, status: "ready", themeRunId: "x", request: "r", imageIds: [], config: sample, theme, startedAt: Date.now(), updatedAt: Date.now() });
 try {
   for (const [width, language] of [[1280, "ja"], [390, "en"]]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, locale: language === "ja" ? "ja-JP" : "en-US" });

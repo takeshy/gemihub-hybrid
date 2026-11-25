@@ -389,6 +389,14 @@ export class Store {
       return shop;
     });
   }
+  /**
+   * Runs work that outlives the current request (a background job) outside the request's locks,
+   * pending batch and commit hooks. Otherwise its later reads and writes would fail once the
+   * request releases its locks.
+   */
+  detached<T>(fn: () => T): T {
+    return this.leases.exit(() => this.batch.exit(() => this.commitActions.exit(fn)));
+  }
   async locked<T>(id: string, fn: () => Promise<T>): Promise<T> {
     const parents = this.activeLocks();
     const previous = this.localLocks.get(id) || Promise.resolve();
