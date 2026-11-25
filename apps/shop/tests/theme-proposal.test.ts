@@ -48,6 +48,10 @@ test("a new shop opens with the built-in design at once and its own AI design ar
   const until = async (status: string) => { for (let i = 0; i < 100; i++) { const current = await proposal(); if (current.status === status) return current; await new Promise(resolve => setTimeout(resolve, 20)); } assert.fail(`proposal never became ${status}`); };
 
   assert.deepEqual(await proposal(), { status: "none" });
+  // A job recorded before this server started (lost to a restart) can be retried at once.
+  await store.put("themeProposal", shop.id, { shopId: shop.id, status: "generating", themeRunId: "old", request: "r", imageIds: [], config: sample, startedAt: 1, updatedAt: 1 });
+  assert.equal((await proposal()).status, "failed");
+  await store.delete("themeProposal", shop.id);
   const plan = await call(`/api/shops/${shop.id}/plan`, { text: "A calm nail salon" });
   assert.equal(deferred, true, "the first proposal does not wait for the AI design");
   assert.equal(plan.config.appearance.theme, undefined);

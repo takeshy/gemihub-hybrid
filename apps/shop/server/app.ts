@@ -549,6 +549,8 @@ export function createApp(
     return images;
   }
   const themeJobs = new Set<string>();
+  // A job recorded before this server started cannot still be running here.
+  const serverStartedAt = Date.now();
   // Runs the shop's first AI design outside any request; progress is saved so a retry can resume it.
   async function runThemeProposal(proposal: ThemeProposal) {
     if (themeJobs.has(proposal.shopId)) return;
@@ -582,7 +584,7 @@ export function createApp(
   }
   function themeProposalView(proposal: ThemeProposal | undefined) {
     if (!proposal || proposal.status === "dismissed" || proposal.status === "applied") return { status: "none" as const };
-    const lost = proposal.status === "generating" && !themeJobs.has(proposal.shopId) && Date.now() - proposal.updatedAt > themeProposalStaleMs;
+    const lost = proposal.status === "generating" && !themeJobs.has(proposal.shopId) && (proposal.updatedAt < serverStartedAt || Date.now() - proposal.updatedAt > themeProposalStaleMs);
     return { status: lost ? "failed" as const : proposal.status, startedAt: proposal.startedAt, ...(proposal.status === "ready" ? { theme: proposal.theme } : {}), ...(lost ? { error: tr("デザインの作成が中断されました。もう一度作成できます。") } : proposal.error ? { error: proposal.error } : {}) };
   }
   async function savePublicShop(shop: Shop) {
