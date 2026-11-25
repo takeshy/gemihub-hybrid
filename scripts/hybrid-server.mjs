@@ -72,9 +72,11 @@ if (town) {
   town.shop.on("request", (req, res) => withOrigin(req.headers.host === new URL(builderOrigin).host ? builderOrigin : publicOrigin, () => handleShop(req, res)));
   await new Promise(resolve => town.shop.listen(0, "127.0.0.1", resolve));
   town.shopPort = town.shop.address().port;
-  town.admin = await startTownAdmin({ origin: publicOrigin, shopOrigin: builderOrigin, data: town.data, shopPort: town.shopPort });
+  town.admin = await startTownAdmin({ origin: publicOrigin, shopOrigin: builderOrigin, data: town.data, shopPort: town.shopPort, townPort: port });
   town.adminPort = town.admin.address().port;
   process.env.PARENT_MAIL_URL = `http://127.0.0.1:${town.adminPort}/api/internal/mail`;
+  // A shop that becomes public joins the town's shop list through the same private integration.
+  process.env.PARENT_SHOPS_URL = `http://127.0.0.1:${town.adminPort}/api/internal/shops`;
 }
 const mime = { ".html": "text/html", ".js": "application/javascript", ".mjs": "application/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".txt": "text/plain", ".pdf": "application/pdf" };
 const rewritten = new Set(["shop-registry.js", "agent-manifest.json", "reservation_finder.network.json", "reservation_finder.hocon"]);

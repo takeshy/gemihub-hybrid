@@ -61,6 +61,7 @@ import { resolve, extname, sep } from "node:path";
 import { z } from "zod";
 import { Store, bookingLockKey, mailLockKey, postLockKey, isArchivedShop, type Shop, type User } from "./store.ts";
 import { resetShop } from "./shop-reset.ts";
+import { listOnParent, type ParentListing } from "./parent-registry.ts";
 import { preserveDesignVersion, retireDesignVersions, pruneDesignVersions, nextDesignPublication, currentDesignPublication, restoreDesign, sameDesign, parseTargetKey, targetKey, versionsFor, targetLabel, indexedDesignVersions, hasCurrentDesignIndex, sameAsCurrent } from "./design-versions.ts";
 import { createInitialTheme, initialThemeConfig, initialIntroductionPages, initialThemePreview, type ThemeRun } from "./initial-theme.ts";
 import { publicAi, memoryAiState } from "./public-ai.ts";
@@ -3543,12 +3544,15 @@ export function createApp(
             const posts = publicPosts(await postsFor(fresh));
             if (input.hash !== contentHash({ config, posts })) fail(409, tr("プレビュー後に内容が変わりました。最新の内容を読み直して確認してください"));
             if (!canPublishShop(config)) fail(400, tr("本番公開する前に、予約できるメニューを1件以上登録してください。"));
+            let town: ParentListing = "skipped";
             if (fresh.publication !== "public") {
               fresh.publication = "public";
               fresh.history.push({ at: new Date().toISOString(), summary: tr("本番公開に切り替えました") });
               await savePublicShop(fresh);
+              // A town shop joins the town's shop list once it is public; failures never undo publication.
+              town = await listOnParent(fresh, config);
             }
-            return json(res, { ok: true, url: `/s/${fresh.slug}` });
+            return json(res, { ok: true, url: `/s/${fresh.slug}`, town });
           }
           if (customerRoute && method === "POST") {
             const loadCustomers = () => customersFor(fresh, url);

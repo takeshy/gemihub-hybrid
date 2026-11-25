@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createApp } from "../server/app.ts";
 import { Store } from "../server/store.ts";
 import { withOrigin } from "../server/auth.ts";
+import { sample, shopSchema } from "../server/domain.ts";
 
 test("the mounted town admin invites owners to the builder host, where they get the shop creation workspace", async t => {
   const { initializeTown, startTownAdmin, adminPath } = await import(new URL("../../../scripts/hybrid-town-admin.mjs", import.meta.url).href);
@@ -18,7 +19,7 @@ test("the mounted town admin invites owners to the builder host, where they get 
   const root = await mkdtemp(join(tmpdir(), "hybrid-town-invitation-"));
   const store = new Store(":memory:");
   const previous = Object.fromEntries(
-    ["APP_ORIGIN", "PARENT_INTEGRATION_SECRET", "PARENT_MAIL_URL", "ACCESS_PASSWORD", "OWNER_EMAIL_ENTRY_PATH"]
+    ["APP_ORIGIN", "PARENT_INTEGRATION_SECRET", "PARENT_MAIL_URL", "PARENT_SHOPS_URL", "ACCESS_PASSWORD", "OWNER_EMAIL_ENTRY_PATH"]
       .map(key => [key, process.env[key]]),
   );
   delete process.env.OWNER_EMAIL_ENTRY_PATH;
@@ -152,4 +153,30 @@ test("the mounted town admin invites owners to the builder host, where they get 
   assert.equal(draft.published, null);
   assert.equal(draft.draft.name, invitation.name);
   assert.equal(draft.draft.industry, invitation.industry);
+
+  // Publishing the invited shop publicly adds it to the town's shop list, through the shared secret only.
+  process.env.PARENT_SHOPS_URL = adminOrigin + "/api/internal/shops";
+  const internal = (secret: string) => fetch(adminOrigin + "/api/internal/shops", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` }, body: JSON.stringify({ pageUrl: `${origin}/s/${draft.slug}` }) });
+  assert.equal((await internal("not-the-integration-secret".repeat(2))).status, 403);
+  const owned = (await store.list<import("../server/store.ts").Shop>("shop")).find(shop => shop.id === draft.id)!;
+  owned.published = shopSchema.parse({ ...sample, name: invitation.name, industry: "other", reservationsEnabled: false });
+  owned.publication = "provisional";
+  await store.saveShop(owned);
+  const townShops = async () => JSON.parse(await readFile(join(root, "site/shops.json"), "utf8")).shops as { id: string; name: string; pageUrl: string; cuisine: string; area: string }[];
+  const before = (await townShops()).length;
+  const preview = JSON.parse((await builderRequest(`/api/shops/${owned.id}/publication-preview`, { Cookie: ownerCookie })).body);
+  const published = await builderRequest(`/api/shops/${owned.id}/publication`, { Cookie: ownerCookie, Origin: builder }, { publication: "public", revision: preview.revision, hash: preview.hash });
+  assert.equal(published.status, 200, published.body);
+  assert.equal(JSON.parse(published.body).town, "listed");
+  const listed = (await townShops()).filter(shop => shop.pageUrl.startsWith(`${origin}/s/${owned.slug}`));
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].name, invitation.name);
+  assert.ok(listed[0].cuisine && listed[0].area);
+  assert.equal((await townShops()).length, before + 1);
+  // Listing the same page again refreshes its entry instead of adding a second one.
+  assert.equal((await internal(integrationSecret)).status, 200);
+  assert.equal((await townShops()).length, before + 1);
+  // Only the town's own storefronts can be listed.
+  const foreign = await fetch(adminOrigin + "/api/internal/shops", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${integrationSecret}` }, body: JSON.stringify({ pageUrl: "https://example.com/s/elsewhere" }) });
+  assert.equal(foreign.status, 400);
 });

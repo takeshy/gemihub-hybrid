@@ -41,6 +41,32 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
   const importDocument = createDocumentImporter({ apiKey: geminiApiKey, fetch: fetchImpl });
   const publicPage = new URL(finderUrl);
   if (publicPage.username || publicPage.password || (publicPage.protocol !== "https:" && !(publicPage.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(publicPage.hostname)))) throw new Error("お店さがしの公開URLを確認してください");
+  const industryLabels = locale === "en"
+    ? { restaurant: "Restaurant", other: "Shop", nail: "Nail salon", hair: "Hair salon" }
+    : { restaurant: "飲食店", other: "お店", nail: "ネイルサロン", hair: "美容室" };
+  // A town shop that has just become public joins the shop list. Only its own storefront under the
+  // town's origin is accepted; the existing entry for the same page is refreshed instead of duplicated.
+  async function listPublishedShop(input) {
+    let page;
+    try { page = new URL(String(input?.pageUrl || "")); } catch { page = null; }
+    if (!page || page.origin !== publicPage.origin || !/^\/s\/[a-z0-9][a-z0-9-]{0,79}$/.test(page.pathname) || page.search || page.hash) {
+      const error = new Error("店舗ページのURLが不正です"); error.status = 400; throw error;
+    }
+    const current = await store.get();
+    const sameShop = shop => { try { return new URL(shop.pageUrl).origin === page.origin && new URL(shop.pageUrl).pathname.replace(/\/(?:reserve)?$/, "") === page.pathname; } catch { return false; } };
+    const existing = current.shops.find(sameShop);
+    const options = { shops: current.shops, editingId: existing?.id, discovery: true, production, fetch: fetchImpl,
+      ...(geminiApiKey ? { suggestCuisine: details => cuisineSuggester(details, { apiKey: geminiApiKey }) } : {}) };
+    let resolved = await resolver(page.href, options);
+    if (resolved.choices) resolved = await resolver(page.href, { ...options, networkIndex: 0 });
+    const name = typeof input.name === "string" ? input.name.trim().slice(0, 100) : "";
+    const shop = { ...resolved.shop, name: resolved.shop.name || name || (locale === "en" ? "New shop" : "新しいお店"),
+      area: resolved.shop.area || (locale === "en" ? "Not specified" : "未設定"),
+      cuisine: resolved.shop.cuisine || industryLabels[input.industry] || industryLabels.other };
+    const shops = existing ? current.shops.map(item => item.id === existing.id ? shop : item) : [...current.shops, shop];
+    await store.save(shops, { [shop.id]: resolved.cache }, current.revision);
+    return { ok: true, id: shop.id, added: !existing };
+  }
   return createServer(async (req, res) => {
     const send = (status, data) => {
       req.resume();
@@ -65,6 +91,10 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
         const message = await body(req, 15 * 1024 * 1024);
         await auth.mail(message, message.senderEmail);
         return send(200, { ok: true });
+      }
+      if (req.method === "POST" && req.url === "/api/internal/shops") {
+        if (!trustedIntegration(req, integrationSecret)) return send(403, { error: "店舗アプリからの依頼か確認できません" });
+        return send(200, await listPublishedShop(await body(req, 4000)));
       }
       const port = req.socket.localPort;
       const hosts = [`127.0.0.1:${port}`, `localhost:${port}`, ...(port === 80 ? ["127.0.0.1", "localhost"] : [])];

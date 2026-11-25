@@ -32,7 +32,22 @@ export async function initializeTown({ root, data, origin }) {
   return site;
 }
 
-export async function startTownAdmin({ origin, shopOrigin = origin, data, shopPort, env = process.env, auth }) {
+// Sends a request to a server in this process, keeping the public Host it was addressed to.
+function localFetch(port, url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const local = request({
+      hostname: "127.0.0.1", port, path: url.pathname + url.search, method: options.method || "GET",
+      signal: options.signal, headers: { ...Object.fromEntries(new Headers(options.headers || {})), Host: url.host },
+    }, response => resolve(new Response([204, 304].includes(response.statusCode) ? null : Readable.toWeb(response), {
+      status: response.statusCode,
+      headers: Object.entries(response.headers).flatMap(([key, value]) => (Array.isArray(value) ? value : [value]).map(item => [key, String(item)])),
+    })));
+    local.once("error", reject);
+    local.end(options.body);
+  });
+}
+
+export async function startTownAdmin({ origin, shopOrigin = origin, data, shopPort, townPort, env = process.env, auth }) {
   const publicUrl = new URL("/?guide=1", origin);
   const server = createAdminServer({
     root: data, production: origin.startsWith("https:"), publicOrigin: origin, basePath: adminPath, locale: "en",
@@ -40,19 +55,12 @@ export async function startTownAdmin({ origin, shopOrigin = origin, data, shopPo
     finderUrl: publicUrl.href, shopOrigin, integrationSecret: env.PARENT_INTEGRATION_SECRET,
     geminiApiKey: env.HYBRID_TOWN_GEMINI_API_KEY || "",
     ...(auth && { auth }),
-    fetch: (input, options) => {
+    fetch: (input, options = {}) => {
       const url = new URL(input);
-      if (url.origin !== new URL(shopOrigin).origin || url.pathname !== "/api/platform/invitations") return fetch(input, options);
-      return new Promise((resolve, reject) => {
-        const invitation = request({
-          hostname: "127.0.0.1", port: shopPort, path: url.pathname, method: options.method,
-          signal: options.signal, headers: { ...options.headers, Host: url.host },
-        }, response => resolve(new Response(Readable.toWeb(response), {
-          status: response.statusCode,
-        })));
-        invitation.once("error", reject);
-        invitation.end(options.body);
-      });
+      if (url.origin === new URL(shopOrigin).origin && url.pathname === "/api/platform/invitations") return localFetch(shopPort, url, options);
+      // Listing a newly public shop reads its storefront; the town server answers it inside this container.
+      if (townPort && url.origin === new URL(origin).origin && url.pathname.startsWith("/s/")) return localFetch(townPort, url, options);
+      return fetch(input, options);
     },
   });
   await new Promise((resolve, reject) => {

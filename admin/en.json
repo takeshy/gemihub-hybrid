@@ -177,6 +177,8 @@
   "送信内容が大きすぎます": "The request is too large.",
   "JSONを読み込めませんでした": "Could not read the JSON.",
   "メールの依頼元を確認できません": "The mail request could not be authenticated.",
+  "店舗ページのURLが不正です": "The shop page URL is not valid.",
+  "店舗アプリからの依頼か確認できません": "The request from the shop app could not be authenticated.",
   "管理画面のURLからアクセスしてください": "Open the administration URL to continue.",
   "接続先が不正です": "Invalid request destination.",
   "見つかりません": "Not found.",
