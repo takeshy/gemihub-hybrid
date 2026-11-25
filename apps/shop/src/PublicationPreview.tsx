@@ -49,7 +49,7 @@ export function PublicationPreview({ shopId }: { shopId: string }) {
     {snapshot && fixtures && <PreviewSurface key={snapshot.hash} config={snapshot.config} shopId={shopId} screen={homeScreen} fixtures={fixtures} onScreenChange={setCurrentScreen} />}
     {!published && <section className="publication-actions" aria-label={tr("本番公開の操作")}>
       {error && <div className="alert" role="alert"><p>{error}</p><button disabled={busy} onClick={() => void load()}>{tr("変更後の内容を確認し直す")}</button></div>}
-      {snapshot && !bookable && <p className="notice" role="status">{tr("本番公開する前に、予約できるメニューを1件以上登録してください。")}</p>}
+      {snapshot && !bookable && <p className="notice" role="status">{["restaurant", "other"].includes(snapshot.config.industry) ? tr("本番公開する前に、予約できるメニューを1件以上登録するか、基本情報で「このサイトで予約を受け付ける」をオフにしてください。") : tr("本番公開する前に、予約できるメニューを1件以上登録してください。")}</p>}
       <div className="publication-actions-row"><div><h2>{tr("画面の確認ができたら")}</h2><p>{tr("本番公開すると、どなたでもお店のページを見られます。")}</p></div><div className="actions">
         <button type="button" disabled={busy||!snapshot} onClick={()=>setRequestOpen(true)}>{tr("修正依頼する")}</button>
         <button className="primary" disabled={busy || !snapshot || !bookable} onClick={async () => {

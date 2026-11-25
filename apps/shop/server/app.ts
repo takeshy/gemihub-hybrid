@@ -94,6 +94,7 @@ import {
   canPublishShop,
   bookingContactEmail,
   restaurantReservations,
+  reservationsEnabled,
   type ShopConfig,
   type Booking,
 } from "./domain.ts";
@@ -3919,6 +3920,9 @@ export function createApp(
               googleAuthUrl: process.env.GOOGLE_CLIENT_ID ? languageUrl(`${origin()}/auth/google?shop=${encodeURIComponent(shop.slug)}${hosted ? `&host=${encodeURIComponent(host)}` : ""}`) : undefined } : {}),
             });
           }
+          // A shop that does not take reservations on this site offers no slots and accepts no new bookings or waitlist requests.
+          if (!reservationsEnabled(config) && (action === "slots" || action === "slots/next" || (["bookings", "waitlist"].includes(action) && method === "POST")))
+            fail(409, tr("このお店はこのサイトで予約を受け付けていません"));
           if (action === "slots/next" && method === "GET")
             return (await nextAvailableSlots(store, shop, config, url.searchParams.get("menu") || "", url.searchParams.get("staff") || undefined, calendar, url.searchParams.getAll("option")));
           if (action === "slots" && method === "GET")

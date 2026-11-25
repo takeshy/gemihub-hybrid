@@ -782,7 +782,7 @@ export function ConfigEditor({
           </select>
         </Field>
       </div>
-      {restaurant && (!section || section === "basic" || section === "profile") && <label className="check-field"><input type="checkbox" checked={c.reservationsEnabled !== false} onChange={event => put("reservationsEnabled", event.target.checked)} />{tr("このサイトで予約を受け付ける")}</label>}
+      {(restaurant || c.industry === "other") && (!section || section === "basic" || section === "profile") && <label className="check-field"><input type="checkbox" checked={c.reservationsEnabled !== false} onChange={event => put("reservationsEnabled", event.target.checked)} />{tr("このサイトで予約を受け付ける")}</label>}
       {c.industry === "restaurant" && c.reservationsEnabled !== false && section === "basic" && <p className="notice" role="status">{tr("飲食店として保存すると、予約はスタッフではなく席数で受け付けます。席の設定を用意し、材料が未入力のメニューは非表示にします。保存後に「席の設定」と「メニュー・料金」を確認してください。")}</p>}
       <Field label={tr("お店の紹介")}>
         <textarea

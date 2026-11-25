@@ -7,6 +7,7 @@ import { Store } from "../server/store.ts";
 import { request as httpRequest } from "node:http";
 import { shopSchema, bookingMenuName, asRestaurant, takesBookings, canPublishShop, sample, type Booking, type ShopConfig } from "../server/domain.ts";
 import { updateLiveValue } from "../server/live-settings.ts";
+import { primaryNavigationItems } from "../shared/navigation.ts";
 import { clientAddress, parentSite } from "../server/agentic.ts";
 import { defaultSeating, halfHours } from "../shared/seating.ts";
 import { canSeat, durationFor, seatAvailability, seatBoard, seatOverflow, seatsFor } from "../server/seats.ts";
@@ -316,6 +317,25 @@ test("information-only restaurants publish without menus or seats and expose no 
   assert.deepEqual((await (await get(`/api/public/akari/seats?date=${seeded.banquetDate}&people=2`)).json()).slots, []);
   const enabled = updateLiveValue({ ...akari(), reservationsEnabled: false }, "basic", { ...config, reservationsEnabled: true });
   assert.equal(enabled.reservationsEnabled, true);
+});
+
+test("an information-only shop of another kind publishes without services and refuses slots and bookings", async t => {
+  const { store, get, post, seeded } = await serve(t);
+  const shop = (await store.list<import("../server/store.ts").Shop>("shop")).find(shop => shop.slug === "akari")!;
+  const takesNothing = shopSchema.parse({ ...shop.published!, industry: "other", reservationsEnabled: false, seating: undefined, menus: [] });
+  assert.equal(canPublishShop(takesNothing), true);
+  assert.equal(takesBookings(takesNothing), false);
+  assert.ok(!primaryNavigationItems(takesNothing).some(item => item.pane === "reserve"));
+  // Salons always take reservations, so they still need a bookable service.
+  assert.equal(canPublishShop({ ...takesNothing, industry: "nail" }), false);
+  assert.equal(canPublishShop({ ...takesNothing, reservationsEnabled: undefined }), false);
+  shop.published = shopSchema.parse({ ...takesNothing, menus: shop.published!.menus.map(menu => ({ ...menu, kind: undefined })) });
+  shop.publication = "public"; delete shop.storefrontRelease;
+  await store.saveShop(shop);
+  assert.equal((await get(`/api/public/akari/slots?date=${seeded.banquetDate}&menu=${shop.published.menus[0].id}`)).status, 409);
+  assert.equal((await get(`/api/public/akari/slots/next?menu=${shop.published.menus[0].id}`)).status, 409);
+  assert.equal((await post("/api/public/akari/bookings", { menuId: shop.published.menus[0].id, date: seeded.banquetDate, time: "18:00" })).status, 409);
+  assert.equal((await post("/api/public/akari/waitlist", { menuId: shop.published.menus[0].id, date: seeded.banquetDate, from: "18:00", to: "19:00" })).status, 409);
 });
 
 test("the read-only MCP server answers any origin, without cookies, and names no guest", async t => {

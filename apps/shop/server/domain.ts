@@ -260,8 +260,10 @@ export type Booking = {
 };
 /** Menus a customer can book on their own: shown, and not an add-on to another menu. A restaurant offers only its courses. */
 export const bookableMenus = (config: Pick<ShopConfig, "menus"> & { industry?: ShopConfig["industry"] }) => config.menus.filter(menu => menu.active && !menu.optionFor && (config.industry !== "restaurant" || menu.kind === "course"));
-/** Whether customers can reserve at all: a restaurant by seats alone or with a course, any other shop with a menu. */
-export const reservationsEnabled = (config: Pick<ShopConfig, "industry" | "reservationsEnabled">) => config.industry !== "restaurant" || config.reservationsEnabled !== false;
+/** Whether customers can reserve at all: a restaurant by seats alone or with a course, any other shop with a menu. Restaurants and "other" shops can turn this off. */
+export const reservationsEnabled = (config: Pick<ShopConfig, "industry" | "reservationsEnabled">) =>
+  // Salons always book; restaurants and other shops may present themselves without taking reservations.
+  !["restaurant", "other"].includes(config.industry) || config.reservationsEnabled !== false;
 /** A restaurant that takes reservations on its site, as opposed to one that only presents itself. */
 export const restaurantReservations = (config: Pick<ShopConfig, "industry" | "reservationsEnabled">) => config.industry === "restaurant" && config.reservationsEnabled !== false;
 export const takesBookings = (config: Pick<ShopConfig, "menus" | "industry" | "seating" | "reservationsEnabled">) =>
