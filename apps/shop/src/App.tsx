@@ -54,7 +54,7 @@ import { createRequestId } from "./request-id";
 import { dashboardTab, useDashboardNavigation } from "./dashboard-navigation";
 import React, { useCallback, useEffect, useState, useRef, useId } from "react";
 import { useApi } from "./api";
-import { asRestaurant, bookableMenus, bookingStaff, bookingStaffName, bookingMenuName, bookingDates, menuSelection, menuAllowsOption, hoursText, specialDaysText, ownerStaffId, type ShopConfig, type Booking } from "../server/domain";
+import { asRestaurant, reservationsEnabled, bookableMenus, bookingStaff, bookingStaffName, bookingMenuName, bookingDates, menuSelection, menuAllowsOption, hoursText, specialDaysText, ownerStaffId, type ShopConfig, type Booking } from "../server/domain";
 import type { Shop, User } from "../server/store";
 import "./style.css";
 import "./ManagementTypography.css";
@@ -438,6 +438,7 @@ function Dashboard({
   useEffect(() => { if (shop && session.user?.judge) onPublishedChange?.(!!shop.published); }, [shop?.id, !!shop?.published, session.user?.judge, onPublishedChange]);
   const creating = !!shop?.isOwner && !shop.published;
   const publiclyPublished = !!shop?.published && shop.publication !== "provisional";
+  const takesReservations = !shop?.published || reservationsEnabled(shop.published);
   const shopRegion = shop?.published ? regionOf(shop.published) : shop?.regionDefault || regionOf(null);
   // The dashboard needs a published configuration; staff of an unpublished shop start on their own page.
   const fallbackTab = shop?.published ? "dashboard" : "staff";
@@ -492,9 +493,9 @@ function Dashboard({
     ["assistant", "✳︎", tr("相談・質問")],
     ["configuration", "⚙", tr("設定")],
     ...(shop?.isOwner ? [["try", "✧", tr("AIとお店をつくる")]] : []),
-    ...(publiclyPublished ? [["bookings", "▦", tr("予約を管理")], ["customers", "♧", tr("お客様")], ["analytics", "▥", tr("分析")]] : []),
+    ...(publiclyPublished ? [...(takesReservations ? [["bookings", "▦", tr("予約を管理")]] : []), ["customers", "♧", tr("お客様")], ["analytics", "▥", tr("分析")]] : []),
     ...(publiclyPublished && shop?.isOwner ? [["coupons", "◇", tr("クーポン")]] : []),
-    ...(publiclyPublished && shop?.isOwner ? [["payments", currencyOf(shopRegion) === "USD" ? "$" : "¥", tr("決済・返金")], ["transfers", "↻", tr("キャンセル枠の再販売")]] : []),
+    ...(publiclyPublished && shop?.isOwner && takesReservations ? [["payments", currencyOf(shopRegion) === "USD" ? "$" : "¥", tr("決済・返金")], ["transfers", "↻", tr("キャンセル枠の再販売")]] : []),
     ["inquiries", "✉", tr("お問い合わせ")],
     ...(articleKinds(shop?.published).length ? [["blog", "✎", articleKinds(shop?.published).length === 2 ? tr("ブログ・お知らせ") : articleKinds(shop?.published)[0] === "blogs" ? tr("ブログ") : tr("お知らせ")]] : []),
     ...(!shop?.isOwner ? [["staff", "♧", tr("自分のカレンダー")]] : []),
@@ -621,7 +622,7 @@ function Dashboard({
                 )}
                 {view === "assistant" && shop.published && <ConsultationWorkspace key={`${shop.id}:${session.user?.email}`} shopId={shop.id} email={session.user!.email} active selected={selectedConversation} revision={consultationRevision} onSelect={selectConsultation}>{selectedConversation ? <Assistant key={`${shop.id}:${session.user?.email}:${selectedConversation}`} conversationId={selectedConversation} initialQuestion={assistantQuestion?.shopId === shop.id && assistantQuestion.conversationId === selectedConversation ? assistantQuestion.question : undefined} onInitialQuestionConsumed={() => setAssistantQuestion(undefined)} onConversationChange={() => setConsultationRevision(value => value + 1)} shop={shop} userEmail={session.user?.email || ""} voice={!!session.assistantVoice} acceptPlan={acceptPlan} reload={load} /> : <section className="panel"><h2>{tr("相談・質問")}</h2><p>{tr("左の「＋新規の相談」から相談を始められます。")}</p></section>}</ConsultationWorkspace>}
                 {view === "analytics" && <ShopAnalytics shopId={shop.id} />}
-                {view === "basic" && shop.isOwner && <section className="basic-settings" aria-label={tr("お店の基本情報と予約の設定")}>{(shop.published?.industry === "restaurant" ? ["basic","seating","hours","rules"] as const : ["basic","hours","rules"] as const).map(section=><LiveSettings key={`${shop.id}-${section}`} shop={shop} section={section} reload={load}/>)}</section>}
+                {view === "basic" && shop.isOwner && <section className="basic-settings" aria-label={tr("お店の基本情報と予約の設定")}>{(shop.published?.industry === "restaurant" ? ["basic","seating","hours","rules"] as const : ["basic","hours","rules"] as const).filter(section => section !== "rules" || takesReservations).map(section=><LiveSettings key={`${shop.id}-${section}`} shop={shop} section={section} reload={load}/>)}</section>}
                 {view === "menus" && shop.isOwner && <LiveSettings key={`${shop.id}-menus`} shop={shop} section="menus" reload={load} />}
                 {view === "coupons" && shop.isOwner && shop.published && <Coupons key={shop.id} shopId={shop.id} config={shop.published}/>}
                 {view === "staff" && <>{shop.isOwner && <><LiveSettings key={`${shop.id}-staff`} shop={shop} section="staff" reload={load} /><StaffAccounts key={`${shop.id}-${shop.revision}`} shop={shop} onSaved={load}/></>}{!shop.isOwner && <><StaffCalendar key={shop.id} shop={shop} onSaved={load}/><StaffPhoto shop={shop} reload={load}/></>}</>}
@@ -1501,6 +1502,8 @@ export function PublicShop({
   const inquirySending = useRef(false);
   const [bookingMessage, setBookingMessage] = useState("");
   const [pane, setPane] = useState(initialPane || (session.user ? "mine" : "about"));
+  // A shop without reservations has no booking or My page pane; old links open the shop page instead.
+  useEffect(() => { if (data && !reservationsEnabled(data.config) && (pane === "reserve" || pane === "mine")) setPane("about"); }, [data, pane]);
   const [completedBooking, setCompletedBooking] = useState<Booking>();
   const [requestId, setRequestId] = useState(() => createRequestId());
   // In demo mode the server lets every visitor book as a shared demo customer, with no sign-in.

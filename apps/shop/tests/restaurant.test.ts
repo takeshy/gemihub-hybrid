@@ -325,7 +325,8 @@ test("an information-only shop of another kind publishes without services and re
   const takesNothing = shopSchema.parse({ ...shop.published!, industry: "other", reservationsEnabled: false, seating: undefined, menus: [] });
   assert.equal(canPublishShop(takesNothing), true);
   assert.equal(takesBookings(takesNothing), false);
-  assert.ok(!primaryNavigationItems(takesNothing).some(item => item.pane === "reserve"));
+  assert.deepEqual(primaryNavigationItems(takesNothing).map(item => item.pane), ["about", "contact"]);
+  assert.deepEqual(primaryNavigationItems({ ...takesNothing, reservationsEnabled: undefined }).map(item => item.pane), ["about", "reserve", "mine", "contact"]);
   // Salons always take reservations, so they still need a bookable service.
   assert.equal(canPublishShop({ ...takesNothing, industry: "nail" }), false);
   assert.equal(canPublishShop({ ...takesNothing, reservationsEnabled: undefined }), false);

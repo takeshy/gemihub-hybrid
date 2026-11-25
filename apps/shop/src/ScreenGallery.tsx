@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { PublicShop, type Session } from "./App";
 import { ApiProvider, useApi } from "./api";
 import { createPreviewClient, sampleFixtures, type Fixtures } from "./local-preview";
-import type { Booking, ShopConfig } from "../server/domain";
+import { reservationsEnabled, type Booking, type ShopConfig } from "../server/domain";
 import { postKey } from "../server/post-domain";
 import { ChromePreview, ThemeBody } from "./SiteChrome";
 import { hasThemeFrame } from "../shared/theme-editing";
@@ -25,7 +25,9 @@ export function previewScreens(config: ShopConfig): PreviewScreen[] {
     { id: "announcements", name: tr("お知らせ一覧"), description: tr("営業日などの案内を一覧で見る"), category: "announcements" },
     { id: "announcements:article", name: tr("お知らせ記事"), description: tr("お店からの案内を読む"), category: "announcements", article: true },
     ...config.pages.map(page => ({ id: `page:${page.id}`, name: page.title, description: tr("追加ページ"), pageSlug: page.slug })),
-  ] as PreviewScreen[]).filter(screen => !screen.category || articleKinds(config).includes(screen.category));
+  ] as PreviewScreen[]).filter(screen => (!screen.category || articleKinds(config).includes(screen.category))
+    // A shop that does not take reservations has neither a booking screen nor a My page of bookings.
+    && (reservationsEnabled(config) || (screen.pane !== "reserve" && screen.pane !== "mine")));
 }
 
 export type PreviewLocation = { id: string; name: string; articleKey?: string };
