@@ -8,13 +8,42 @@ and Remote Config use the separate project `gemihub-hybrid-2026`.
 data or credentials. Its only container has a 384 MiB memory limit. The demo
 uses fictional shops and in-memory reservations that reset on restart.
 
-Build with `cloudbuild.yaml`, using a new `hybrid` image tag. Copy this
-directory's deployment files to `/opt/gemihub-hybrid` on the VM, then run:
+## Deploy from a new computer
+
+Install Git, the Google Cloud CLI, OpenSSH and curl on macOS, Linux or
+Windows Subsystem for Linux (WSL). Sign in with a Google account already
+authorized to deploy to `geminihub-486523`.
+
+```sh
+gcloud auth login
+git clone https://github.com/takeshy/gemihub-hybrid.git
+cd gemihub-hybrid
+bash infra/hybrid/deploy.sh
+```
+
+If you already have a clone, check out or pull the commit you want to deploy.
+The script builds the current commit with Cloud Build and tags the image with
+the commit and build time. It sends the Hybrid Compose file and VM deploy
+script via IAP SSH, updates the dedicated container, and verifies `/healthz`
+on both public hostnames. Only committed files enter the build context.
+Runtime credentials and the persistent data directory stay on the VM.
+
+The signed-in account needs permission to submit and read builds in
+`geminihub-486523`, upload sources to `gs://geminihub-486523_cloudbuild/source/`
+and use the project for billing and quota. It also needs IAP access and OS
+Login with sudo on `gemihub-dev`, including access to its attached service
+account. Use your existing authorized account when switching devices.
+[Cloud Build permissions](https://docs.cloud.google.com/build/docs/iam-roles-permissions) ·
+[OS Login and IAP permissions](https://docs.cloud.google.com/compute/docs/oslogin/set-up-oslogin)
+
+## VM maintenance
+
+After provisioning the VM, copy `Caddyfile` from this directory to
+`/opt/gemihub-hybrid/Caddyfile`. Run the route step on the VM after both DNS
+A records resolve to it. Routine container updates use the existing routes.
 
 ```sh
 cd /opt/gemihub-hybrid
-sudo python3 deploy-on-vm.py container asia-northeast1-docker.pkg.dev/geminihub-486523/gemihub-dev/hybrid:TAG
-# After the DNS A records for hybrid.gemihub.net and shop.hybrid.gemihub.net resolve to the VM:
 sudo python3 deploy-on-vm.py route
 ```
 
@@ -23,6 +52,14 @@ health check. Before pulling and again after a healthy start, it removes local
 images of the `hybrid` repository except the new image and the previous healthy
 one, so repeated deploys do not fill the VM disk. Images of the existing dev
 stack are in other repositories and are never removed.
+
+If a container update fails its health check, `image.env` still records the
+last healthy image. To restore it, run this on the VM.
+
+```sh
+cd /opt/gemihub-hybrid
+sudo flock .deploy.lock bash -c 'source image.env && python3 deploy-on-vm.py container "$HYBRID_IMAGE"'
+```
 
 The route step validates and backs up the current Caddyfile, appends only the
 missing hybrid hostnames (`hybrid.gemihub.net` for the town and
@@ -69,7 +106,7 @@ Do not run inherited deployment scripts for this clone.
    Hybrid 専用のサービスアカウントの認証ファイルを `google-runtime.json` として、
    UID 1000 の読み取り専用に配置します。街の店舗一覧と暗号化済み Gmail 接続は同じ
    ディレクトリに保存されます。認証ファイルや環境ファイルは Git やイメージに含めません。
-5. `infra/hybrid` の上記手順で Hybrid 専用コンテナを更新し、街の管理画面に自分の
+5. 上記の `bash infra/hybrid/deploy.sh` で Hybrid 専用コンテナを更新し、街の管理画面に自分の
    Google アカウントでログインして Gmail の送信を承認します。
 
 信頼できる審査員に街の運営操作を体験してもらう場合は、専用の

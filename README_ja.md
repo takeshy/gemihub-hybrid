@@ -18,6 +18,10 @@ Web / Chrome 向け提出作品です。街案内と店舗の来店者向けAI�
 > 稼働しており、架空の店舗で動作を試せます。
 > 継承した `infra/dev/` と `apps/shop/infra/` の配備手順は実行しないでください。
 
+別端末から公開デモを更新するには、権限のある Google アカウントで
+`gcloud auth login` を実行し、このリポジトリで `bash infra/hybrid/deploy.sh` を
+実行します。必要なツールと権限は[デプロイ手順](infra/hybrid/README.md)に記載しています。
+
 ---
 
 ## 主な特徴

@@ -63,8 +63,8 @@ owners can use Gemihub's conversational shop builder. See the
 
 New runtime code: [`hybrid/`](hybrid/) and [`scripts/town-mcp.mjs`](scripts/town-mcp.mjs),
 with regression tests in [`tests/hybrid.test.mjs`](tests/hybrid.test.mjs).
-The standalone deployment is in [`infra/hybrid/`](infra/hybrid/). Shared third-party
-runtime files stay unchanged.
+Run `bash infra/hybrid/deploy.sh` from any authorized workstation to update
+the Hybrid demo. See the [deployment guide](infra/hybrid/README.md) for setup.
 
 Submission materials: [Devpost project page](https://devpost.com/software/gemihub-hybrid),
 [YouTube demo video](https://youtu.be/7SislWBHabl),
