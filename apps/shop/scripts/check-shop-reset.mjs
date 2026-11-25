@@ -27,6 +27,14 @@ try{
     await context.addCookies([{name:'gemihub_session',value:sessionId,url:origin}]);
     const page=await context.newPage();activePage=page;page.setDefaultTimeout(10000);
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    // The owner can start over from Settings → Shop information without the hidden shortcut; cancelling changes nothing.
+    await page.goto(`${origin}/?shop=${shop.id}&tab=basic&lang=${language}`);
+    await page.getByRole('button',{name:language==='ja'?'お店を最初から作り直す':'Start your shop over',exact:true}).click();
+    const settingsDialog=page.getByRole('dialog');
+    await settingsDialog.getByRole('heading',{name:language==='ja'?'お店を最初から作り直しますか？':'Start your shop over?',exact:true}).waitFor();
+    await page.screenshot({path:`tmp/shop-reset/settings-confirm-${language}-${width}.png`,fullPage:true});
+    await settingsDialog.getByRole('button',{name:language==='ja'?'やめる':'Cancel',exact:true}).click();
+    assert.equal(await settingsDialog.isVisible(),false);assert.equal((await store.shop(shop.id))?.archivedAt,undefined);
     await page.goto(`${origin}/?lang=${language}`);
     const reset=page.getByRole('button',{name:language==='ja'?'自分のお店を初期化':'Reset my shop',exact:true});
     const admin=page.getByRole('link',{name:language==='ja'?'運営管理':'Admin',exact:true});

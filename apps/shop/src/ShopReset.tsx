@@ -1,8 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { tr } from "../shared/i18n";
 import { useApi } from "./api";
 
-export function ShopReset({ shopId, navigate, showButton = true }: { shopId: string; navigate: (href: string) => void; showButton?: boolean }) {
+export function ShopReset({ shopId, navigate, showButton = true, label, className = "text-button" }: { shopId: string; navigate: (href: string) => void; showButton?: boolean; label?: string; className?: string }) {
+  // Unique per instance: the header and the settings page can both hold this dialog.
+  const id = useId();
   const api = useApi();
   const dialog = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
@@ -23,10 +25,10 @@ export function ShopReset({ shopId, navigate, showButton = true }: { shopId: str
     finally { setBusy(false); }
   };
   return <>
-    {showButton && <button className="text-button" onClick={() => { setError(""); dialog.current?.showModal(); }}>{tr("自分のお店を初期化")}</button>}
-    <dialog ref={dialog} className="shop-reset-dialog" aria-labelledby="shop-reset-title" aria-describedby="shop-reset-description" onCancel={event => { if (busy) event.preventDefault(); }}>
-      <h2 id="shop-reset-title">{tr("お店を最初から作り直しますか？")}</h2>
-      <p id="shop-reset-description">{tr("自分のお店の公開ページを閉じ、設定・予約・問い合わせ・お客様・記事・画像・AIとの会話を初期化します。元に戻せません。")}</p>
+    {showButton && <button type="button" className={className} onClick={() => { setError(""); dialog.current?.showModal(); }}>{label || tr("自分のお店を初期化")}</button>}
+    <dialog ref={dialog} className="shop-reset-dialog" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} onCancel={event => { if (busy) event.preventDefault(); }}>
+      <h2 id={`${id}-title`}>{tr("お店を最初から作り直しますか？")}</h2>
+      <p id={`${id}-description`}>{tr("自分のお店の公開ページを閉じ、設定・予約・問い合わせ・お客様・記事・画像・AIとの会話を初期化します。元に戻せません。")}</p>
       <p>{tr("ログイン方法は維持します。お店専用の保存ファイルを削除し、次のお店の保存先を新しく用意します。")}</p>
       <p className="small muted">{tr("PayPalの決済・返金履歴は残ります。初期化による返金は行いません。")}</p>
       {error && <p className="alert" role="alert">{error}<br />{tr("初期化をもう一度押すと、同じ処理を続けます。")}</p>}

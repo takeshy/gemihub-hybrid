@@ -4355,6 +4355,8 @@
   "材料表とアレルゲン表示だけから判定しています。アレルギーはお店に直接ご確認ください。": "Judged from the ingredient and allergen lists alone. Confirm allergies with the restaurant directly.",
   "このお店は席の予約を受け付けていません": "This shop does not take seat reservations",
   "このお店はこのサイトで予約を受け付けていません": "This shop does not take reservations on this site",
+  "お店を最初から作り直す": "Start your shop over",
+  "今のお店を閉じて、AIと最初からお店をつくり直します。実行する前に確認の画面が出ます。": "Close the current shop and build a new one with AI from the beginning. You will be asked to confirm first.",
   "本番公開する前に、予約できるメニューを1件以上登録するか、基本情報で「このサイトで予約を受け付ける」をオフにしてください。": "Before publishing publicly, add at least one bookable service, or turn off “Accept reservations on this site” in the basic information.",
   "日付を確認してください": "Check the date",
   "この日は予約を受け付けていません": "Reservations are not accepted for this date",
