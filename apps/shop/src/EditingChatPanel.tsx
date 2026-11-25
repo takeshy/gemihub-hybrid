@@ -15,6 +15,16 @@ export function EditingChatPanel({ open, title, onClose, children, reopenSignal 
     panel.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true });
     return () => document.body.classList.remove("visual-chat-open", "shop-change-chat-open");
   }, [chat.expanded]);
+  useEffect(() => {
+    // A phone's software keyboard shrinks only the visual viewport. While it is up, the panel
+    // hides its introductory text so the conversation keeps most of the remaining height.
+    const viewport = window.visualViewport;
+    if (!chat.expanded || !viewport) return;
+    const update = () => document.body.classList.toggle("software-keyboard-open", viewport.scale < 1.05 && window.innerHeight - viewport.height > 150);
+    update();
+    viewport.addEventListener("resize", update);
+    return () => { viewport.removeEventListener("resize", update); document.body.classList.remove("software-keyboard-open"); };
+  }, [chat.expanded]);
   return <>{chat.restoreButton}{createPortal(<aside id={chat.panelId} tabIndex={-1} ref={panel} hidden={!chat.expanded} className="visual-chat-panel shop-change-chat" aria-label={tr("ページ追加・機能変更のチャット")} onKeyDown={event => { if (event.target instanceof Element && event.target.closest("dialog")) return; if (event.key === "Escape" && !event.nativeEvent.isComposing && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); onClose(); } }}>
     <div className="visual-chat-heading"><h3>{title}</h3><div className="chat-panel-heading-actions">{chat.collapseButton}<button type="button" aria-label={tr("閉じる")} onClick={onClose}>×</button></div></div>
     {children}

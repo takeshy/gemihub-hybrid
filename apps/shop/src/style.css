@@ -3103,6 +3103,13 @@ body.visual-chat-open { --visual-chat-width: 380px; padding-right: var(--visual-
 .shop-change-chat .chat-composer { margin-top: 8px; }
 .shop-change-chat .chat-composer textarea { width: 100%; }
 @media (max-width: 760px) { body.shop-change-chat-open { --visual-chat-height: min(80dvh, max(420px, 60dvh)); } }
+/* Phones: the conversation needs the space more than the introduction and tips. */
+@media (max-width: 760px) {
+  .shop-change-chat .shop-request:has(.chat-message) > p:not(.alert):not(.notice) { display: none; }
+  .shop-change-chat .chat-composer textarea { min-height: 44px; height: 64px; }
+  body.software-keyboard-open .shop-change-chat .request-intents-reset,
+  body.software-keyboard-open .shop-change-chat .shop-request > p:not(.alert):not(.notice) { display: none; }
+}
 @media (max-width: 900px) { .dashboard-summary-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .management-dashboard { gap: 16px; } .shop-change-review .request-review { padding: 16px; } }
 
