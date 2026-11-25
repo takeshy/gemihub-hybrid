@@ -354,7 +354,7 @@ function Landing({ demo, invite, run }: { demo: boolean; invite: boolean; run: R
           {tr("夫婦で営む、小さなネイルサロンです。")}<br />
           {tr("火曜日はお休み。指名なしでも予約できるようにしたい。")}</div>
         <div className="chat-answer">
-          <span>✳</span>
+          <span>✳︎</span>
           <p>
             {tr("お二人のどちらかが空いていれば予約できる、")}<br />
             {tr("お店専用の仕組みをご提案します。")}</p>
@@ -489,7 +489,7 @@ function Dashboard({
   };
   const menuItems = [
     ["dashboard", "⌂", tr("ダッシュボード")],
-    ["assistant", "✳", tr("相談・質問")],
+    ["assistant", "✳︎", tr("相談・質問")],
     ["configuration", "⚙", tr("設定")],
     ...(shop?.isOwner ? [["try", "✧", tr("AIとお店をつくる")]] : []),
     ...(publiclyPublished ? [["bookings", "▦", tr("予約を管理")], ["customers", "♧", tr("お客様")], ["analytics", "▥", tr("分析")]] : []),
@@ -519,7 +519,7 @@ function Dashboard({
         </button>
         <div className="sidebar-label">MY SHOP</div>
         <div className="shop-switch">
-          <span className="shop-avatar">✳</span>
+          <span className="shop-avatar">✳︎</span>
           <strong>{shop?.published?.name || tr("わたしのお店")}</strong>
         </div>
         {shopUrl && <div className="sidebar-shop-url">
@@ -1116,7 +1116,7 @@ export function ConfigEditor({
 function Empty({ text }: { text: string }) {
   return (
     <div className="empty">
-      <span>✳</span>
+      <span>✳︎</span>
       <p>{text}</p>
     </div>
   );
@@ -1951,7 +1951,7 @@ export function PublicShop({
                 </div>
               </div>
               <div className="panel booking-summary">
-                <span className="line-flower">✳</span>
+                <span className="line-flower">✳︎</span>
                 <h3>{storefrontText(c, "bookingSummary")}</h3>
                 <p>{c.menus.find((m) => m.id === menu)?.name}</p>
                 {!!selection?.options.length && <ul className="booking-option-summary">{selection.options.map(option => <li key={option.id}>{option.name} · {yen(option.price)} · {option.duration}{tr("分")}</li>)}</ul>}

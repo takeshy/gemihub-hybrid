@@ -25,7 +25,7 @@ function HeroPreview() {
       <div className="lp-sample-service"><div><span>01 / HAND CARE</span><strong>{tr("わたしに似合う、ネイルを。")}</strong></div><span>¥5,500 <Arrow diagonal /></span></div>
       <div className="lp-sample-caption">{tr("架空のお店の画面イメージ")}</div>
     </div>
-    <div className="lp-chat-note"><span className="lp-chat-avatar">g✳</span><div><small>{tr("たとえば、こんなふうに。")}</small><p>{tr("落ち着いた雰囲気のネイルサロンです。お店の紹介と予約ができるページをつくりたい。")}</p></div></div>
+    <div className="lp-chat-note"><span className="lp-chat-avatar">g✳︎</span><div><small>{tr("たとえば、こんなふうに。")}</small><p>{tr("落ち着いた雰囲気のネイルサロンです。お店の紹介と予約ができるページをつくりたい。")}</p></div></div>
     <div className="lp-confirm-note"><span>✓</span><div><b>{tr("AIがお店のページを用意しました")}</b><small>{tr("画面を確かめてから、公開できます。")}</small></div></div>
   </div>;
 }

@@ -127,7 +127,7 @@ export function Assistant({ shop, voice, userEmail, acceptPlan, reload, conversa
     setPlan(next); setDraft(undefined); setDismissedRequestId(lastReplyId.current);
   });
   return <section className="panel assistant" aria-labelledby="assistant-title">
-    <div className="section-top"><span className="ai-mark">✳</span><div>
+    <div className="section-top"><span className="ai-mark">✳︎</span><div>
       <h2 id="assistant-title">{tr("相談・質問")}</h2>
       <p className="small muted">{tr("使い方や現在のお店の設定、売上・予約・お客様などのデータについて相談できます。見た目の修正は「AIとお店をつくる」の各画面、ページ追加や機能の変更は「ページ追加・機能変更」で依頼できます。")}</p>
     </div></div>
@@ -245,7 +245,7 @@ function LiveVoice({ shopId, disabled, context, onTurn, onDraft, onError }: Assi
           if (earlier.length) ws.send(JSON.stringify({ type: "context", messages: earlier }));
         }
         if (message.type === "heard") setCaption(value => (value.startsWith("🎙") ? value : "🎙 ") + message.text);
-        if (message.type === "spoken") setCaption(value => (value.startsWith("✳") ? value : "✳ ") + message.text);
+        if (message.type === "spoken") setCaption(value => (value.startsWith("✳︎") ? value : "✳︎ ") + message.text);
         if (message.type === "sources") turnSources.current = [...turnSources.current, ...message.sources.filter((source: Source) => !turnSources.current.some(item => item.path === source.path))];
         if (message.type === "turn") { callbacks.current.onTurn(message.question, message.answer, turnSources.current); turnSources.current = []; setCaption(""); }
         if (message.type === "draft") callbacks.current.onDraft(message.text);

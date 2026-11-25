@@ -79,6 +79,8 @@ async function capture(input: VisualPreviewData): Promise<RenderedVisual[]> {
     }
     return results;
   } catch (error) {
+    // Record why the capture failed (browser launch, render error or timeout); the owner only sees a retry message.
+    if (!signal?.aborted) console.error(JSON.stringify({ event: "visual_capture_failed", screen: input.screen, error: error instanceof Error ? error.message.split("\n")[0].slice(0, 300) : "unknown" }));
     throw Object.assign(new Error(tr("修正後の画面を撮影できませんでした。依頼の内容は保持しています。もう一度お試しください。"), { cause: error }), { status: 503 });
   } finally { signal?.removeEventListener("abort", stop); await browser?.close(); }
 }

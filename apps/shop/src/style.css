@@ -1172,8 +1172,11 @@ pre {
 }
 .public-nav .active {
   border-bottom: 2px solid #53794b;
-  background: none !important;
   color: #35563b;
+}
+/* Generated themes give the active item their own background and text colours. */
+.public-nav .active:not(.design-root .active) {
+  background: none !important;
 }
 .reservation-layout {
   display: grid;

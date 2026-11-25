@@ -118,7 +118,7 @@ function ThemeSamples({ config }: { config: ShopConfig }) {
       <div className="actions"><button type="button" className="primary" disabled>{tr("この内容で予約する")} →</button></div>
       <p className="notice">{tr("ご案内の見本です。実際の予約や送信は行いません。")}</p>
       <div className="menu-options"><button type="button" className="selected"><span>{tr("サンプルメニュー")}<small>60{tr("分")}</small></span><strong><span aria-hidden="true">●</span></strong></button></div>
-      <aside className="booking-summary"><span className="line-flower" aria-hidden="true">✳</span><p>{tr("サンプルメニュー")}</p></aside>
+      <aside className="booking-summary"><span className="line-flower" aria-hidden="true">✳︎</span><p>{tr("サンプルメニュー")}</p></aside>
       <details className="waitlist-request"><summary>{tr("希望の時間が空いたら知らせる")}</summary><p>{tr("ご案内の見本です。実際の予約や送信は行いません。")}</p></details>
       <div className="actions"><button type="button" className="secondary">{tr("戻る")}</button><span className="status active">{tr("予約確定")}</span><span className="status cancelled">{tr("キャンセル済み")}</span></div>
       <div className="recent-post-list"><a><span className="pill">{tr("お知らせ")}</span><strong>{tr("お店からのお便り（サンプル）")}</strong></a></div>
