@@ -32,17 +32,17 @@ export async function initializeTown({ root, data, origin }) {
   return site;
 }
 
-export async function startTownAdmin({ origin, data, shopPort, env = process.env, auth }) {
+export async function startTownAdmin({ origin, shopOrigin = origin, data, shopPort, env = process.env, auth }) {
   const publicUrl = new URL("/?guide=1", origin);
   const server = createAdminServer({
     root: data, production: origin.startsWith("https:"), publicOrigin: origin, basePath: adminPath, locale: "en",
     enableSiteEditor: false,
-    finderUrl: publicUrl.href, shopOrigin: origin, integrationSecret: env.PARENT_INTEGRATION_SECRET,
+    finderUrl: publicUrl.href, shopOrigin, integrationSecret: env.PARENT_INTEGRATION_SECRET,
     geminiApiKey: env.HYBRID_TOWN_GEMINI_API_KEY || "",
     ...(auth && { auth }),
     fetch: (input, options) => {
       const url = new URL(input);
-      if (url.origin !== origin || url.pathname !== "/api/platform/invitations") return fetch(input, options);
+      if (url.origin !== new URL(shopOrigin).origin || url.pathname !== "/api/platform/invitations") return fetch(input, options);
       return new Promise((resolve, reject) => {
         const invitation = request({
           hostname: "127.0.0.1", port: shopPort, path: url.pathname, method: options.method,

@@ -58,17 +58,30 @@ def container(image):
         raise RuntimeError('An existing dev container changed unexpectedly.')
     print('Hybrid container healthy; all existing container IDs unchanged.')
 
+def site_blocks(text):
+    """Top-level Caddy site blocks keyed by their address line."""
+    return {m.group(1).decode(): m.group(0).strip()
+            for m in re.finditer(rb'(?m)^([A-Za-z0-9.-]+) \{\n(?:.*\n)*?\}', text)}
+
 def route():
     before_ids = original_ids()
     current = Path('/opt/gemihub-dev/Caddyfile')
     original = current.read_bytes()
-    addition = (ROOT / 'Caddyfile').read_bytes().strip()
-    if b'hybrid.gemihub.net' in original:
-        if addition not in original:
-            raise RuntimeError('An unexpected hybrid route already exists; refusing to overwrite it.')
-        print('Dedicated hybrid route already present.')
+    wanted = site_blocks((ROOT / 'Caddyfile').read_bytes())
+    existing = site_blocks(original)
+    missing = []
+    for host, block in wanted.items():
+        if host in existing:
+            if existing[host] != block:
+                raise RuntimeError(f'An unexpected {host} route already exists; refusing to overwrite it.')
+        elif re.search(rb'(?m)^\s*' + re.escape(host.encode()) + rb'\b', original):
+            raise RuntimeError(f'An unexpected {host} route already exists; refusing to overwrite it.')
+        else:
+            missing.append(block)
+    if not missing:
+        print('Dedicated hybrid routes already present.')
         return
-    combined = original.rstrip() + b'\n\n' + addition + b'\n'
+    combined = original.rstrip() + b'\n\n' + b'\n\n'.join(missing) + b'\n'
     (ROOT / 'Caddyfile.candidate').write_bytes(combined)
     run('docker', 'exec', '-i', ORIGINALS[2], 'caddy', 'validate', '--config', '/dev/stdin',
         '--adapter', 'caddyfile', input=combined)
@@ -87,7 +100,8 @@ def route():
         raise
     if original_ids() != before_ids:
         raise RuntimeError('An existing dev container changed unexpectedly.')
-    print('Added only hybrid.gemihub.net; existing containers were not restarted.')
+    added = ', '.join(host for host, block in wanted.items() if block in missing)
+    print(f'Added only {added}; existing containers were not restarted.')
 
 if __name__ == '__main__':
     if Path.cwd().resolve() != ROOT or os.geteuid() != 0:

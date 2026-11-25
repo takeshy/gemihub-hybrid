@@ -19,7 +19,8 @@
 
 1. Never modify or deploy the upstream repository. The owner subsequently
    authorized co-hosting on its Compute Engine VM with a separate container
-   and a new hybrid.gemihub.net route. Preserve all existing containers,
+   and new hybrid.gemihub.net (town) and shop.hybrid.gemihub.net (shop
+   builder) routes. Preserve all existing containers,
    routes, data, credentials, OAuth clients and Terraform state.
 2. Work only in this independent clone. Its origin must point to its own new
    repository, never the upstream local directory or upstream GitHub repository.

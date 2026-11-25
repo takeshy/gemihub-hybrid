@@ -14,12 +14,14 @@ directory's deployment files to `/opt/gemihub-hybrid` on the VM, then run:
 ```sh
 cd /opt/gemihub-hybrid
 sudo python3 deploy-on-vm.py container asia-northeast1-docker.pkg.dev/geminihub-486523/gemihub-dev/hybrid:TAG
-# After the new DNS A record resolves to the VM:
+# After the DNS A records for hybrid.gemihub.net and shop.hybrid.gemihub.net resolve to the VM:
 sudo python3 deploy-on-vm.py route
 ```
 
 The route step validates and backs up the current Caddyfile, appends only the
-new hostname and reloads Caddy without restarting existing containers. It
+missing hybrid hostnames (`hybrid.gemihub.net` for the town and
+`shop.hybrid.gemihub.net` for the shop builder) and reloads Caddy without
+restarting existing containers. Both hostnames reach the same container. It
 refuses unexpected existing hybrid configuration. An upstream startup script
 can regenerate its Caddyfile, so reapply the `route` step after such a change.
 Do not run inherited deployment scripts for this clone.
@@ -28,7 +30,10 @@ Do not run inherited deployment scripts for this clone.
 
 街の管理画面は `https://hybrid.gemihub.net/judge/admin/` にあります。
 運営者が「Sign in with Google」から Gmail の送信を承認すると、「Invite a shop」
-から招待メールを送れます。飲食店・その他のお店の店主はメールのリンクを開いて
+から招待メールを送れます。店舗の作成と管理は `https://shop.hybrid.gemihub.net/` で行い、
+街の紹介ページ（`https://hybrid.gemihub.net/`）とは分けています。店舗の公開ページ
+（`/s/<slug>`）は引き続き `hybrid.gemihub.net` にあります。以前の `/?shop=...` のリンクは
+店舗作成側に転送されます。飲食店・その他のお店の店主はメールのリンクを開いて
 「Build your shop with AI」に進みます。サロンの店主は招待先の Google アカウントでログインします。
 
 1. `gemihub-hybrid-2026` で Gmail API、Firestore、Cloud Storage、Vertex AI を準備します。
@@ -37,13 +42,15 @@ Do not run inherited deployment scripts for this clone.
    ランタイムのサービスアカウントには、このプロジェクトの店舗 DB、バケット、Vertex AI に必要な権限を
    付与します。[Firestore のデータベース作成](https://docs.cloud.google.com/firestore/native/docs/manage-databases)
 2. 同じプロジェクトで OAuth のウェブアプリ用クライアントを作り、
-   承認済みリダイレクト URI に次の二つを登録します。OAuth の公開範囲がテスト中の場合は、
+   承認済みリダイレクト URI に次の三つを登録します。店主のログインは店舗作成側、
+   予約客のログインは公開ページ側に戻ります。OAuth の公開範囲がテスト中の場合は、
    Gmail を承認する運営者と Google で入る店主をテストユーザーに追加します。
    [Google OAuth のウェブアプリ設定](https://developers.google.com/identity/protocols/oauth2/web-server)
 
    ```text
    https://hybrid.gemihub.net/judge/admin/auth/google/callback
    https://hybrid.gemihub.net/auth/google/callback
+   https://shop.hybrid.gemihub.net/auth/google/callback
    ```
 
 3. [town.env.example](town.env.example) を基に VM の

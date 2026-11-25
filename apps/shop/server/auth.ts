@@ -1,8 +1,17 @@
 import { tr } from "../shared/i18n.ts";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Store, User } from "./store.ts";
-export const origin = () => new URL(process.env.APP_ORIGIN || "http://localhost:3000").origin;
+const requestOrigin = new AsyncLocalStorage<string>();
+/** The configured APP_ORIGIN, whatever host the current request arrived on. */
+export const configuredOrigin = () => new URL(process.env.APP_ORIGIN || "http://localhost:3000").origin;
+/** The app's public origin: the request's own origin when a host serves the app on two domains. */
+export const origin = () => requestOrigin.getStore() || configuredOrigin();
+/** Runs a request handler as if APP_ORIGIN were `value` (sign-in redirects, cookies, Origin checks, email links). */
+export function withOrigin<T>(value: string, run: () => T): T {
+  return requestOrigin.run(new URL(value).origin, run);
+}
 export const demoEnabled = () =>
   process.env.DEMO_MODE === "true" && process.env.NODE_ENV !== "production";
 /** Every storefront visitor in demo mode books as this one customer, without signing in. */

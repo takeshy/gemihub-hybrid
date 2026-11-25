@@ -129,7 +129,7 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
       if (req.method === "POST" && url.pathname === "/api/invitations") {
         if (integrationSecret.length < 32) return send(503, { error: "店舗への招待設定が必要です" });
         const target = new URL(shopOrigin);
-        if (target.protocol !== "https:" && !(target.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(target.hostname))) return send(503, { error: "店舗アプリのURL設定を確認してください" });
+        if (target.protocol !== "https:" && !(target.protocol === "http:" && (["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) || target.hostname.endsWith(".localhost")))) return send(503, { error: "店舗アプリのURL設定を確認してください" });
         const input = await body(req);
         const response = await fetchImpl(new URL("/api/platform/invitations", target), { method: "POST", redirect: "error", signal: AbortSignal.timeout(20000), headers: { "Content-Type": "application/json", Origin: target.origin, Authorization: `Bearer ${integrationSecret}`, ...(locale === "en" && { "X-Gemihub-Language": locale }) }, body: JSON.stringify({ email: input.email, name: input.name, industry: input.industry, senderEmail: user.email }) });
         if (!response.ok) { const error = await response.json().catch(() => ({})); return send(response.status, { error: error.error || "招待メールを送信できませんでした" }); }

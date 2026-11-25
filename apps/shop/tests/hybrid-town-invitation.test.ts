@@ -9,8 +9,9 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { createApp } from "../server/app.ts";
 import { Store } from "../server/store.ts";
+import { withOrigin } from "../server/auth.ts";
 
-test("the mounted town admin sends a normal invitation and the recipient gets the shop creation workspace", async t => {
+test("the mounted town admin invites owners to the builder host, where they get the shop creation workspace", async t => {
   const { initializeTown, startTownAdmin, adminPath } = await import(new URL("../../../scripts/hybrid-town-admin.mjs", import.meta.url).href);
   const { createGoogleAuth } = await import(new URL("../../../admin/google-auth.mjs", import.meta.url).href);
   const source = fileURLToPath(new URL("../../../", import.meta.url));
@@ -20,8 +21,13 @@ test("the mounted town admin sends a normal invitation and the recipient gets th
     ["APP_ORIGIN", "PARENT_INTEGRATION_SECRET", "PARENT_MAIL_URL", "ACCESS_PASSWORD", "OWNER_EMAIL_ENTRY_PATH"]
       .map(key => [key, process.env[key]]),
   );
-  process.env.OWNER_EMAIL_ENTRY_PATH = "/?shop=1";
+  delete process.env.OWNER_EMAIL_ENTRY_PATH;
   const shop = createApp(store);
+  // As in scripts/hybrid-server.mjs: requests for the builder host run as the builder origin.
+  const [handleShop] = shop.listeners("request") as ((...args: unknown[]) => void)[];
+  shop.removeAllListeners("request");
+  let builder = "";
+  shop.on("request", (req, res) => withOrigin(req.headers.host === new URL(builder).host ? builder : origin, () => handleShop(req, res)));
   let admin: Server | undefined;
   t.after(async () => {
     for (const [key, value] of Object.entries(previous)) {
@@ -42,6 +48,7 @@ test("the mounted town admin sends a normal invitation and the recipient gets th
   await new Promise<void>(resolve => shop.listen(0, "127.0.0.1", resolve));
   const port = (shop.address() as AddressInfo).port;
   const origin = `http://127.0.0.1:${port}`;
+  builder = `http://shop.localhost:${port}`;
   const auth = createGoogleAuth({
     root, basePath: adminPath, env: {
       GOOGLE_CLIENT_ID: "test-client",
@@ -65,7 +72,7 @@ test("the mounted town admin sends a normal invitation and the recipient gets th
     },
   });
   await initializeTown({ root: source, data: root, origin });
-  const adminServer = await startTownAdmin({ origin, data: root, shopPort: port, auth, env: { PARENT_INTEGRATION_SECRET: integrationSecret } });
+  const adminServer = await startTownAdmin({ origin, shopOrigin: builder, data: root, shopPort: port, auth, env: { PARENT_INTEGRATION_SECRET: integrationSecret } });
   admin = adminServer;
   const adminOrigin = `http://127.0.0.1:${(adminServer.address() as AddressInfo).port}`;
   const settings = {
@@ -122,16 +129,26 @@ test("the mounted town admin sends a normal invitation and the recipient gets th
   assert.match(mails[0], /To: owner@example.test/);
   const text = Buffer.from(mails[0].split("\r\n\r\n").at(-1)!, "base64").toString();
   const link = new URL(text.match(/https?:\/\/[^\s]+/)![0]);
-  assert.equal(link.searchParams.get("shop"), "1");
+  assert.equal(link.origin, builder);
+  assert.equal(link.pathname + link.search, "/");
   const token = new URLSearchParams(link.hash.slice(1)).get("owner-login");
-  const login = await fetch(origin + "/api/owner-login/verify", {
-    method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ token }),
+  const builderRequest = (path: string, headers: Record<string, string>, data?: unknown) => new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }>((resolve, reject) => {
+    const req = request(origin + path, { method: data === undefined ? "GET" : "POST", headers: { ...headers, Host: new URL(builder).host, "Content-Type": "application/json" } }, response => {
+      let body = ""; response.setEncoding("utf8");
+      response.on("data", chunk => { body += chunk; });
+      response.on("end", () => resolve({ status: response.statusCode!, headers: response.headers, body }));
+    });
+    req.once("error", reject);
+    req.end(data === undefined ? undefined : JSON.stringify(data));
   });
+  // The town origin is not the builder's: its Origin header is refused there.
+  assert.equal((await builderRequest("/api/owner-login/verify", { Origin: origin }, { token })).status, 403);
+  const login = await builderRequest("/api/owner-login/verify", { Origin: builder }, { token });
   assert.equal(login.status, 200);
-  const ownerCookie = login.headers.get("set-cookie")!.split(";")[0];
-  const workspace = await fetch(origin + "/api/workspace", { headers: { Cookie: ownerCookie } });
+  const ownerCookie = String(login.headers["set-cookie"]).split(";")[0];
+  const workspace = await builderRequest("/api/workspace", { Cookie: ownerCookie });
   assert.equal(workspace.status, 200);
-  const [draft] = (await workspace.json()).shops;
+  const [draft] = JSON.parse(workspace.body).shops;
   assert.equal(draft.published, null);
   assert.equal(draft.draft.name, invitation.name);
   assert.equal(draft.draft.industry, invitation.industry);

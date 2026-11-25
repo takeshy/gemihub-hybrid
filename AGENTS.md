@@ -5,7 +5,8 @@ scope and acceptance criteria are in specs/BUILD_HYBRID_AI.md.
 
 - Never edit, commit to or push to the upstream repository. The owner has now
   authorized co-hosting on gemihub-dev: use a separate container and add only
-  the new hybrid.gemihub.net route/DNS record; preserve the existing containers,
+  the new hybrid.gemihub.net (town) and shop.hybrid.gemihub.net (shop builder)
+  routes/DNS records; preserve the existing containers,
   routes, settings and data. Do not use git worktrees sharing upstream
   Git metadata. The local independent clone is the only editing target.
 - The owner approved removing visitor BYOK from this clone; this supersedes

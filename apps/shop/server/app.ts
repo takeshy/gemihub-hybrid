@@ -123,6 +123,7 @@ import {
   equal,
   checkOrigin,
   origin,
+  configuredOrigin,
   demoEnabled,
   demoCustomerEmail,
   demoShoppersEnabled,
@@ -532,7 +533,8 @@ export function createApp(
     if (shop.published) {
       try {
         const posts = await postsFor(shop);
-        const build = buildStorefront(shop, publicPosts(posts), origin(), await storefrontShell(), await storefrontImages(shop, posts));
+        // Published pages keep the configured origin even when the owner edits on another host.
+        const build = buildStorefront(shop, publicPosts(posts), configuredOrigin(), await storefrontShell(), await storefrontImages(shop, posts));
         const release = await writeStorefront(pageFiles, shop.id, build, shop.storefrontRelease);
         const history = [shop.storefrontRelease, ...shop.storefrontPrevious || []].filter((item): item is StorefrontRelease => !!item && item.id !== release.id);
         shop.storefrontPrevious = history.slice(0, storefrontRetainedReleases);
