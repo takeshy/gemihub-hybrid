@@ -33,3 +33,4 @@ judge.env
 town.env
 google-runtime.json
 client_secret_*.json
+docs/submission/additional_info.md
