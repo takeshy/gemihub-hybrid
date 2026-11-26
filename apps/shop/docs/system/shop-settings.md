@@ -52,6 +52,8 @@ A new shop is first published provisionally: only the owner who created it can v
 
 In Services and prices, disabled menus are hidden from the editor by default. The **Show hidden menus** checkbox above the list reveals them for editing or re-enabling; it starts off each time the screen is opened. Disabling a menu never deletes it. Adding a new inactive menu turns the checkbox on so the new row can be edited immediately.
 
+Choose **+ Add product** to list a retail item with a name and price. Active products appear on the storefront. They have no duration or staff assignment and cannot be booked.
+
 Menu-only saves update the published storefront, settings/history documents, operational Drive snapshot and settings overview. They do not re-upload unchanged design parts or custom pages, and do not enqueue unchanged article exports. A failed write retains the retry request; successful retries do not publish twice. The button shows **Saving…** during a save, and completion, including recovery after a lost response, shows **Saved.**
 
 Add-ons have a separate **Can be added to any standalone service** checkbox. When enabled, individual target selection is unnecessary and future standalone services are included automatically. When disabled, the saved individual targets apply again. The selection group remains available in both modes.

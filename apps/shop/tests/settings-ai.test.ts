@@ -21,6 +21,10 @@ test("AI settings apply only selected facts, preserve existing rows and append i
   const menus = applySettingsFacts(before, "menus", { items: [{ id: before.menus[0].id, name: before.menus[0].name, price: 65.5, currency: "USD", imageId: "b".repeat(64) }, { name: "New care", price: 80, duration: 90, active: true }] }).config;
   assert.equal(menus.menus[0].price, 65.5); assert.equal(menus.menus[0].imageId, before.menus[0].imageId);
   assert.deepEqual(menus.menus[1], before.menus[1]); assert.equal(menus.menus.at(-1)!.active, false); assert.deepEqual(menus.staff, before.staff);
+  const product = applySettingsFacts(before, "menus", { items: [{ type: "product", name: "Hand cream", price: 12.50 }] }).config;
+  assert.deepEqual(product.menus, before.menus);
+  assert.equal(product.catalogProducts?.[0].price, 12.5);
+  assert.equal(settingsChanges(before, product, "menus")[0].label, "Hand cream");
   const missing = applySettingsFacts(before, "menus", { items: [{ name: "Unknown time", price: 50 }] }); assert.equal(missing.config.menus.length, before.menus.length); assert.equal(missing.warnings.length, 1);
   const currency = applySettingsFacts(before, "menus", { items: [{ id: before.menus[0].id, name: before.menus[0].name, price: 2000, currency: "JPY" }] }); assert.equal(currency.config.menus[0].price, before.menus[0].price); assert.equal(currency.warnings.length, 1);
   assert.throws(() => applySettingsFacts(before, "menus", { items: [{ id: "not-existing", name: "Overwrite", price: 1 }] }));

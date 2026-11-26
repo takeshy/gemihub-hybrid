@@ -24,6 +24,13 @@ export const shopSchema = z
     description: z.string().max(1500),
     /** Other-industry shops: published goods, independent of reservable menu entries. */
     products: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
+    /** Priced retail goods edited alongside services, independent of bookings. */
+    catalogProducts: z.array(z.object({
+      id: z.string().regex(/^[a-z0-9_-]+$/),
+      name: z.string().trim().min(1).max(100),
+      price: z.number().min(0).max(1000000),
+      active: z.boolean(),
+    })).max(50).optional(),
     address: z.string().max(300),
     appearance: z.object({
       accent: z.enum(["sage", "rose", "navy"]),
@@ -159,11 +166,12 @@ export const shopSchema = z
       const bookable = new Set([...s.staff.map(p => p.id), ...(s.ownerBooking || !s.staff.length ? [ownerStaffId] : [])]);
       if (day.staffIds?.some(id => !bookable.has(id))) fail(tr("特別営業日（{0}）の出勤スタッフに、登録されていないスタッフがいます", day.date));
     }
+    const pricedItems = [...s.menus, ...(s.catalogProducts || [])];
     if (
-      new Set(s.menus.map((m) => m.id)).size !== s.menus.length ||
+      new Set(pricedItems.map(item => item.id)).size !== pricedItems.length ||
       new Set(s.staff.map((m) => m.id)).size !== s.staff.length
     )
-      fail(tr("メニュー・スタッフの ID が重複しています"));
+      fail(tr("メニュー・商品・スタッフの ID が重複しています"));
     // Page bodies follow the same safe HTML subset as themes: no scripts, handlers, forms, embeds or external CSS.
     for (const page of s.pages)
       try { compilePresentation({ html: page.body, css: page.css || "" }); } catch (error) { fail(tr("{0} の本文（HTML）を確認してください。{1}", page.title, error instanceof Error ? error.message : "")); }
@@ -181,13 +189,17 @@ export const shopSchema = z
       } else if (menu.optionGroup) fail(tr("選択グループは追加メニューに設定してください"));
       if (menu.optionForAll && !menu.optionFor) fail(tr("すべての通常メニューへの追加は、単独予約不可のメニューに設定してください"));
     }
-    for (const m of s.menus)
+    for (const m of pricedItems)
       if (!validPrice(m.price, currency)) fail(currency === "JPY" ? tr("料金は1円単位で入力してください") : tr("料金はセント単位（小数2桁まで）で入力してください"));
     for (const m of s.menus.filter((m) => m.active && !m.optionFor))
       if (s.industry !== "restaurant" && !s.ownerBooking && s.staff.length && !s.staff.some((p) => p.menuIds.includes(m.id)))
         fail(tr("{0} に対応するスタッフが必要です", m.name));
   });
 export type ShopConfig = z.infer<typeof shopSchema>;
+export function publishedProducts(config: ShopConfig) {
+  const currency = currencyOf(regionOf(config));
+  return (config.catalogProducts || []).filter(product => product.active).map(({ id, name, price }) => ({ id, name, price, currency }));
+}
 export const ownerStaffId = "owner";
 /** Preserve automatic shop availability until the owner explicitly configures a shift. */
 export function bookingStaff(config: Pick<ShopConfig, "staff" | "menus" | "hours" | "ownerBooking">): ShopConfig["staff"] {
@@ -459,6 +471,6 @@ export function planSummary(before: ShopConfig | null, next: ShopConfig) {
     .filter((k) => stableJson(before[k]) !== stableJson(next[k]))
     .map(
       (k) =>
-        tr("{0}を更新", { name: tr("店名"), industry: tr("業種"), reservationsEnabled: tr("予約受付"), description: tr("お店の紹介"), products: tr("扱っている品"), address: tr("アクセス"), appearance: tr("ページの色・画像・配置"), notificationEmail: tr("通知先"), map: tr("地図"), screens: tr("画面のデザイン"), region: tr("国・タイムゾーン"), ownerBooking: tr("店主の予約受付"), pages: tr("追加ページ"), header: tr("共通ヘッダー"), footer: tr("共通フッター"), menus: tr("メニュー"), staff: tr("スタッフ・勤務"), hours: tr("営業時間・休業日"), rules: tr("予約ルール"), seating: tr("席の設定") }[k]),
+        tr("{0}を更新", { name: tr("店名"), industry: tr("業種"), reservationsEnabled: tr("予約受付"), description: tr("お店の紹介"), products: tr("扱っている品"), catalogProducts: tr("商品一覧"), address: tr("アクセス"), appearance: tr("ページの色・画像・配置"), notificationEmail: tr("通知先"), map: tr("地図"), screens: tr("画面のデザイン"), region: tr("国・タイムゾーン"), ownerBooking: tr("店主の予約受付"), pages: tr("追加ページ"), header: tr("共通ヘッダー"), footer: tr("共通フッター"), menus: tr("メニュー"), staff: tr("スタッフ・勤務"), hours: tr("営業時間・休業日"), rules: tr("予約ルール"), seating: tr("席の設定") }[k]),
     );
 }

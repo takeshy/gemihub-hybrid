@@ -359,7 +359,11 @@ export function agenticSite(options: {
           : shopInfo(shop.config, site.origin + site.base + "/reserve");
         const facts = { id: shop.slug, name: info.shop, description: info.description,
           address: info.address, hours: info.hours,
-          products: shop.config.menus.filter(menu => menu.active).map(menu => ({ name: menu.name })),
+          products: [
+            ...(shop.config.products || []).map(name => ({ name })),
+            ...shop.config.menus.filter(menu => menu.active).map(menu => ({ name: menu.name })),
+            ...info.catalog,
+          ],
           pageUrl: site.origin + site.base + "/", checkedAt: info.checkedAt };
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" });
         res.end(method === "HEAD" ? undefined : JSON.stringify(facts));

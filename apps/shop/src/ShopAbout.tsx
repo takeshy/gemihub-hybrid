@@ -5,14 +5,22 @@ import { GoogleMap } from "./GoogleMap";
 import { MenuImage } from "./MenuImage";
 import { intlLocale, listSeparator, tr } from "../shared/i18n";
 import { currencyOf, formatMoney, regionOf } from "../shared/region";
-import { bookingStaff, hoursText, specialDaysText, type ShopConfig } from "../server/domain";
+import { publishedProducts, bookingStaff, hoursText, specialDaysText, type ShopConfig } from "../server/domain";
+
+export function ProductList({ config }: { config: ShopConfig }) {
+  const products = publishedProducts(config);
+  if (!products.length) return null;
+  return <section className="about-menus"><h3>{tr("商品一覧")}</h3>
+    {products.map(product => <div className="menu-row" key={product.id}><span>{product.name}</span><b>{formatMoney(product.price, product.currency, intlLocale())}</b></div>)}
+  </section>;
+}
 
 /** `imageSources` maps image ids to URLs for static pages; without it, images load through `imageBase`. */
 export function ShopAbout({ config: c, imageSources = {}, imageBase, menuImageBase = imageBase }: { config: ShopConfig; imageSources?: Record<string, string>; imageBase?: string; menuImageBase?: string }) {
   const image = (id: string | undefined, name: string, className = "menu-image", base = imageBase) => id && imageSources[id]
     ? <span className={className}><img src={imageSources[id]} alt={tr("{0}の画像", name)} /></span>
     : base ? <MenuImage imageId={id} imageBase={base} name={name} className={className} /> : null;
-  const menus = <div className="about-menus">{c.menus.filter(menu => menu.active).map(menu => <div className="menu-row" key={menu.id}>{image(menu.imageId, menu.name, "menu-image", menuImageBase)}{menu.name}{menu.optionFor && <span className="pill">{tr("追加メニュー")}</span>} · {menu.duration}{tr("分 ")}<b>{formatMoney(menu.price, currencyOf(regionOf(c)), intlLocale())}</b></div>)}</div>;
+  const menus = <><div className="about-menus">{c.menus.filter(menu => menu.active).map(menu => <div className="menu-row" key={menu.id}>{image(menu.imageId, menu.name, "menu-image", menuImageBase)}{menu.name}{menu.optionFor && <span className="pill">{tr("追加メニュー")}</span>} · {menu.duration}{tr("分 ")}<b>{formatMoney(menu.price, currencyOf(regionOf(c)), intlLocale())}</b></div>)}</div><ProductList config={c} /></>;
   const staff = <div className="public-staff-list">{bookingStaff(c).map(person => <div key={person.id}>{image(person.imageId, person.name, "staff-photo")}<span>{person.name}</span></div>)}</div>;
   const access = <><p>{c.address}</p><GoogleMap config={c} /></>;
   const days = [tr("日"), tr("月"), tr("火"), tr("水"), tr("木"), tr("金"), tr("土")];

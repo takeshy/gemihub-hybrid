@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { request, type IncomingHttpHeaders } from "node:http";
 import { createApp } from "../server/app.ts";
 import { Store, type Shop } from "../server/store.ts";
-import { sample, shopSchema } from "../server/domain.ts";
+import { bookableMenus, menuSelection, sample, shopSchema } from "../server/domain.ts";
 import { basicSchema, liveValue, updateLiveValue } from "../server/live-settings.ts";
 import { shopGuideInfo } from "../server/shop-guide.ts";
 
@@ -28,6 +28,26 @@ test("other shops save products as basic settings and expose only published prod
   assert.doesNotMatch(JSON.stringify(info), /非公開の品|private-owner|staff|reservation/);
   assert.throws(() => shopGuideInfo(c, "https://shop.example/", { stock: true }));
   assert.deepEqual(shopGuideInfo({ ...c, products: undefined, menus: [] }, "https://shop.example/").products, []);
+});
+
+test("service settings save priced products without a duration or booking assignment", () => {
+  const original = config();
+  const product = { id: "notebook", name: "Notebook", price: 1200, active: true };
+  const hidden = { ...product, id: "pen", name: "Pen", active: false };
+  const value = { menus: original.menus, catalogProducts: [product, hidden] };
+  const saved = updateLiveValue(original, "menus", value);
+  assert.deepEqual(liveValue(saved, "menus"), value);
+  assert.deepEqual(updateLiveValue(saved, "menus", original.menus).catalogProducts, value.catalogProducts);
+  assert.deepEqual(saved.products, original.products);
+  assert.deepEqual(bookableMenus(saved), bookableMenus(original));
+  assert.equal(menuSelection(saved, product.id), undefined);
+  assert.equal(menuSelection(saved, original.menus[0].id, [product.id]), undefined);
+  const info = shopGuideInfo(saved, "https://shop.example/");
+  assert.deepEqual(info.catalog, [{ id: product.id, name: product.name, price: 1200, currency: "JPY" }]);
+  assert.ok(info.products.includes(product.name));
+  assert.ok(!info.products.includes(hidden.name));
+  assert.throws(() => updateLiveValue(saved, "menus", { ...value, menus: [{ ...original.menus[0], duration: undefined }] }));
+  assert.throws(() => updateLiveValue(saved, "menus", { ...value, catalogProducts: [{ ...product, price: 5.25 }] }));
 });
 
 test("other shop pages and custom hosts serve an actionable chat/voice guide with only get_shop_info", async t => {

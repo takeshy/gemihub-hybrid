@@ -143,7 +143,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
           const local = latestDraft.current || cached;
           if (!local.pending) {
             const updated = refreshUneditedScopes(syncPreviewArticleFeatures(local, current.config), current.config, current.base);
-            restore({ ...updated, index: remote, downloaded: local.downloaded || local.source?.pages.map(p => p.id) || [], config: { ...updated.config, region: current.config.region, menus: current.config.menus, staff: current.config.staff, hours: current.config.hours, rules: current.config.rules } });
+            restore({ ...updated, index: remote, downloaded: local.downloaded || local.source?.pages.map(p => p.id) || [], config: { ...updated.config, region: current.config.region, menus: current.config.menus, catalogProducts: current.config.catalogProducts, staff: current.config.staff, hours: current.config.hours, rules: current.config.rules } });
           }
         }
       } catch (e) { if (!cached) throw e; setError(tr("リモートの最新状態を確認できません。ローカル編集は保持しています。更新確認を再試行してください。")); }

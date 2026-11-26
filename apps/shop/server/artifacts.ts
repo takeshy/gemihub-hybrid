@@ -1,7 +1,7 @@
 import { formatMoney, currencyOf, regionOf } from "../shared/region.ts";
 import { localizeShell } from "../shared/html.ts";
 import { tr } from "../shared/i18n.ts";
-import { shopSchema, type ShopConfig } from "./domain.ts";
+import { publishedProducts, shopSchema, type ShopConfig } from "./domain.ts";
 import { renderCustomPage } from "./page-renderer.tsx";
 import { renderChrome } from "./chrome-renderer.tsx";
 import { systemSvg } from "./shop-system.ts";
@@ -35,9 +35,8 @@ export function renderShop(config: ShopConfig, shell: string) {
             (m) =>
               tr("<li>{0} · {1}分 · {2}</li>", escapeHtml(m.name), m.duration, escapeHtml(formatMoney(m.price, currencyOf(regionOf(c)), "en-US"))),
           )
-          .join(
-            "",
-          )),
+          .concat(publishedProducts(c).map(product => `<li>${escapeHtml(product.name)} · ${escapeHtml(formatMoney(product.price, product.currency, "en-US"))}</li>`))
+          .join("")),
     );
 }
 export function driveSnapshot(config: ShopConfig, shell: string, readAsset?: ReadBuildAsset, menuImages?: Record<string, import("./menu-image-domain.ts").MenuImageData>): Record<string, string> {

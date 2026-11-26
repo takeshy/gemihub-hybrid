@@ -2472,7 +2472,9 @@ export function createApp(
             const proposed = await (intelligence.settings || proposeSettings)(section, current, input.note);
             const config = updateLiveValue(current, section, proposed.value);
             if (section === "basic" && (["region", "notificationEmail", "map"] as const).some(key => !same(current[key], config[key]))) fail(400, tr("設定案を作成できませんでした。メモの内容を具体的にして、もう一度お試しください。"));
-            const proposal = { ...proposed, value: liveValue(config, section), changes: settingsChanges(current, config, section) };
+            // Older menu editors accept only a service array in their proposal.
+            const value = section === "menus" && Array.isArray(input.value) ? config.menus : liveValue(config, section);
+            const proposal = { ...proposed, value, changes: settingsChanges(current, config, section) };
             await store.put("settingsAiProposal", id, { shopId: shop.id, hash, proposal, expires: Date.now() + 3600000 });
             return json(res, proposal);
           });
@@ -3990,7 +3992,7 @@ export function createApp(
               config:
                 user?.email === shop.owner && user.authMethod !== "email" && !publicHost
                   ? config
-                  : { ...config, notificationEmail: undefined },
+                  : { ...config, catalogProducts: config.catalogProducts?.filter(product => product.active), notificationEmail: undefined },
               shopId: shop.id,
               canEdit: user?.email === shop.owner && user.authMethod !== "email" && !publicHost,
               isOperator: await operator(user, shop),

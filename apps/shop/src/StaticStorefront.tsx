@@ -5,7 +5,7 @@ import { hasThemeFrame } from "../shared/theme-editing";
 import { CustomPage } from "./CustomPage";
 import { PostContent } from "./PostContent";
 import { RestaurantReservation } from "./RestaurantReservation";
-import { ShopAbout } from "./ShopAbout";
+import { ShopAbout, ProductList } from "./ShopAbout";
 import { SampleStorefront } from "./SampleStorefront";
 import { LanguageLinks } from "./LanguageSwitcher";
 import { navigationItems } from "../shared/navigation";
@@ -48,7 +48,7 @@ export function StaticStorefront({ config: c, view, base, provisional = false, i
     <main><SampleStorefront config={c} robata={robata} bookingHref={robata && takesBookings(c) ? link(`${base}/reserve`) : undefined} /></main>
   </>;
   let content: React.ReactNode;
-  if (view.kind === "home") content = informationOnly ? null : <><ShopAbout config={c} imageSources={imageSources} />{!!view.posts.length && <section className="recent-posts"><h2>{storefrontText(c, "recentPosts")}</h2><PostList posts={view.posts.slice(0, 5)} base={base} /></section>}</>;
+  if (view.kind === "home") content = informationOnly ? <ProductList config={c} /> : <><ShopAbout config={c} imageSources={imageSources} />{!!view.posts.length && <section className="recent-posts"><h2>{storefrontText(c, "recentPosts")}</h2><PostList posts={view.posts.slice(0, 5)} base={base} /></section>}</>;
   else if (view.kind === "reserve") content = <RestaurantReservation config={c} />;
   else if (view.kind === "archive") content = <section className="panel post-archive"><h2>{storefrontText(c, view.category === "blogs" ? "navBlogs" : "navAnnouncements")}</h2><PostList posts={view.posts.filter(post => post.category === view.category)} base={base} /></section>;
   else if (view.kind === "article") content = <div className="panel article-page"><a href={link(`${base}/${view.post.category}`)}>{postLabel(view.post.category)}{tr("一覧")}</a><PostContent post={view.post} imageSources={imageSources} /></div>;

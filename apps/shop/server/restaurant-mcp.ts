@@ -4,7 +4,7 @@ import { currencyOf, formatMoney, regionOf, weekdayOf } from "../shared/region.t
 import { allergenWords } from "../shared/allergens.ts";
 import type { Booking, ShopConfig } from "./domain.ts";
 import { durationFor, isLargeParty, reservableCourse, seatAvailability, seatProblemText, seatingProblem } from "./seats.ts";
-import { hoursText, specialDaysText } from "./domain.ts";
+import { hoursText, publishedProducts, specialDaysText } from "./domain.ts";
 
 // The restaurant's read-only tools for agents: open seats, and what the menu contains.
 // They return counts and menu facts only: never a guest's name, contact or reservation.
@@ -142,6 +142,7 @@ export function shopInfo(config: ShopConfig, reservePageUrl: string, rawInput: u
       closedDates: config.hours.holidays.filter(date => date >= today).sort().slice(0, 30),
       specialDays: specialDaysText({ ...config, staff: [] }),
     },
+    catalog: publishedProducts(config),
     reservation: seating ? {
       partySize: { min: seating.minPartySize, max: seating.maxPartySize },
       seatOnlyAllowed: seating.seatOnly,

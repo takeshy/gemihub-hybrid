@@ -69,7 +69,7 @@ import { Admin } from "./Admin";
 import { Assistant } from "./Assistant";
 import type { PayPalAlertState } from "../server/paypal-ops";
 import type { OwnerIntegrationAlert } from "../server/integration-alerts";
-import { ShopAbout } from "./ShopAbout";
+import { ShopAbout, ProductList } from "./ShopAbout";
 import { Presentation } from "./Presentation";
 import type { ScreenId } from "../shared/screens";
 import { paid, createDisplay, useShopDisplay, ShopRegionContext } from "./money";
@@ -713,6 +713,7 @@ export function ConfigSummary({ config: c }: { config: ShopConfig }) {
             <b>{yen(m.price)}</b>
           </div>
         ))}
+      <ProductList config={c} />
       <details>
         <summary>{tr("スタッフと予約の決まりを見る")}</summary>
         <h4>{tr("スタッフが働く日と時間")}</h4>
@@ -771,9 +772,12 @@ export function ConfigEditor({
   onChange: (c: ShopConfig) => void;
 }) {
   const [showHiddenMenus, setShowHiddenMenus] = useState(false);
+  const products = c.catalogProducts || [];
   const restaurant = c.industry === "restaurant";
   const put = <K extends keyof ShopConfig>(k: K, v: ShopConfig[K]) =>
     set({ ...c, [k]: v });
+  const updateProduct = (id: string, change: Partial<(typeof products)[number]>) =>
+    put("catalogProducts", products.map(product => product.id === id ? { ...product, ...change } : product));
   const owner = bookingStaff(c).find(staff => staff.id === ownerStaffId);
   const putOwner = (value: Partial<Omit<ShopConfig["staff"][number], "id">>) => {
     if (owner) set({ ...c, ownerBooking: true, staff: [...c.staff.filter(staff => staff.id !== ownerStaffId), { ...owner, ...value }] });
@@ -951,6 +955,21 @@ export function ConfigEditor({
         }}
       >
         {tr("＋ メニューを追加")}</button>
+      <h3>{tr("商品一覧")}</h3>
+      {products.filter(product => showHiddenMenus || product.active).map(product => (
+        <div className="menu-edit-block" key={product.id}><div className="edit-row">
+          <Field label={tr("商品名")}>
+            <input value={product.name} maxLength={100} onChange={e => updateProduct(product.id, { name: e.target.value })} />
+          </Field>
+          <Field label={tr("料金（{0}）", currencyOf(regionOf(c)) === "USD" ? tr("ドル") : tr("円"))}>
+            <input type="number" min="0" step={currencyOf(regionOf(c)) === "USD" ? "0.01" : "1"} value={product.price} onChange={e => updateProduct(product.id, { price: +e.target.value })} />
+          </Field>
+          <label className="check-field"><input type="checkbox" checked={product.active} onChange={e => updateProduct(product.id, { active: e.target.checked })} /><span>{tr("有効")}</span></label>
+        </div></div>
+      ))}
+      <button type="button" disabled={products.length >= 50} onClick={() => put("catalogProducts", [
+        ...products, { id: `product-${createRequestId()}`, name: tr("新しい商品"), price: 0, active: true },
+      ])}>{tr("＋ 商品を追加")}</button>
       </>}
       {(!section || section === "profile") && <>
       <h3>{tr("ページの見た目")}</h3>
