@@ -21,12 +21,12 @@ import { PreviewViewport } from "./PreviewViewport";
 import { useComparisonScroll } from "./comparison-scroll";
 import { DesignVersionHistory } from "./DesignVersionHistory";
 import { regionOf } from "../shared/region";
-import { shopSchema, planSummary, bookingStaff, menuSelection, type ShopConfig } from "../server/domain";
+import { shopSchema, reservationsEnabled, planSummary, bookingStaff, menuSelection, type ShopConfig } from "../server/domain";
 import { postKey, type PostCategory, type PublicPost } from "../server/post-domain";
 import { createRequestId } from "./request-id";
 import { articleKinds } from "../shared/article-features";
 import { standardTheme, themeHtmlKey } from "../shared/theme-editing";
-import { createPreviewClient, draftKey, fixturesSchema, readDraft, sampleFixtures, syncPreviewArticleFeatures, writeDraft, type LocalDraft, type Fixtures } from "./local-preview";
+import { createPreviewClient, draftKey, fixturesSchema, readDraft, sampleFixtures, syncPreviewFeatures, writeDraft, type LocalDraft, type Fixtures } from "./local-preview";
 
 type Snapshot = Pick<LocalDraft, "base" | "source" | "config"> & { lastPublishedPlanId?: string };
 export function LocalPreview({ shop, email, reload, sidebar, active = true, changesSelected = false, onChooseChanges, activate, onScreenChange, initialScreen, initialArticleKey }: { shop: Workspace; email: string; reload: () => Promise<unknown>; sidebar?: HTMLElement | null; active?: boolean; changesSelected?: boolean; onChooseChanges?: () => void; activate?: () => void; onScreenChange?: (screen: string, article?: string) => void; initialScreen?: string; initialArticleKey?: string }) {
@@ -52,7 +52,9 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     document.addEventListener("keydown", closeOnEscape);
     return () => { document.removeEventListener("pointerdown", closeOutside, true); document.removeEventListener("keydown", closeOnEscape); };
   }, []);
-  const [screen, setScreen] = useState(initialScreen || "reserve");
+  const booking = !shop.published || reservationsEnabled(shop.published);
+  const defaultScreen = booking ? "reserve" : "about";
+  const [screen, setScreen] = useState(initialScreen || defaultScreen);
   const [penHost, setPenHost] = useState<HTMLSpanElement | null>(null);
   const [historyHost, setHistoryHost] = useState<HTMLSpanElement | null>(null);
   const [visibility, setVisibility] = useState<Record<string, { header?: boolean; footer?: boolean }>>({});
@@ -60,7 +62,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
   const [statuses, setStatuses] = useState<Record<string, SyncStatus>>({});
   const [conflict, setConflict] = useState<{ scope: ReleaseScope; localValue: unknown; remoteValue: unknown; remoteConfig?: ShopConfig; baseline: unknown; proposed?: unknown; explanation?: string }>();
   const [pageEditing, setPageEditing] = useState<ShopPage>();
-  const [route, setRoute] = useState<{ category?: PostCategory; articleKey?: string; pageSlug?: string; pane: string }>({ pane: "reserve" });
+  const [route, setRoute] = useState<{ category?: PostCategory; articleKey?: string; pageSlug?: string; pane: string }>({ pane: defaultScreen });
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -128,7 +130,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     void run(async () => {
       const cached = readDraft(localStorage, key);
       if (cached && active) {
-        const updated = shop.published && !cached.pending ? syncPreviewArticleFeatures(cached, shop.published) : cached;
+        const updated = shop.published && !cached.pending ? syncPreviewFeatures(cached, shop.published) : cached;
         restore({ ...updated, downloaded: cached.downloaded || cached.source?.pages.map(p => p.id) || [] });
         setIndex(updated === cached ? cached.index : undefined);
       }
@@ -142,7 +144,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
           // (e.g. a published article added to the fixtures) must not be reverted to the cached copy.
           const local = latestDraft.current || cached;
           if (!local.pending) {
-            const updated = refreshUneditedScopes(syncPreviewArticleFeatures(local, current.config), current.config, current.base);
+            const updated = refreshUneditedScopes(syncPreviewFeatures(local, current.config), current.config, current.base);
             restore({ ...updated, index: remote, downloaded: local.downloaded || local.source?.pages.map(p => p.id) || [], config: { ...updated.config, region: current.config.region, menus: current.config.menus, catalogProducts: current.config.catalogProducts, staff: current.config.staff, hours: current.config.hours, rules: current.config.rules } });
           }
         }
@@ -153,9 +155,9 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
   useEffect(() => {
     const current = latestDraft.current;
     if (!current || current.pending || !shop.published) return;
-    const updated = syncPreviewArticleFeatures(current, shop.published);
+    const updated = syncPreviewFeatures(current, shop.published);
     if (updated !== current) { save(updated); setIndex(undefined); }
-  }, [key, shop.published?.appearance?.articles?.blogs, shop.published?.appearance?.articles?.announcements]);
+  }, [key, shop.published?.reservationsEnabled, shop.published?.appearance?.articles?.blogs, shop.published?.appearance?.articles?.announcements]);
   useEffect(() => {
     if (checkedRevision.current === shop.revision) return;
     checkedRevision.current = shop.revision;
@@ -219,7 +221,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     const valid = shopSchema.safeParse(config);
     if (!check.success || !valid.success) { setInvalid(tr("ページのタイトル・アドレス・画像を確認してください。同じアドレスは使えません。")); return; }
     setInvalid(""); save({ ...draft, config: valid.data });
-    setRoute({ pane: "reserve", pageSlug: page.slug });
+    setRoute({ pane: defaultScreen, pageSlug: page.slug });
   }
   function changeConfig(config: ShopConfig) {
     if (!draft || draft.pending) return false;
@@ -281,7 +283,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     setInvalid("");
     if (value.startsWith("page:")) {
       const page = latestDraft.current?.config.pages.find(p => p.id === value.slice(5)) || currentIndex?.pages.find(p=>p.id===value.slice(5));
-      setPageEditing(undefined); setRoute({ pane: "reserve", pageSlug: page?.slug }); setVersion(v => v + 1); return;
+      setPageEditing(undefined); setRoute({ pane: defaultScreen, pageSlug: page?.slug }); setVersion(v => v + 1); return;
     }
     if (target.kind === "part" || value === "theme") { setRoute({ pane: value === "theme" ? "about" : "reserve" }); setVersion(v => v + 1); return; }
     if (category === "blogs" || category === "announcements") {
@@ -294,21 +296,22 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
           const fixtures = { ...current.fixtures, posts: [...current.fixtures.posts.filter(item => item.category !== category || postKey(item) !== articleKey).slice(0, 49), post] };
           save({ ...current, fixtures }); setFixtureEditing(structuredClone(fixtures));
         } else {
-          setScreen(category); setRoute({ category, pane: "reserve" });
+          setScreen(category); setRoute({ category, pane: defaultScreen });
           setNotice(tr("選んだ記事は公開内容から見つかりませんでした。一覧から確認してください。"));
           setVersion(v => v + 1); return;
         }
       }
-      setRoute({ category, articleKey: requestedArticle, pane: "reserve" });
+      setRoute({ category, articleKey: requestedArticle, pane: defaultScreen });
     } else setRoute({ pane: value });
     setVersion(v => v + 1);
   }
   useEffect(()=>{
     if(!initialScreen||!draft||!index||draft.pending)return;
     const category=initialScreen.split(":")[0];
-    if((category==="blogs"||category==="announcements")&&!articleKinds(draft.config).includes(category)){
-      onScreenChange?.("reserve");
-      void run(async()=>choose("reserve",undefined,true));
+    const disabledBooking = !booking && (initialScreen === "reserve" || initialScreen === "mine");
+    if(disabledBooking || ((category==="blogs"||category==="announcements")&&!articleKinds(draft.config).includes(category))){
+      onScreenChange?.(defaultScreen);
+      void run(async()=>choose(defaultScreen,undefined,true));
       return;
     }
     const selection=JSON.stringify([initialScreen,initialArticleKey]);
@@ -317,7 +320,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     const screens=["part:header","part:footer","theme","reserve","about","mine","contact",...articleKinds(draft.config).flatMap(category=>[category,`${category}:article`]),...index.pages.map(page=>`page:${page.id}`),...draft.config.pages.map(page=>`page:${page.id}`)];
     if(!screens.includes(initialScreen)){setError(tr("指定された画面が見つかりません。画面一覧から選んでください。"));return;}
     void run(async()=>choose(initialScreen,initialArticleKey,true));
-  },[draft,index,initialScreen,initialArticleKey]);
+  },[draft,index,initialScreen,initialArticleKey,defaultScreen]);
   async function remoteValue(target: ReleaseScope) {
     if (target.kind === "page") return (await api<{ page: ShopPage | null }>(`/api/shops/${shop.id}/local-editor/pages/${target.pageId}`)).page;
     return scopedSource((await api<Snapshot>(`/api/shops/${shop.id}/local-editor/shared`)).source, target);
@@ -336,7 +339,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     writeDraft(localStorage, key, next); restore(next); setConflict(undefined);
     if (target.kind === "page") {
       setPageEditing(config.pages.find(p => p.id === target.pageId));
-      if (chosen === null && remote === null) { setScreen("reserve"); setRoute({ pane: "reserve" }); } else setScreen(`page:${target.pageId}`);
+      if (chosen === null && remote === null) { setScreen(defaultScreen); setRoute({ pane: defaultScreen }); } else setScreen(`page:${target.pageId}`);
     }
   }
   async function fetchScope(target: ReleaseScope, discardConfirmed = false) {
@@ -401,7 +404,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
     const current = await api<Snapshot>(`/api/shops/${shop.id}/local-editor`);
     const remote = await refreshIndex();
     restore(afterRelease(current, next, next.pending!.scope || scope, remote));
-    if (scope.kind === "page" && !current.config.pages.some(p => p.id === scope.pageId)) { setScreen("reserve"); setRoute({ pane: "reserve" }); }
+    if (scope.kind === "page" && !current.config.pages.some(p => p.id === scope.pageId)) { setScreen(defaultScreen); setRoute({ pane: defaultScreen }); }
     setNotice(tr("本番に反映しました。"));
     await reload();
   }
@@ -520,7 +523,7 @@ export function LocalPreview({ shop, email, reload, sidebar, active = true, chan
           {status === "unfetched" ? <p className="notice">{tr("ページを自動で読み込んでいます。")}</p> : selectedPage ? <fieldset disabled={busy || !!draft.pending || !!conflict}><PageEditor key={selectedPage.id} page={pageEditing?.id === selectedPage.id ? pageEditing : selectedPage} shopId={shop.id} onChange={editPage} onDelete={() => {
             if (!window.confirm(tr("このページをローカルで削除しますか？本番からの削除は反映時に行います。"))) return;
             save({ ...draft, config: { ...draft.config, pages: draft.config.pages.filter(p => p.id !== selectedPage.id) } }); setPageEditing(undefined); setInvalid("");
-            if (!draft.source?.pages.some(p => p.id === selectedPage.id)) { setScreen("reserve"); setRoute({ pane: "reserve" }); }
+            if (!draft.source?.pages.some(p => p.id === selectedPage.id)) { setScreen(defaultScreen); setRoute({ pane: defaultScreen }); }
           }} /></fieldset> : <p className="notice">{tr("このページは削除予定です。「本番に反映」で公開ページから削除します。")}<button disabled={busy || !!draft.pending || !!conflict} onClick={() => {
             const page = draft.source?.pages.find(p => scope.kind === "page" && p.id === scope.pageId);
             if (page) { save({ ...draft, config: { ...draft.config, pages: [...draft.config.pages, page] } }); setPageEditing(page); }

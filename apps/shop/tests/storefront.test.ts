@@ -15,6 +15,25 @@ import { imageUses, managedImageIds } from "../server/image-references.ts";
 
 process.env.DEMO_MODE = "true";
 
+test("a retail storefront without reservations keeps its about page, products and inquiry link", () => {
+  const published = shopSchema.parse({
+    ...structuredClone(sample), industry: "other", reservationsEnabled: false, menus: [], staff: [],
+    catalogProducts: [{ id: "notebook", name: "Grid Notebook", price: 500, active: true }],
+  });
+  const shop = { id: "retail", slug: "retail", owner: "owner@example.com", published, draft: null, revision: 1, history: [] };
+  const shell = { html: '<html><head></head><body><div id="root"></div></body></html>', css: "" };
+  const { pages } = buildStorefront(shop, [], "https://app.example.com", shell);
+  for (const hosted of [false, true]) {
+    const home = hosted ? "/" : "/s/retail";
+    const html = pages[storefrontFile("", hosted, "en")];
+    assert.ok(html.includes(`href="${home}?lang=en">About the shop</a>`));
+    assert.ok(html.includes(`href="${home}?pane=contact&amp;lang=en">Inquiries</a>`));
+    assert.match(html, /class="panel about"/);
+    assert.match(html, /Grid Notebook/);
+    assert.doesNotMatch(html, /pane=(?:reserve|mine)|<h3>Staff<\/h3>/);
+  }
+});
+
 test("static builds freeze the design, managed images and translated navigation without app code or private data", () => {
   const config = shopSchema.parse(structuredClone(sample)), imageId = "a".repeat(64);
   config.name = "Moon <Atelier>";

@@ -5,7 +5,7 @@ import { hasThemeFrame } from "../shared/theme-editing";
 import { CustomPage } from "./CustomPage";
 import { PostContent } from "./PostContent";
 import { RestaurantReservation } from "./RestaurantReservation";
-import { ShopAbout, ProductList } from "./ShopAbout";
+import { ShopAbout } from "./ShopAbout";
 import { SampleStorefront } from "./SampleStorefront";
 import { LanguageLinks } from "./LanguageSwitcher";
 import { navigationItems } from "../shared/navigation";
@@ -48,7 +48,7 @@ export function StaticStorefront({ config: c, view, base, provisional = false, i
     <main><SampleStorefront config={c} robata={robata} bookingHref={robata && takesBookings(c) ? link(`${base}/reserve`) : undefined} /></main>
   </>;
   let content: React.ReactNode;
-  if (view.kind === "home") content = informationOnly ? <ProductList config={c} /> : <><ShopAbout config={c} imageSources={imageSources} />{!!view.posts.length && <section className="recent-posts"><h2>{storefrontText(c, "recentPosts")}</h2><PostList posts={view.posts.slice(0, 5)} base={base} /></section>}</>;
+  if (view.kind === "home") content = <><ShopAbout config={c} imageSources={imageSources} />{!!view.posts.length && <section className="recent-posts"><h2>{storefrontText(c, "recentPosts")}</h2><PostList posts={view.posts.slice(0, 5)} base={base} /></section>}</>;
   else if (view.kind === "reserve") content = <RestaurantReservation config={c} />;
   else if (view.kind === "archive") content = <section className="panel post-archive"><h2>{storefrontText(c, view.category === "blogs" ? "navBlogs" : "navAnnouncements")}</h2><PostList posts={view.posts.filter(post => post.category === view.category)} base={base} /></section>;
   else if (view.kind === "article") content = <div className="panel article-page"><a href={link(`${base}/${view.post.category}`)}>{postLabel(view.post.category)}{tr("一覧")}</a><PostContent post={view.post} imageSources={imageSources} /></div>;
@@ -57,7 +57,7 @@ export function StaticStorefront({ config: c, view, base, provisional = false, i
     <LanguageLinks href={`${base}${path ? `/${path}` : ""}`} />
     <main><div className={`public-shop accent-${c.appearance?.accent || "sage"} layout-${c.appearance?.layout || "standard"}${hasThemeFrame(c.appearance?.theme) ? " custom-theme" : ""}`}>
       {provisional && <div className="preview-banner">{tr("仮公開中 · このページを用意したGoogleアカウントでログインした本人だけが表示できます。")}</div>}
-      <SiteHeader config={c} resolvedImages={resolved}>{!informationOnly && <Navigation config={c} base={base} />}</SiteHeader>
+      <SiteHeader config={c} resolvedImages={resolved}><Navigation config={c} base={base} /></SiteHeader>
       <ThemeBody config={c} resolvedImages={resolved}>{!informationOnly && c.industry !== "restaurant" && <section className="public-auth"><a className="button primary" href={`${link(`${base || "/"}?pane=mine`)}#email-login`}>{tr("会員登録・ログイン")}</a></section>}{content}</ThemeBody>
       <SiteFooter config={c} resolvedImages={resolved} />
     </div></main>

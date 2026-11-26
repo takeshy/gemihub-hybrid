@@ -5,7 +5,7 @@ import { createApp } from "../server/app.ts";
 import { Store } from "../server/store.ts";
 import { digest } from "../server/auth.ts";
 import { sample, dateJST, type Booking, type ShopConfig } from "../server/domain.ts";
-import { fixturesSchema, createPreviewClient, sampleFixtures, draftKey, writeDraft, readDraft, syncPreviewArticleFeatures, type LocalDraft } from "../src/local-preview.ts";
+import { fixturesSchema, createPreviewClient, sampleFixtures, draftKey, writeDraft, readDraft, syncPreviewFeatures, type LocalDraft } from "../src/local-preview.ts";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ScreenTree } from "../src/ScreenTree.tsx";
@@ -14,6 +14,21 @@ import { syncStatus } from "../src/editor-sync.ts";
 import { postKey, type PublicPost } from "../server/post-domain.ts";
 
 process.env.DEMO_MODE = "true";
+test("the shop builder drops booking and My Page when reservations are turned off, including for a saved draft", () => {
+  const config: ShopConfig = { ...structuredClone(sample), industry: "other" };
+  const cached: LocalDraft = { config, source: config, base: 0, fixtures: sampleFixtures(config) };
+  const tree = (draft: LocalDraft) => renderToStaticMarkup(createElement(ScreenTree, { draft, statuses: {}, selected: "about", disabled: false, onChoose() {} }));
+  assert.match(tree(cached), /予約・お店の情報/);
+  const updated = syncPreviewFeatures(cached, { ...config, reservationsEnabled: false });
+  const html = tree(updated);
+  assert.match(html, /お店の基本情報/);
+  assert.match(html, /お店のこと/);
+  assert.match(html, /お問い合わせ/);
+  assert.doesNotMatch(html, /予約|マイページ/);
+  assert.equal(updated.source?.reservationsEnabled, false);
+  assert.match(tree(syncPreviewFeatures(updated, config)), /マイページ/);
+});
+
 test("preview trees and sample APIs show only enabled article features, including cached fixtures", async () => {
   const original = structuredClone(sample), fixtures = sampleFixtures(original);
   for (const blogs of [false, true]) for (const announcements of [false, true]) {
@@ -42,7 +57,7 @@ test("updated live article choices replace cached flags without losing design ed
   const old: ShopConfig = { ...structuredClone(sample), appearance: { accent: "rose", layout: "compact", imageUrl: "", articles: { blogs: true, announcements: true } } };
   const draft: LocalDraft = { config: { ...old, description: "Keep my local edit" }, source: structuredClone(old), base: 0, fixtures: sampleFixtures(old), index: editorIndex(old, 0) };
   const current: ShopConfig = { ...old, appearance: { ...old.appearance!, articles: { blogs: false, announcements: true } } };
-  const updated = syncPreviewArticleFeatures(draft, current);
+  const updated = syncPreviewFeatures(draft, current);
   assert.deepEqual(updated.config.appearance?.articles, current.appearance?.articles);
   assert.deepEqual(updated.source?.appearance?.articles, current.appearance?.articles);
   assert.equal(updated.config.description, draft.config.description);
@@ -50,7 +65,7 @@ test("updated live article choices replace cached flags without losing design ed
   assert.equal(updated.config.appearance?.layout, "compact");
   assert.equal(updated.index, undefined, "the old feature hashes cannot be reused to invent a conflict");
   assert.equal(await syncStatus(updated, editorIndex(current, 1), { kind: "shared" }), "local");
-  assert.equal(syncPreviewArticleFeatures(updated, current), updated);
+  assert.equal(syncPreviewFeatures(updated, current), updated);
   assert.equal(draft.config.appearance!.articles!.blogs, true, "the original cached draft is not mutated");
 });
 

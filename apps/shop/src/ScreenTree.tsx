@@ -3,8 +3,10 @@ import React from "react";
 import type { EditorIndex } from "../server/editor-index-schema";
 import type { LocalDraft } from "./local-preview";
 import type { SyncStatus } from "./editor-sync";
+import { reservationsEnabled } from "../server/domain";
 import { articleKinds } from "../shared/article-features";
 export function ScreenTree({ draft, index, statuses, selected, disabled, onChoose, onChooseChanges }: { draft?: LocalDraft; index?: EditorIndex; statuses: Record<string, SyncStatus>; selected: string; disabled: boolean; onChoose: (screen: string) => void; onChooseChanges?: () => void }) {
+  const booking = draft && reservationsEnabled(draft.config);
   const articles = draft ? articleKinds(draft.config) : [];
   // Which side changed: this browser only, production only, or both.
   const badges = {
@@ -14,7 +16,7 @@ export function ScreenTree({ draft, index, statuses, selected, disabled, onChoos
   };
   const pages = [...(draft?.config.pages || []), ...(index?.pages || []).filter(p => !draft?.config.pages.some(l => l.id === p.id)), ...(draft?.source?.pages || []).filter(p => !draft?.config.pages.some(l => l.id === p.id) && !index?.pages.some(l => l.id === p.id))];
   const groups = [
-    { label: tr("予約・お店の情報"), items: [["mine", tr("マイページ")], ["reserve", tr("予約")], ["about", tr("お店のこと")], ["contact", tr("お問い合わせ")]] },
+    { label: booking ? tr("予約・お店の情報") : tr("お店の基本情報"), items: [...(booking ? [["mine", tr("マイページ")], ["reserve", tr("予約")]] : []), ["about", tr("お店のこと")], ["contact", tr("お問い合わせ")]] },
     { label: articles.length === 1 ? articles[0] === "blogs" ? tr("ブログ") : tr("お知らせ") : tr("ブログ・お知らせ"), items: [["blogs", tr("ブログ一覧")], ["blogs:article", tr("ブログ記事")], ["announcements", tr("お知らせ一覧")], ["announcements:article", tr("お知らせ記事")]].filter(([id]) => articles.some(category => id === category || id === `${category}:article`)) },
     { label: tr("追加ページ"), items: pages.map(p => [`page:${p.id}`, p.title]) },
   ];

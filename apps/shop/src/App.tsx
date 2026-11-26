@@ -443,6 +443,7 @@ function Dashboard({
   const creating = !!shop?.isOwner && !shop.published;
   const publiclyPublished = !!shop?.published && shop.publication !== "provisional";
   const takesReservations = !shop?.published || reservationsEnabled(shop.published);
+  const defaultEditorScreen = takesReservations ? "reserve" : "about";
   const [designStatus, setDesignStatus] = useState<ThemeProposalStatus>("none");
   useEffect(() => { setDesignStatus("none"); }, [shop?.id]);
   const shopRegion = shop?.published ? regionOf(shop.published) : shop?.regionDefault || regionOf(null);
@@ -476,8 +477,8 @@ function Dashboard({
     if (allowed !== tab) navigation.visit(allowed, shop.id, undefined, undefined, true);
   }, [shop?.id, shop?.isOwner, view, tab, publiclyPublished]);
   useEffect(() => {
-    if (tab === "try" && view === "try") editorSelection.current = { screen: initialScreen || "reserve", article: initialArticleKey };
-  }, [tab, initialScreen, initialArticleKey]);
+    if (tab === "try" && view === "try") editorSelection.current = { screen: initialScreen || defaultEditorScreen, article: initialArticleKey };
+  }, [tab, initialScreen, initialArticleKey, defaultEditorScreen]);
   useEffect(() => { setPlan(undefined); }, [shop?.id]);
   const activePlan =
     shop?.plans.find(p => p.id === shop.publishingPlanId) || (plan && plan.base === shop?.revision && shop.plans.some((p) => p.id === plan.id)
@@ -666,7 +667,7 @@ function Dashboard({
             )}
           </>
         )}
-        {shop?.isOwner && shop.published && <div hidden={view !== "try"}><LocalPreview key={shop.id} active={view === "try"} changesSelected={view === "build"} onChooseChanges={() => setTab("build")} initialScreen={tab === "try" ? initialScreen || "reserve" : undefined} initialArticleKey={tab === "try" ? initialArticleKey : undefined} onScreenChange={(screen, article) => { closeMobileMenu(); editorSelection.current = { screen, article }; navigation.visit("try", shop.id, screen, article); }} shop={shop} email={session.user!.email} reload={load} sidebar={treeHost} /></div>}
+        {shop?.isOwner && shop.published && <div hidden={view !== "try"}><LocalPreview key={shop.id} active={view === "try"} changesSelected={view === "build"} onChooseChanges={() => setTab("build")} initialScreen={tab === "try" ? initialScreen || defaultEditorScreen : undefined} initialArticleKey={tab === "try" ? initialArticleKey : undefined} onScreenChange={(screen, article) => { closeMobileMenu(); editorSelection.current = { screen, article }; navigation.visit("try", shop.id, screen, article); }} shop={shop} email={session.user!.email} reload={load} sidebar={treeHost} /></div>}
       </section>
     </div>
     </ShopRegionContext.Provider>

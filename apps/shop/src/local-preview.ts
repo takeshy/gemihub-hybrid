@@ -57,10 +57,15 @@ export const localDraftSchema = z.object({
 });
 export type LocalDraft = z.infer<typeof localDraftSchema>;
 // Features are chosen for the live shop; cached screen designs must not re-enable removed features.
-export function syncPreviewArticleFeatures(draft: LocalDraft, current: ShopConfig): LocalDraft {
+export function syncPreviewFeatures(draft: LocalDraft, current: ShopConfig): LocalDraft {
   const articles = current.appearance?.articles;
-  if (JSON.stringify(draft.config.appearance?.articles) === JSON.stringify(articles) && (!draft.source || JSON.stringify(draft.source.appearance?.articles) === JSON.stringify(articles))) return draft;
-  const update = (config: ShopConfig): ShopConfig => ({ ...config, appearance: config.appearance || articles ? { accent: "sage", layout: "standard", imageUrl: "", ...config.appearance, articles } : undefined });
+  const matches = (config: ShopConfig) => config.reservationsEnabled === current.reservationsEnabled
+    && JSON.stringify(config.appearance?.articles) === JSON.stringify(articles);
+  if (matches(draft.config) && (!draft.source || matches(draft.source))) return draft;
+  const update = (config: ShopConfig): ShopConfig => ({
+    ...config, reservationsEnabled: current.reservationsEnabled,
+    appearance: config.appearance || articles ? { accent: "sage", layout: "standard", imageUrl: "", ...config.appearance, articles } : undefined,
+  });
   return { ...draft, index: undefined, config: update(draft.config), source: draft.source && update(draft.source) };
 }
 // Separate by signed-in account and shop. No tokens or real customer records.
