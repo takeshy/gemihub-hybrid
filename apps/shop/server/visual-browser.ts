@@ -8,6 +8,7 @@ import type { VisualPreviewData } from "../shared/visual-review.ts";
 import { tr } from "../shared/i18n.ts";
 import { currentAiSignal } from "./llm.ts";
 import { findLowContrastText } from "../shared/contrast-check.ts";
+import { renderInitialThemeDocument } from "./chrome-renderer.tsx";
 
 export const visualPreviewOptionsSchema = z.object({
   fixtures: fixturesSchema.optional(), hideHeader: z.boolean().optional(), hideFooter: z.boolean().optional(), articleKey: z.string().max(240).optional(),
@@ -30,6 +31,13 @@ async function capture(input: VisualPreviewData): Promise<RenderedVisual[]> {
   const stop = () => { void browser?.close().catch(() => {}); };
   signal?.addEventListener("abort", stop, { once: true });
   try {
+    let initialDocument: string | undefined;
+    if (input.screen === "initial-theme") {
+      const entry = await readFile(resolve(assets, "visual-review.html"), "utf8");
+      const stylesheets = [...entry.matchAll(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="(\/assets\/[\w.-]+\.css)"[^>]*>/g)].map(match => match[1]);
+      if (!stylesheets.length) throw new Error("Missing visual review stylesheet");
+      initialDocument = renderInitialThemeDocument(input, stylesheets);
+    }
     browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}), args: ["--no-sandbox", "--disable-dev-shm-usage"], timeout: 20000 });
     signal?.throwIfAborted();
     const context = await browser.newContext({ serviceWorkers: "block", locale: input.locale === "ja" ? "ja-JP" : "en-US", reducedMotion: "reduce" });
@@ -39,6 +47,9 @@ async function capture(input: VisualPreviewData): Promise<RenderedVisual[]> {
       const url = new URL(route.request().url());
       if (url.origin === "https://visual-review.invalid" && (url.pathname === "/visual-review.html" || /^\/assets\/[a-zA-Z0-9_.-]+$/.test(url.pathname))) {
         try {
+          if (initialDocument && url.pathname === "/visual-review.html") {
+            return await route.fulfill({ body: initialDocument, contentType: "text/html", headers: { "Content-Security-Policy": "script-src 'none'" } });
+          }
           const path = resolve(assets, `.${url.pathname}`);
           const contentType = path.endsWith(".js") ? "application/javascript" : path.endsWith(".css") ? "text/css" : path.endsWith(".html") ? "text/html" : "application/octet-stream";
           return await route.fulfill({ body: await readFile(path), contentType });
@@ -52,10 +63,10 @@ async function capture(input: VisualPreviewData): Promise<RenderedVisual[]> {
       const page = await context.newPage();
       page.setDefaultTimeout(15000);
       await page.setViewportSize({ width, height: 900 });
-      await page.addInitScript(data => { window.visualPreviewData = data; }, input);
+      if (!initialDocument) await page.addInitScript(data => { window.visualPreviewData = data; }, input);
       const errors: string[] = [];
       page.on("pageerror", error => errors.push(error.message));
-      await page.goto(`https://visual-review.invalid/visual-review.html?lang=${input.locale}`, { waitUntil: "load", timeout: 20000 });
+      await page.goto(`https://visual-review.invalid/visual-review.html?lang=${input.locale}`, { waitUntil: "load", timeout: initialDocument ? 60000 : 20000 });
       const selector = input.screen === "initial-theme" || input.screen === "theme" ? ".theme-preview" : "#visual-review-surface";
       await page.waitForFunction(selector => {
         const surface = document.querySelector(selector);

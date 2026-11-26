@@ -9,10 +9,23 @@ import { initialThemeConfig, createInitialTheme, normalizeInitialNavigation, ini
 import { initialIntroductionPages } from "../shared/initial-pages.ts";
 import { managedImageIds, withInlineImages } from "../server/image-references.ts";
 import { validateProposedImages } from "../server/request-images.ts";
+import { renderInitialThemeDocument } from "../server/chrome-renderer.tsx";
 import { initialInterviewFacts, openingQuestions, logoQuestion, logoUploadQuestion, initialFeatureQuestion, initialSetupDemoReply, additionalPagesQuestion } from "../server/request-intent.ts";
 
 export const theme = { headerHtml: '<header class="brand"><slot name="title"></slot><slot name="navigation"></slot></header>', bodyHtml: '<main class="canvas"><slot name="content"></slot></main>', footerHtml: '<footer class="credits"><slot name="content"></slot></footer>', css: ':root { color:#f5eee9; background:#241432 } .brand { padding:clamp(16px,4vw,64px); } h1 { font-family:serif; font-size:clamp(36px,8vw,100px); } .canvas { max-width:72rem; margin:auto; padding:24px; } .public-nav { display:flex; flex-wrap:wrap; gap:12px; } .credits { padding:24px; } @media(max-width:600px){ .canvas { padding:12px } }' };
 const photo = (id: string) => ({ id: id.repeat(64), name: `${id}.png`, mimeType: "image/png", data: "aGVsbG8=" });
+
+test("the initial contrast preview includes the localized samples, CSS and managed image without loading the app", () => {
+  const image = photo("a");
+  const config = { ...sample, header: { ...sample.header, imageId: image.id } };
+  const html = renderInitialThemeDocument({ config, screen: "initial-theme", locale: "en", options: {}, images: { [image.id]: image } }, ["/assets/preview.css"]);
+  assert.match(html, /<html lang="en">/);
+  assert.match(html, /class="theme-preview"/);
+  assert.match(html, /Sample body text/);
+  assert.match(html, /<link rel="stylesheet" href="\/assets\/preview\.css"/);
+  assert.match(html, /<img src="data:image\/png;base64,aGVsbG8="/);
+  assert.doesNotMatch(html, /<script\b|modulepreload/);
+});
 
 test("initial themes compact generated formatting before validation and review", async () => {
   let generations = 0;

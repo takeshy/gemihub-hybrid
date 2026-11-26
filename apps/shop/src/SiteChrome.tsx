@@ -22,7 +22,8 @@ export function SiteHeader({ config: c, children, actions, imageBase, imageSuffi
   const title = <>{showsHeaderEyebrow(c.appearance?.theme) && <span className="eyebrow">{storefrontText(c, "headerEyebrow")}</span>}<h1>{c.header.title || c.name}</h1></>;
   const subtitle = <p>{c.header.subtitle || c.description}</p>;
   const details = c.header.showDetails && <div className="salon-details"><span>◷ {hoursText(c)}</span><span>{tr("定休日：")}{c.hours.closedWeekdays.map(d => tr("{0}曜", days()[d])).join(listSeparator()) || tr("なし")}</span></div>;
-  const hero = c.header.imageId && resolvedImages?.[c.header.imageId] ? <span className="managed-hero-image"><img src={resolvedImages[c.header.imageId]} alt={tr("{0}の画像", tr("お店の紹介"))} /></span> : c.header.imageId && imageBase ? <MenuImage imageId={c.header.imageId} imageBase={imageBase} suffix={imageSuffix} name={tr("お店の紹介")} className="managed-hero-image" /> : image ? <img className="salon-image" src={image} alt={tr("お店の紹介画像")} /> : <span className="hero-flower">✳︎</span>;
+  const fallbackHero = image ? <img className="salon-image" src={image} alt={tr("お店の紹介画像")} /> : <span className="hero-flower">✳︎</span>;
+  const hero = c.header.imageId && resolvedImages?.[c.header.imageId] ? <span className="managed-hero-image"><img src={resolvedImages[c.header.imageId]} alt={tr("{0}の画像", tr("お店の紹介"))} /></span> : c.header.imageId && imageBase ? <MenuImage imageId={c.header.imageId} imageBase={imageBase} suffix={imageSuffix} name={tr("お店の紹介")} className="managed-hero-image" /> : fallbackHero;
   // A generated theme's image slot holds only a real shop image; when there is none the slot stays
   // empty so the theme's own artwork shows, never the built-in absolutely positioned flower.
   const themeImage = c.header.imageId || image ? hero : null;
@@ -31,7 +32,7 @@ export function SiteHeader({ config: c, children, actions, imageBase, imageSuffi
     <span className="eyebrow">{storefrontText(c, "headerEyebrow")}</span>
     <h1>{c.header.title || c.name}</h1><p>{c.header.subtitle || c.description}</p>
     {c.header.showDetails && <div className="salon-details"><span>◷ {hoursText(c)}</span><span>{tr("定休日：")}{c.hours.closedWeekdays.map(d => tr("{0}曜", days()[d])).join(listSeparator()) || tr("なし")}</span></div>}
-    {c.header.imageId && imageBase ? <MenuImage imageId={c.header.imageId} imageBase={imageBase} suffix={imageSuffix} name={tr("お店の紹介")} className="managed-hero-image" /> : image ? <img className="salon-image" src={image} alt={tr("お店の紹介画像")} /> : <span className="hero-flower">✳︎</span>}
+    {imageBase ? hero : fallbackHero}
   </section>{c.header.showNavigation && children}</header></SharedStyles>;
 }
 export function SiteFooter({ config: c, imageBase, resolvedImages }: { config: ShopConfig; imageBase?: string; resolvedImages?: Record<string, string> }) {
@@ -56,6 +57,6 @@ export function ChromeEditor({ config, part, onChange, shopId }: { config: ShopC
   </div>;
 }
 
-export function ChromePreview({ config, part, imageBase }: { config: ShopConfig; part: "header" | "footer"; imageBase?: string }) {
-  return <div className={`public-shop accent-${config.appearance?.accent || "sage"}${hasThemeFrame(config.appearance?.theme)?" custom-theme":""}`}>{part === "header" ? <SiteHeader config={config} imageBase={imageBase}><nav className="public-nav">{navigationItems(config).map(item => <span key={item.href}>{item.label}</span>)}</nav></SiteHeader> : <SiteFooter config={config} imageBase={imageBase} />}</div>;
+export function ChromePreview({ config, part, imageBase, resolvedImages }: { config: ShopConfig; part: "header" | "footer"; imageBase?: string; resolvedImages?: Record<string, string> }) {
+  return <div className={`public-shop accent-${config.appearance?.accent || "sage"}${hasThemeFrame(config.appearance?.theme)?" custom-theme":""}`}>{part === "header" ? <SiteHeader config={config} imageBase={imageBase} resolvedImages={resolvedImages}><nav className="public-nav">{navigationItems(config).map(item => <span key={item.href}>{item.label}</span>)}</nav></SiteHeader> : <SiteFooter config={config} imageBase={imageBase} resolvedImages={resolvedImages} />}</div>;
 }
