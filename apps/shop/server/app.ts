@@ -97,6 +97,7 @@ import {
   bookingContactEmail,
   restaurantReservations,
   reservationsEnabled,
+  allowsGuestInquiries,
   type ShopConfig,
   type Booking,
 } from "./domain.ts";
@@ -3803,7 +3804,7 @@ export function createApp(
         // customer. The session is left alone, so a demo owner trying their own storefront stays the owner.
         const shopper = async (shop: Shop): Promise<User | undefined> => {
           if (user?.role === "customer" && user.shopId === shop.id) return user;
-          if (!store.memory || shop.published?.industry === "restaurant" || !demoShoppersEnabled()) return undefined;
+          if (!store.memory || !shop.published || !reservationsEnabled(shop.published) || shop.published.industry === "restaurant" || !demoShoppersEnabled()) return undefined;
           const demo: User = { email: demoCustomerEmail, name: tr("デモのお客様"), role: "customer", shopId: shop.id };
           await ensureDemoCustomer(demo, shop.id);
           return demo;
@@ -3878,15 +3879,24 @@ export function createApp(
           // Receiving and uploading attachments can be slow, so neither holds the shop lock.
           const shop = await store.shop(shopRef.id) || fail(404, tr("お店がありません"));
           assertStorefrontAccess(shop);
-          const visitor = await shopper(shop) || fail(401, tr("このお店のお客様としてログインしてください"));
-          if (!memberProfile(await store.get("customer", `${shop.id}:${visitor.email}`))) fail(428, tr("先に会員情報を登録してください"));
+          if (!shop.published || isArchivedShop(shop)) fail(404, tr("公開されたお店がありません"));
+          const guestAllowed = allowsGuestInquiries(shop.published);
+          const visitor = await shopper(shop);
+          if (!guestAllowed) {
+            if (!visitor) fail(401, tr("このお店のお客様としてログインしてください"));
+            if (!memberProfile(await store.get("customer", `${shop.id}:${visitor.email}`))) fail(428, tr("先に会員情報を登録してください"));
+          }
           const input = await body(req, 15 * 1024 * 1024);
-          await stagePublicInquiry(store, shop, visitor.email, input, inquiryStorage(shop));
+          const email = visitor?.email ?? z.object({ email: z.string().trim().max(254).pipe(emailSchema) }).parse(input).email;
+          await stagePublicInquiry(store, shop, email, input, inquiryStorage(shop));
           const accepted = await store.locked(shop.id, async () => {
             const fresh = await store.shop(shop.id) || fail(404, tr("お店がありません"));
+            if (!fresh.published || isArchivedShop(fresh)) fail(404, tr("公開されたお店がありません"));
             assertStorefrontAccess(fresh);
             const config = await effective(fresh);
-            return createPublicInquiry(store, fresh, visitor.email, input, q => notify(fresh, config, visitor.email, tr("{0} お問い合わせを受け付けました", config.name), q.message, undefined, q.attachments, { mailKind: "inquiry_receipt", inquiryId: q.id }));
+            if (guestAllowed && !allowsGuestInquiries(config)) fail(409, tr("お店の設定が変わりました。ページを再読み込みしてください。"));
+            // An unverified reply address is for the owner's reply. Send the automatic notification only to the shop.
+            return createPublicInquiry(store, fresh, email, input, q => notify(fresh, config, visitor?.email ?? config.notificationEmail, tr("{0} お問い合わせを受け付けました", config.name), q.message, undefined, q.attachments, { mailKind: "inquiry_receipt", inquiryId: q.id }));
           });
           await flushMail(shop);
           void syncPaymentHistory(shop.id).catch(reportError);
@@ -3997,12 +4007,12 @@ export function createApp(
               canEdit: user?.email === shop.owner && user.authMethod !== "email" && !publicHost,
               isOperator: await operator(user, shop),
               customerProfile: profile,
-              registrationRequired: config.industry !== "restaurant" && isCustomer && !profile,
+              registrationRequired: config.industry !== "restaurant" && reservationsEnabled(config) && isCustomer && !profile,
               ...(visitor && visitor !== user ? { demoCustomer: { email: visitor.email, name: visitor.name } } : {}),
               preview: false,
               publication: shop.publication || "public",
               recentPosts: livePosts.slice(0, 5).map(summarizePost),
-              ...(config.industry !== "restaurant" ? { authUrl: `${languageUrl(`${publicHost ? `https://${host}` : origin()}${publicHost ? "/" : `/s/${shop.slug}`}?pane=mine`)}#email-login`,
+              ...(config.industry !== "restaurant" && reservationsEnabled(config) ? { authUrl: `${languageUrl(`${publicHost ? `https://${host}` : origin()}${publicHost ? "/" : `/s/${shop.slug}`}?pane=mine`)}#email-login`,
               googleAuthUrl: process.env.GOOGLE_CLIENT_ID ? languageUrl(`${origin()}/auth/google?shop=${encodeURIComponent(shop.slug)}${hosted ? `&host=${encodeURIComponent(host)}` : ""}`) : undefined } : {}),
             });
           }

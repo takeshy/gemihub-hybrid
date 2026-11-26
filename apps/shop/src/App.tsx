@@ -54,7 +54,7 @@ import { createRequestId } from "./request-id";
 import { dashboardTab, useDashboardNavigation } from "./dashboard-navigation";
 import React, { useCallback, useEffect, useState, useRef, useId } from "react";
 import { useApi } from "./api";
-import { asRestaurant, reservationsEnabled, bookableMenus, bookingStaff, bookingStaffName, bookingMenuName, bookingDates, menuSelection, menuAllowsOption, hoursText, specialDaysText, ownerStaffId, type ShopConfig, type Booking } from "../server/domain";
+import { allowsGuestInquiries, asRestaurant, reservationsEnabled, bookableMenus, bookingStaff, bookingStaffName, bookingMenuName, bookingDates, menuSelection, menuAllowsOption, hoursText, specialDaysText, ownerStaffId, type ShopConfig, type Booking } from "../server/domain";
 import type { Shop, User } from "../server/store";
 import "./style.css";
 import "./ManagementTypography.css";
@@ -1533,6 +1533,7 @@ export function PublicShop({
   useEffect(() => { setPaymentConsent(false); }, [menu, optionIds, data?.config.rules.payment, selected, couponId, coupons]);
 
   const [message, setMessage] = useState("");
+  const [replyEmail, setReplyEmail] = useState("");
   const inquiryFiles = useInquiryFiles();
   const inquiryPending = useRef<{ serialized: string; requestId: string } | undefined>(undefined);
   const inquirySending = useRef(false);
@@ -2010,6 +2011,8 @@ export function PublicShop({
             </div>
             </>
   );
+  const guestInquiry = allowsGuestInquiries(c) && !isCustomer;
+  const showCustomerLogin = c.industry !== "restaurant" && reservationsEnabled(c);
   const contactForm = () => (
             <form
               className="panel contact-form"
@@ -2019,7 +2022,7 @@ export function PublicShop({
                 inquirySending.current = true;
                 run(async () => {
                   try {
-                    const fields = { name, message, ...await inquiryFiles.read() };
+                    const fields = { name, message, ...(guestInquiry ? { email: replyEmail.trim() } : {}), ...await inquiryFiles.read() };
                     const serialized = JSON.stringify(fields);
                     const requestId = inquiryPending.current?.serialized === serialized ? inquiryPending.current.requestId : createRequestId();
                     inquiryPending.current = { serialized, requestId };
@@ -2042,8 +2045,10 @@ export function PublicShop({
                 />
               </Field>
               <Field label={tr("メールアドレス")}>
-                <input aria-label={tr("メールアドレス")} type="email" autoComplete="email" required readOnly value={shopper?.email || session.user?.email || ""} />
-                <small className="muted">{shopper || session.user ? tr("認証済みのメールアドレスです。返信はこちらに届きます。") : tr("ログインすると、お名前とメールアドレスが自動入力されます。")}</small>
+                <input aria-label={tr("メールアドレス")} type="email" autoComplete="email" required
+                  readOnly={!guestInquiry} maxLength={254} value={guestInquiry ? replyEmail : shopper?.email || session.user?.email || ""}
+                  onChange={e => setReplyEmail(e.target.value)} />
+                <small className="muted">{guestInquiry ? tr("お店からの返信を受け取るメールアドレスを入力してください。") : shopper || session.user ? tr("認証済みのメールアドレスです。返信はこちらに届きます。") : tr("ログインすると、お名前とメールアドレスが自動入力されます。")}</small>
               </Field>
               <Field label={tr("ご相談内容")}>
                 <textarea
@@ -2056,7 +2061,7 @@ export function PublicShop({
               <InquiryFilePicker selection={inquiryFiles} disabled={busy} />
               <button
                 className="primary"
-                disabled={busy || (!isCustomer)}
+                disabled={busy || (!guestInquiry && !isCustomer)}
               >
                 {tr("お問い合わせを送る →")}</button>
             </form>
@@ -2092,12 +2097,16 @@ export function PublicShop({
       </nav>
       </SiteHeader>}
       <ThemeBody config={c} imageBase={`${base}/images`}>
-      {!hideHeader&&!isCustomer&&c.industry !== "restaurant"&&<section id="customer-signin" tabIndex={-1} className="public-auth" aria-label={tr("会員登録・ログイン")}>
-        <div className="public-auth-intro"><strong>{tr("ご予約をご利用の方へ")}</strong><p>{data.googleAuthUrl ? tr("メールアドレスまたはGoogleアカウントでご利用いただけます。") : tr("メールアドレスでご利用いただけます。")}</p></div>
+      {!hideHeader&&!isCustomer&&showCustomerLogin&&<section id="customer-signin" tabIndex={-1} className="public-auth" aria-label={tr("会員登録・ログイン")}>
+        <div className="public-auth-intro">
+          <strong>{!category && !pageSlug && pane === "contact" ? tr("お問い合わせを送るにはログインしてください")
+            : !category && !pageSlug && pane === "reserve" ? tr("ご予約をご利用の方へ") : tr("会員登録・ログイン")}</strong>
+          <p>{data.googleAuthUrl ? tr("メールアドレスまたはGoogleアカウントでご利用いただけます。") : tr("メールアドレスでご利用いただけます。")}</p>
+        </div>
         <div className="public-auth-actions"><div><span>{tr("初めての方")}</span><button className="primary" onClick={() => setEmailLoginOpen(true)}>{tr("会員登録")}</button></div><div><span>{tr("登録済みの方")}</span><button onClick={() => setEmailLoginOpen(true)}>{tr("ログイン")}</button></div></div>
       </section>}
-      {c.industry !== "restaurant" && <CustomerEmailLogin base={base} shopName={c.name} googleAuthUrl={data.googleAuthUrl} open={emailLoginOpen} onClose={() => setEmailLoginOpen(false)}/>}
-      {c.industry !== "restaurant" && isCustomer && data.registrationRequired ? <CustomerRegistration base={base} email={shopper!.email} name={shopper!.name} profile={data.customerProfile} onSaved={profile => { setData(current => current && { ...current, customerProfile: profile, registrationRequired: false }); setName(profile.name); setPane("reserve"); }} /> : pageSlug ? (
+      {showCustomerLogin && <CustomerEmailLogin base={base} shopName={c.name} googleAuthUrl={data.googleAuthUrl} open={emailLoginOpen} onClose={() => setEmailLoginOpen(false)}/>}
+      {showCustomerLogin && isCustomer && data.registrationRequired ? <CustomerRegistration base={base} email={shopper!.email} name={shopper!.name} profile={data.customerProfile} onSaved={profile => { setData(current => current && { ...current, customerProfile: profile, registrationRequired: false }); setName(profile.name); setPane("reserve"); }} /> : pageSlug ? (
         c.pages.find(page => page.slug === pageSlug) ? <CustomPage page={c.pages.find(page => page.slug === pageSlug)!} imageBase={`${base}/images`} /> : <p className="alert">{tr("ページがありません。")}</p>
       ) : category && articleKinds(c).includes(category) ? (
         <PublicBlog

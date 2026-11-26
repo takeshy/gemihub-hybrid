@@ -31,9 +31,34 @@ try{
     const response=await context.request.post(`${origin}/api/public/${shop.slug}/bookings`,{headers:{Origin:origin},data:{}});assert.equal(response.status(),428,'profile registration remains required');
     await registration.getByLabel(label('お名前'),{exact:true}).fill('New member');await registration.getByLabel(label('生年月日'),{exact:true}).fill('1990-01-01');await registration.getByLabel(label('性別'),{exact:true}).selectOption('not_specified');await registration.getByRole('button',{name:label('登録して予約へ進む'),exact:true}).click();await expect(page.locator('.reservation-layout')).toBeVisible();await expect.poll(()=>slots.length).toBeGreaterThan(0);
    }else{await expect(page.locator('.reservation-layout')).toBeVisible();await expect.poll(()=>slots.length).toBeGreaterThan(0);}
-   if(user==='anonymous')await page.screenshot({path:`tmp/booking-login/${language}-${width}.png`,fullPage:true});
+   if(user==='anonymous'){
+    await expect(page.locator('.public-auth-intro strong')).toHaveText(label('ご予約をご利用の方へ'));
+    await page.screenshot({path:`tmp/booking-login/${language}-${width}.png`,fullPage:true});
+    await page.goto(`${origin}/s/${shop.slug}?pane=contact&lang=${language}`);
+    await expect(page.locator('.contact-form')).toBeVisible();
+    await expect(page.locator('.public-auth-intro strong')).toHaveText(label('お問い合わせを送るにはログインしてください'));
+   }
    assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await context.close();
   }
   console.log(`${language} ${width}px: anonymous/owner/foreign accounts see sign-in; customers complete registration before booking; no guest slot requests; server auth enforced.`);
  }
+ const retail=await store.createShop('retail-owner@example.com');
+ retail.published=shopSchema.parse({...structuredClone(sample),industry:'other',reservationsEnabled:false,menus:[],staff:[]});
+ retail.publication='public';await store.saveShop(retail);
+ const context=await browser.newContext({locale:'en-US'});
+ const page=await context.newPage();
+ await page.goto(`${origin}/s/${retail.slug}?pane=contact&lang=en`);
+ const form=page.locator('.contact-form');
+ await expect(form).toBeVisible();
+ await expect(page.locator('#customer-signin, .customer-registration, .customer-email-login')).toHaveCount(0);
+ await form.locator('input[autocomplete=name]').fill('Test visitor');
+ await form.locator('input[type=email]').fill('visitor@example.com');
+ await form.locator('textarea').fill('Is your shop open on Sunday?');
+ const response=page.waitForResponse(r=>r.url().endsWith('/inquiries')&&r.request().method()==='POST');
+ await form.getByRole('button',{name:/Send inquiry/i}).click();
+ assert.equal((await response).status(),200);
+ await expect(form.locator('textarea')).toHaveValue('');
+ assert.equal((await store.records('inquiry',retail))[0].email,'visitor@example.com');
+ await context.close();
+ console.log('Guest inquiry submitted without an account at the non-booking shop.');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));await store.close();}

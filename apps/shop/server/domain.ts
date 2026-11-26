@@ -276,6 +276,8 @@ export const bookableMenus = (config: Pick<ShopConfig, "menus"> & { industry?: S
 export const reservationsEnabled = (config: Pick<ShopConfig, "industry" | "reservationsEnabled">) =>
   // Salons always book; restaurants and other shops may present themselves without taking reservations.
   !["restaurant", "other"].includes(config.industry) || config.reservationsEnabled !== false;
+/** Retail and other information-only storefronts accept inquiries with a visitor-supplied reply address. */
+export const allowsGuestInquiries = (config: ShopConfig) => config.industry === "other" && !reservationsEnabled(config);
 /** A restaurant that takes reservations on its site, as opposed to one that only presents itself. */
 export const restaurantReservations = (config: Pick<ShopConfig, "industry" | "reservationsEnabled">) => config.industry === "restaurant" && config.reservationsEnabled !== false;
 export const takesBookings = (config: Pick<ShopConfig, "menus" | "industry" | "seating" | "reservationsEnabled">) =>

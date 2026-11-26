@@ -836,6 +836,24 @@ async function startPublicInquiryApp(t: TestContext, owner: string) {
   return { ...app, url, headers, submit, form };
 }
 
+test("a shop without booking accepts guest inquiries once and sends the notification to the shop", async t => {
+  const { shop, store, url, origin, sent, form } = await startPublicInquiryApp(t, "guest-inquiry-owner@example.com");
+  const send = (data: unknown) => fetch(url, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  const input = form({ email: " Guest@Example.com " });
+  assert.equal((await send(input)).status, 401);
+  shop.published = { ...shop.published!, industry: "other", reservationsEnabled: false };
+  await store.saveShop(shop);
+  assert.equal((await send(form({ email: "invalid" }))).status, 400);
+  const accepted = await send(input);
+  assert.equal(accepted.status, 200);
+  const result = await accepted.json();
+  assert.deepEqual(await (await send(input)).json(), result);
+  assert.equal((await store.get<Inquiry>("inquiry", result.id))?.email, "guest@example.com");
+  assert.equal(await store.get("customer", `${shop.id}:guest@example.com`), undefined);
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0].includes(`To: ${shop.published.notificationEmail}`));
+});
+
 test("a slow public upload does not hold the shop lock", async t => {
   const { url, headers, post } = await startPublicInquiryApp(t, "slow-upload-owner@example.com");
   const slow = request(url, { method: "POST", headers: { ...headers, "Content-Length": "1000" } });
