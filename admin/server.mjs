@@ -46,14 +46,26 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
     : { restaurant: "飲食店", other: "お店", nail: "ネイルサロン", hair: "美容室" };
   // A town shop that has just become public joins the shop list. Only its own storefront under the
   // town's origin is accepted; the existing entry for the same page is refreshed instead of duplicated.
-  async function listPublishedShop(input) {
+  // Only the town's own storefront pages (/s/<slug>) can be listed or removed through the integration.
+  function townShopPage(input) {
     let page;
     try { page = new URL(String(input?.pageUrl || "")); } catch { page = null; }
     if (!page || page.origin !== publicPage.origin || !/^\/s\/[a-z0-9][a-z0-9-]{0,79}$/.test(page.pathname) || page.search || page.hash) {
       const error = new Error("店舗ページのURLが不正です"); error.status = 400; throw error;
     }
+    return { page, sameShop: shop => { try { return new URL(shop.pageUrl).origin === page.origin && new URL(shop.pageUrl).pathname.replace(/\/(?:reserve)?$/, "") === page.pathname; } catch { return false; } } };
+  }
+  async function removeClosedShop(input) {
+    const { sameShop } = townShopPage(input);
     const current = await store.get();
-    const sameShop = shop => { try { return new URL(shop.pageUrl).origin === page.origin && new URL(shop.pageUrl).pathname.replace(/\/(?:reserve)?$/, "") === page.pathname; } catch { return false; } };
+    const existing = current.shops.find(sameShop);
+    if (!existing) return { ok: true, removed: false };
+    await store.delete(existing.id, current.revision);
+    return { ok: true, id: existing.id, removed: true };
+  }
+  async function listPublishedShop(input) {
+    const { page, sameShop } = townShopPage(input);
+    const current = await store.get();
     const existing = current.shops.find(sameShop);
     const options = { shops: current.shops, editingId: existing?.id, discovery: true, production, fetch: fetchImpl,
       ...(geminiApiKey ? { suggestCuisine: details => cuisineSuggester(details, { apiKey: geminiApiKey }) } : {}) };
@@ -92,9 +104,10 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
         await auth.mail(message, message.senderEmail);
         return send(200, { ok: true });
       }
-      if (req.method === "POST" && req.url === "/api/internal/shops") {
+      if (req.method === "POST" && (req.url === "/api/internal/shops" || req.url === "/api/internal/shops/remove")) {
         if (!trustedIntegration(req, integrationSecret)) return send(403, { error: "店舗アプリからの依頼か確認できません" });
-        return send(200, await listPublishedShop(await body(req, 4000)));
+        const input = await body(req, 4000);
+        return send(200, req.url.endsWith("/remove") ? await removeClosedShop(input) : await listPublishedShop(input));
       }
       const port = req.socket.localPort;
       const hosts = [`127.0.0.1:${port}`, `localhost:${port}`, ...(port === 80 ? ["127.0.0.1", "localhost"] : [])];

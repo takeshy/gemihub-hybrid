@@ -61,7 +61,7 @@ import { resolve, extname, sep } from "node:path";
 import { z } from "zod";
 import { Store, bookingLockKey, mailLockKey, postLockKey, isArchivedShop, type Shop, type User } from "./store.ts";
 import { resetShop } from "./shop-reset.ts";
-import { listOnParent, type ParentListing } from "./parent-registry.ts";
+import { listOnParent, removeFromParent, type ParentListing } from "./parent-registry.ts";
 import { blocksPublication } from "../shared/theme-proposal.ts";
 import { preserveDesignVersion, retireDesignVersions, pruneDesignVersions, nextDesignPublication, currentDesignPublication, restoreDesign, sameDesign, parseTargetKey, targetKey, versionsFor, targetLabel, indexedDesignVersions, hasCurrentDesignIndex, sameAsCurrent } from "./design-versions.ts";
 import { createInitialTheme, initialThemeConfig, initialIntroductionPages, initialThemePreview, type ThemeRun } from "./initial-theme.ts";
@@ -2016,7 +2016,11 @@ export function createApp(
       if (path === "/api/shop-reset" && method === "POST" && !publicHost) {
         if (user?.role !== "owner" || user.judge || user.accessPending) fail(403, tr("店主のみ利用できます"));
         const input = z.object({ shopId: z.uuid() }).parse(await body(req));
-        return json(res, await resetShop(store, user.email, input.shopId));
+        const result = await resetShop(store, user.email, input.shopId);
+        // The old shop is closed: a town that listed it no longer shows it.
+        const previous = await store.get<Shop>("shop", input.shopId);
+        const town: ParentListing = previous?.archivedAt ? await removeFromParent(previous) : "skipped";
+        return json(res, { ...result, town });
       }
       if (path === "/api/workspace" && method === "GET" && !publicHost) {
         if (!user) fail(401, tr("ログインしてください"));

@@ -176,6 +176,15 @@ test("the mounted town admin invites owners to the builder host, where they get 
   // Listing the same page again refreshes its entry instead of adding a second one.
   assert.equal((await internal(integrationSecret)).status, 200);
   assert.equal((await townShops()).length, before + 1);
+  // Starting the shop over closes it, and the town no longer lists it.
+  const reset = await builderRequest("/api/shop-reset", { Cookie: ownerCookie, Origin: builder }, { shopId: owned.id });
+  assert.equal(reset.status, 200, reset.body);
+  assert.equal(JSON.parse(reset.body).town, "removed");
+  assert.equal((await townShops()).length, before);
+  assert.equal((await townShops()).some(shop => shop.pageUrl.startsWith(`${origin}/s/${owned.slug}`)), false);
+  // Removing a page that is not listed changes nothing.
+  const again = await fetch(adminOrigin + "/api/internal/shops/remove", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${integrationSecret}` }, body: JSON.stringify({ pageUrl: `${origin}/s/${owned.slug}` }) });
+  assert.deepEqual(await again.json(), { ok: true, removed: false });
   // Only the town's own storefronts can be listed.
   const foreign = await fetch(adminOrigin + "/api/internal/shops", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${integrationSecret}` }, body: JSON.stringify({ pageUrl: "https://example.com/s/elsewhere" }) });
   assert.equal(foreign.status, 400);
