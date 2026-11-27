@@ -1,3 +1,4 @@
+import { createDictation, speechRecognitionConstructor } from "./dictation.js";
 import { InferenceSource } from "firebase/ai";
 import { HybridInference } from "./firebase-client.js";
 import {
@@ -155,6 +156,50 @@ export async function readPublishedFacts(url) {
   } catch {
     try { return JSON.parse(sessionStorage.getItem(key)); } catch { return null; }
   }
+}
+
+/** A microphone button beside Send. Dictated text waits in the input until the visitor sends it or says the end word. */
+function mountDictation({ root, inputBar, hybrid, label, english }) {
+  const input = root.querySelector("#ns-input");
+  const send = root.querySelector("#ns-send");
+  const Recognition = speechRecognitionConstructor();
+  if (!inputBar || !input || !send || !Recognition || inputBar.querySelector(".hybrid-dictation")) return null;
+  const button = document.createElement("button");
+  button.type = "button"; button.className = "hybrid-dictation";
+  const idleLabel = label("音声で入力", "Dictate");
+  button.setAttribute("aria-label", idleLabel); button.title = idleLabel;
+  button.setAttribute("aria-pressed", "false");
+  button.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>';
+  const status = document.createElement("p");
+  status.className = "hybrid-dictation-status"; status.setAttribute("role", "status"); status.hidden = true;
+  const dictation = createDictation({
+    input, language: english ? "en-US" : "ja-JP",
+    createRecognition: () => new Recognition(),
+    polish: (text, options) => hybrid.polishDictation(text, options),
+    // Ending with "over" sends the message, as on a radio.
+    send: () => { if (!send.disabled) send.click(); },
+    messages: {
+      unsupported: label("このブラウザは音声入力に対応していません。", "This browser does not support dictation."),
+      denied: label("マイクの使用が許可されていません。", "Microphone access is not allowed."),
+      noSpeech: label("音声が聞き取れませんでした。", "No speech was detected."),
+      failed: label("音声入力を開始できませんでした。もう一度お試しください。", "Dictation could not start. Please try again."),
+    },
+    onState: ({ status: state, error }) => {
+      const listening = state === "listening";
+      button.dataset.state = state;
+      button.setAttribute("aria-pressed", String(listening));
+      const text = listening ? label("音声で入力 — 押すと終了", "Stop dictation") : idleLabel;
+      button.setAttribute("aria-label", text); button.title = text;
+      status.textContent = error || (listening ? label("聞き取り中… 最後に「以上」と言うと送信します。マイクを押すと送信せずに終了します。", "Listening… Say “over” at the end to send, or press the microphone to stop without sending.")
+        : state === "polishing" ? label("端末内AIで文章を整えています…", "Tidying the text with on-device AI…") : "");
+      status.hidden = !status.textContent;
+    },
+  });
+  button.addEventListener("click", () => dictation.toggle());
+  send.before(button);
+  inputBar.after(status);
+  window.addEventListener("pagehide", () => dictation.cancel(), { once: true });
+  return dictation;
 }
 
 export function mountHybridControls(engine, connection) {
@@ -366,7 +411,8 @@ export function mountHybridControls(engine, connection) {
     }
     inputBar.before(chips);
   }
-  const start = () => { void hybrid.prepareDevice(); };
+  const dictation = mountDictation({ root, inputBar, hybrid, label, english });
+  const start = () => { dictation?.cancel(); void hybrid.prepareDevice(); };
   prepare.addEventListener("click", start);
   root.querySelector("#ns-send")?.addEventListener("click", start, { capture: true });
   root.querySelector("#ns-input")?.addEventListener("keydown", event => { if (event.key === "Enter") start(); }, { capture: true });

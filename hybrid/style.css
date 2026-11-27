@@ -25,3 +25,12 @@ html #ai-settings-open.hybrid-settings-open[hidden]{display:none!important}
 .hybrid-chip[data-kind="hybrid"]:hover{background:#faefd9}
 .hybrid-chip[data-kind="cloud"]{border-color:#a5bbed;color:#193d83;background:#f2f6ff}
 .hybrid-chip[data-kind="cloud"]:hover{background:#e4edff}
+.ns-inputbar .hybrid-dictation{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:44px;min-height:44px;padding:0;border:1px solid #78988b;border-radius:8px;background:#eef6f0;color:#234e40;cursor:pointer}
+.ns-inputbar .hybrid-dictation:hover{background:#e1f0e6}
+.ns-inputbar .hybrid-dictation[data-state="listening"]{background:#b42318;border-color:#b42318;color:#fff;animation:hybrid-dictation-pulse 1.4s ease-in-out infinite}
+.ns-inputbar .hybrid-dictation[data-state="polishing"]{opacity:.7}
+.hybrid-dictation-status{margin:.35rem 0 0;font-size:.875rem;color:#3d4a44}
+@keyframes hybrid-dictation-pulse{50%{box-shadow:0 0 0 4px rgba(180,35,24,.25)}}
+@media (prefers-reduced-motion:reduce){.ns-inputbar .hybrid-dictation[data-state="listening"]{animation:none}}
+.ns-inputbar .hybrid-dictation svg{width:22px;height:22px}
+.ns-inputbar:has(.hybrid-dictation) input,.ns-inputbar:has(.hybrid-dictation) textarea{flex-basis:140px}

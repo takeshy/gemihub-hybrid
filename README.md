@@ -15,7 +15,12 @@ for the official implementation guidance.
 
 This submission clone removes visitor BYOK from the public text experience.
 In-scope finder and shop text inference uses Firebase AI Logic; deterministic booking and MCP execution
-remain authoritative. Existing voice is outside the hybrid conversion.
+remain authoritative. Existing voice is outside the hybrid conversion; live voice stays off here because it
+needs a Gemini API key. Instead, the microphone button beside Send dictates into the chat input with the
+browser's speech recognition. When Gemini Nano is ready, the transcript is tidied on the device only
+(punctuation, filler words, obvious recognition errors) and never sent to the cloud for this. Ending with
+"over" (or 以上 / オーバー in Japanese) sends the message; pressing the microphone stops without sending.
+Text the visitor edits while dictating is kept, and only later speech is appended.
 Cloud text uses `gemini-3.5-flash-lite`, explicitly configured and changeable
 through Remote Config. Local eligible tasks use Gemini Nano in supported Chrome.
 

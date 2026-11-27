@@ -106,6 +106,36 @@ export class HybridInference {
       .finally(() => { this.preparing = null; });
     return this.preparing;
   }
+  /**
+   * Tidies a speech transcript with Gemini Nano only. Without a ready device model it returns null
+   * and the transcript stays as dictated: dictated text is never sent to the cloud just to tidy it.
+   */
+  async polishDictation(text, { signal } = {}) {
+    const transcript = String(text || "").trim();
+    if (this.device !== "ready" || !transcript || transcript.length > 2000) return null;
+    const started = this.now();
+    const controller = new AbortController();
+    const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+    const timeout = setTimeout(() => controller.abort(new DOMException("Dictation cleanup timed out.", "TimeoutError")), 8000);
+    try {
+      const prompt = "Rewrite this speech-recognition transcript as the message the speaker meant to type. "
+        + "Keep its language, meaning, names, dates, times and numbers. Add punctuation, remove filler words and repeated words, "
+        + "and fix only obvious recognition errors. Do not answer it, add information or translate it. Output only the rewritten text.\n\n"
+        + `Transcript:\n${transcript}`;
+      const { response } = await this.model(InferenceMode.ONLY_ON_DEVICE).generateContent(prompt, { signal: requestSignal });
+      requestSignal.throwIfAborted();
+      const polished = (typeof response.text === "function" ? response.text() : "").trim();
+      const source = response.inferenceSource === InferenceSource.ON_DEVICE ? "ON_DEVICE" : "UNKNOWN";
+      this.record({ task: "dictation_polish", requestedMode: InferenceMode.ONLY_ON_DEVICE, source, model: "Gemini Nano",
+        durationMs: Math.round(this.now() - started), reason: "dictation", fallback: false, finalAnswer: false, at: new Date().toISOString() });
+      // An empty or runaway rewrite is discarded in favour of what was said.
+      return source === "ON_DEVICE" && polished && polished.length <= transcript.length * 2 + 40 ? polished : null;
+    } catch {
+      this.record({ task: "dictation_polish", requestedMode: InferenceMode.ONLY_ON_DEVICE, source: "UNKNOWN",
+        durationMs: Math.round(this.now() - started), reason: "dictation", error: requestSignal.aborted ? "aborted" : "inference_failed", finalAnswer: false });
+      return null;
+    } finally { clearTimeout(timeout); }
+  }
   async generate({ task, question, prompt, request, schema, systemInstruction, historyCount = 0,
     contextChars = 0, hasTools = false, crossShop = false, signal, finalAnswer = false, onDelta }) {
     signal?.throwIfAborted();
