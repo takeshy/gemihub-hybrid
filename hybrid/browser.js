@@ -228,7 +228,8 @@ export function mountHybridControls(engine, connection) {
   // this product. Existing saved profiles are ignored by explicit boot options.
   for (const selector of [".ns-settings", "#ai-provider", "#ai-key-link"]) {
     const element = root.querySelector(selector);
-    if (element) (selector === "#ai-provider" ? element.closest("label") : element).remove();
+    // The key link's paragraph goes too, or it leaves an empty gap in the dialog.
+    if (element) (selector === "#ai-provider" ? element.closest("label") : selector === "#ai-key-link" ? element.closest(".ai-key-link") || element : element).remove();
   }
   for (const element of root.querySelectorAll('[data-ns-slot="settings"]')) element.remove();
   document.getElementById("ai-setup-heading").textContent = label("端末内AIのセットアップ", "On-device AI setup");
