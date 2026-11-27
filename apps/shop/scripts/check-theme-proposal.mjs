@@ -20,6 +20,41 @@ const user = { email: shop.owner, name: "Owner", role: "owner", shopId: shop.id 
 const sid = randomUUID(); await store.put("session", digest(sid), { user, expires: Date.now() + 3600000 });
 await store.put("themeProposal", shop.id, { shopId: shop.id, status: "generating", themeRunId: "x", request: "r", imageIds: [], config: sample, startedAt: Date.now(), updatedAt: Date.now() });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ["--no-sandbox"] });
+{
+  const newShop = await store.createShop("preview-owner@example.com");
+  const previewOwner = { email: newShop.owner, name: "Owner", role: "owner", shopId: newShop.id };
+  const previewSession = randomUUID();
+  await store.put("user", previewOwner.email, previewOwner);
+  await store.put("session", digest(previewSession), { user: previewOwner, expires: Date.now() + 3600000 });
+  const planId = randomUUID();
+  const proposal = { shopId: newShop.id, planId, themeRunId: planId, request: "Create the shop design", imageIds: [], config: sample, startedAt: Date.now(), updatedAt: Date.now() };
+  await store.put("plan", planId, { id: planId, shopId: newShop.id, themeRunId: planId, themeProposal: true, config: sample, base: newShop.revision, createdAt: Date.now(), summary: ["Create shop"], approved: false, requiresSetup: true });
+  await store.put("themeProposal", newShop.id, { ...proposal, status: "generating" });
+
+  const initialContext = await browser.newContext({ viewport: { width: 390, height: 900 }, locale: "en-US" });
+  await initialContext.addCookies([{ name: "gemihub_session", value: previewSession, url: origin }]);
+  const initialPage = await initialContext.newPage();
+  await initialPage.clock.install();
+  await initialPage.goto(`${origin}/?lang=en`);
+  const review = initialPage.locator(".request-review");
+  await review.locator(".screen-name-list").waitFor();
+  await review.locator('[data-theme-status="generating"]').waitFor();
+  assert.equal(await review.locator(".theme-preview").count(), 0);
+  assert.equal(await review.getByRole("button", { name: "Open a private preview with the standard design", exact: true }).isEnabled(), true);
+  await store.put("themeProposal", newShop.id, { ...proposal, status: "ready", theme });
+  await initialPage.clock.fastForward(3500);
+  await review.locator(".theme-preview .brand").waitFor();
+  assert.equal(await review.locator(".theme-preview .brand").evaluate(element => getComputedStyle(element).backgroundColor), "rgb(37, 19, 52)");
+  await initialPage.screenshot({ path: `${out}/tp-initial-ready-390.png`, fullPage: true });
+  await initialPage.reload();
+  await review.locator(".theme-preview .brand").waitFor();
+  await review.getByRole("button", { name: "Publish private preview", exact: true }).click();
+  await initialPage.locator(".publication-status").waitFor();
+  assert.deepEqual((await store.shop(newShop.id)).published.appearance.theme, theme);
+  assert.equal((await store.get("themeProposal", newShop.id)).status, "applied");
+  await initialContext.close();
+  console.log("en 390px: the initial review updates to the AI design, survives reload and publishes the displayed theme.");
+}
 // While the design is being made, public publication cannot start from either screen.
 {
   const context = await browser.newContext({ viewport: { width: 390, height: 900 }, locale: "en-US" });

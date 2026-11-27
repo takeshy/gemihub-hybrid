@@ -80,7 +80,7 @@ export function ScreenList({ config, previousConfig }: { config: ShopConfig; pre
   );
 }
 
-export function ScreenGallery({ config, shopId, themeRef, previousConfig }: { config: ShopConfig; shopId: string; themeRef?: React.RefObject<HTMLDivElement | null>; previousConfig?: ShopConfig }) {
+export function ScreenGallery({ config, shopId, themeRef, previousConfig, themePlaceholder }: { config: ShopConfig; shopId: string; themeRef?: React.RefObject<HTMLDivElement | null>; previousConfig?: ShopConfig; themePlaceholder?: React.ReactNode }) {
   const [before, setBefore] = useState(false);
   const themeChanged = previousConfig && !same(scopedSource(previousConfig, { kind: "theme" }), scopedSource(config, { kind: "theme" }));
   return <section className="screen-gallery" aria-label={tr("用意する画面の一覧")}>
@@ -91,8 +91,10 @@ export function ScreenGallery({ config, shopId, themeRef, previousConfig }: { co
     <h4>{tr("ページの雰囲気")}</h4>
     {themeChanged && <p className="notice">{tr("ページ全体のデザインに変更があります。変更前と変更後を切り替えて確認できます。")}</p>}
     {previousConfig && <div className="actions" aria-label={tr("ページ全体の比較")}><button type="button" aria-pressed={before} onClick={() => setBefore(true)}>{tr("変更前")}</button><button type="button" aria-pressed={!before} onClick={() => setBefore(false)}>{tr("変更後")}</button></div>}
-    <p className="small muted">{tr("色・配置・ヘッダー・フッターの見本です。中身は仮の表示です。")}</p>
-    <ThemePreview config={before && previousConfig ? previousConfig : config} shopId={shopId} themeRef={themeRef} />
+    {themePlaceholder ?? <>
+      <p className="small muted">{tr("色・配置・ヘッダー・フッターの見本です。中身は仮の表示です。")}</p>
+      <ThemePreview config={before && previousConfig ? previousConfig : config} shopId={shopId} themeRef={themeRef} />
+    </>}
     </>}
   </section>;
 }

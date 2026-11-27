@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { tr } from "../shared/i18n";
 import type { ShopConfig } from "../server/domain";
-import type { Theme } from "../shared/presentation";
+import type { ThemeProposal as Proposal } from "../shared/theme-proposal";
 import { useApi } from "./api";
 import { PreviewSurface, type PreviewScreen } from "./ScreenGallery";
 import { createRequestId } from "./request-id";
 
-type Proposal = { status: "none" | "generating" | "ready" | "failed"; startedAt?: number; theme?: Theme; error?: string };
 type Snapshot = { base: number; source: ShopConfig | null; config: ShopConfig };
 const homeScreen: PreviewScreen = { id: "about", get name() { return tr("お店のこと"); }, get description() { return tr("お店の紹介"); }, pane: "about" };
 const pollMs = 15000;

@@ -57,6 +57,9 @@ test("a new shop opens with the built-in design at once and its own AI design ar
   assert.equal(plan.config.appearance.theme, undefined);
   assert.equal(plan.themeProposal, true, "the first review tells the owner the design is on its way");
   assert.equal((await proposal()).status, "generating");
+  const scopedProposal = await call(`/api/shops/${shop.id}/theme-proposal?plan=${plan.id}`);
+  assert.equal(scopedProposal.status, "generating");
+  assert.deepEqual(await call(`/api/shops/${shop.id}/theme-proposal?plan=missing`), { status: "none" });
   // The owner opens the shop with the built-in design while the AI design is still running.
   await call(`/api/shops/${shop.id}/plans/${plan.id}/approve`, {});
   await call(`/api/shops/${shop.id}/plans/${plan.id}/publish`, { publication: "provisional" });

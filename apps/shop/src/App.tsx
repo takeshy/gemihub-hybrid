@@ -486,10 +486,10 @@ function Dashboard({
       : shop?.plans.find(p => p.base === shop.revision && p.id === navigation.route.plan) || shop?.plans.filter((p) => p.base === shop.revision).at(-1));
   const request = (action: string, data: unknown = {}) =>
     api(`/api/shops/${shop.id}/${action}`, data);
-  const acceptPlan = async (p: Plan) => {
+  const acceptPlan = async (p: Plan, themeStartedAt?: number) => {
     const publication = !shop.published || shop.publication === "provisional" ? "provisional" : "public";
     await request(`plans/${p.id}/approve`);
-    await request(`plans/${p.id}/publish`, { publication });
+    await request(`plans/${p.id}/publish`, { publication, themeStartedAt });
     setPlan(undefined);
     await load();
     if (!shop.published) setTab("dashboard");

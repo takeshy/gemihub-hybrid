@@ -200,7 +200,7 @@ export function ShopChat({shopId,published,isOwner,context,currentConfig,plan:le
   if(restoring&&!viewPlan)return <p role="status">{tr("保存した会話を読み込んでいます…")}</p>;
   if(restoreError&&!viewPlan)return <div className="alert" role="alert"><p>{error}</p><button onClick={()=>setRestoreRetry(value=>value+1)}>{tr("もう一度読み込む")}</button></div>;
   if(published&&!isOwner)return <p className="muted">{tr("変更は店主が行います。質問はメニューの「相談・質問」からどうぞ。")}</p>;
-  if(!published&&viewPlan)return <div className="shop-request">{error&&<p className="alert" role="alert">{error}</p>}<InitialPlanReview shopId={shopId} plan={viewPlan} busy={working} onBack={()=>void run(returnToChat)} onAccept={()=>void run(()=>onAccept(viewPlan))}/></div>;
+  if(!published&&viewPlan)return <div className="shop-request">{error&&<p className="alert" role="alert">{error}</p>}<InitialPlanReview key={viewPlan.id} shopId={shopId} plan={viewPlan} busy={working} onBack={()=>void run(returnToChat)} onAccept={themeStartedAt=>void run(()=>onAccept(viewPlan,themeStartedAt))}/></div>;
   return <div className="shop-request shop-chat">
     {published&&chat&&<div className="request-intents-reset"><button type="button" className="primary chat-new-conversation" aria-describedby="new-conversation-hint" disabled={working} onClick={()=>void run(()=>start("modify"))}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>{tr("新しい会話をはじめる")}</button><p id="new-conversation-hint" className="small muted">{tr("話題を変えるときは新しい会話をはじめると、AIが前の話題と混同しにくくなります。")}</p></div>}
     <p>{description}</p>

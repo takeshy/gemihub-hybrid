@@ -4607,5 +4607,10 @@
   "生成した画像を選択しました。内容を確認してから使用してください。": "The generated image is selected. Review it before use.",
   "選択中の画像は、この画面で確定すると依頼や編集に使えます。": "Confirm the selected images in this screen to use them in your request or edits.",
   "「音声で依頼」を押すと音声入力が始まります。「以上」と言うか「音声入力を止める」で止め、「入力を使う」で戻ります。指示欄の文字を確認・修正してから生成します。": "Choose “Request by voice” to start voice input. Say the end phrase or choose “Stop voice input”, then “Use input” to return. Review and edit the instructions before generating.",
-  "「生成して結果を確認」を押して待ちます。画像選択画面では生成した画像が自動で選択されます。生成画像を見て「これでOK」で一覧に戻り、「選択した画像を使う」または「この画像を使う」で確定します。「さらに依頼する」で生成画像を参考に修正できます。生成しただけではページは更新されません。": "Choose “Generate and review” and wait. In the image picker, the generated image is selected automatically. Review it, choose “Looks good” to return to the list, then confirm with “Use selected images” or “Use this image”. Choose “Refine this image” to request changes using it as a reference. Generating alone does not update the page."
+  "「生成して結果を確認」を押して待ちます。画像選択画面では生成した画像が自動で選択されます。生成画像を見て「これでOK」で一覧に戻り、「選択した画像を使う」または「この画像を使う」で確定します。「さらに依頼する」で生成画像を参考に修正できます。生成しただけではページは更新されません。": "Choose “Generate and review” and wait. In the image picker, the generated image is selected automatically. Review it, choose “Looks good” to return to the list, then confirm with “Use selected images” or “Use this image”. Choose “Refine this image” to request changes using it as a reference. Generating alone does not update the page.",
+  "この画面案のデザインは利用できません。": "The design for this preview is unavailable.",
+  "お店専用のデザインを作成中です。完成すると、この画面に表示されます。": "Your shop’s design is being created. It will appear here when it’s ready.",
+  "標準デザインで仮公開する": "Open a private preview with the standard design",
+  "デザインの提案が変わりました。画面を読み直して確認してください。": "The proposed design has changed. Reload this page to review it.",
+  "仮公開中は、このページを用意したGoogleアカウントでログインした本人だけが見られます。": "During private preview, only the Google account that set up this page can view it."
 }
