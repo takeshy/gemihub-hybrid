@@ -11,4 +11,6 @@ if (invite) {
     if (!response.ok) throw new Error("The invitation is unavailable or expired.");
     location.replace("/judge/admin/");
   } catch (error) { notice.textContent = error.message; }
+} else {
+  location.replace("/judge/admin/");
 }
