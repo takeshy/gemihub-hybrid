@@ -72,7 +72,7 @@ Run `bash infra/hybrid/deploy.sh` from any authorized workstation to update
 the Hybrid demo. See the [deployment guide](infra/hybrid/README.md) for setup.
 
 Submission materials: [Devpost project page](https://devpost.com/software/gemihub-hybrid),
-[YouTube demo video](https://youtu.be/7SislWBHabl),
+[YouTube demo video](https://youtu.be/99IUa0O0-0I),
 [English description](docs/submission/description.md),
 [thumbnail](docs/submission/thumbnail.png), and
 [real-browser screenshots](docs/submission/evidence/).
