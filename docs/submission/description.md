@@ -40,6 +40,10 @@ assistant without entering an API key.
   MCP tools.
 - **On-device booking preflight.** Gemini Nano collects booking details before
   any cloud call is made.
+- **Voice dictation with on-device tidy-up.** Visitors can dictate questions
+  with the microphone (saying “over” to send), and when Gemini Nano is ready it
+  tidies the spoken transcript in `ONLY_ON_DEVICE` mode without sending drafts
+  to the cloud.
 - **Inference details on every reply.** Each answer shows where it ran
   (SDK-reported), which model answered, latency, why it was routed there, and
   which MCP tools were called.
