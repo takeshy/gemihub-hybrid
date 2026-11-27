@@ -299,6 +299,9 @@ export function mountHybridControls(engine, connection) {
   if (inputBar) labelObserver.observe(inputBar, { attributes: true, attributeFilter: ["data-turn-active"] });
   const syncDeviceState = (state, progress) => {
     prepare.disabled = ["preparing", "downloading", "ready"].includes(state);
+    // Once on-device AI is ready there is nothing left to set up.
+    const settingsOpen = document.getElementById("ai-settings-open");
+    if (settingsOpen) settingsOpen.hidden = state === "ready";
     device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
       : state === "unavailable" ? label("この環境では端末内AIが使えません。クラウドで続行します。", "Local AI is unavailable here. Chat continues in the cloud.")
       : state === "downloading" ? `${label("モデルをダウンロード中", "Downloading model")} ${Math.round((progress || 0) * 100)}%`

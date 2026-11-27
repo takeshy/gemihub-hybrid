@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { request, type IncomingHttpHeaders } from "node:http";
+import { digest } from "../server/auth.ts";
 import { createApp } from "../server/app.ts";
 import { Store, type Shop } from "../server/store.ts";
 import { bookableMenus, menuSelection, sample, shopSchema } from "../server/domain.ts";
@@ -103,6 +104,13 @@ test("other shop pages and custom hosts serve an actionable chat/voice guide wit
   shop.publication = "provisional"; await store.saveShop(shop);
   assert.equal((await call("/s/komado/agent/agent-manifest.json")).status, 404);
   assert.equal((await call("/s/komado/agent/mcp", { jsonrpc: "2.0", id: 1, method: "tools/list" })).status, 404);
+  // The owner's private preview has no agent bundle, so it shows no assistant either.
+  await store.put("session", digest("komado-owner"), { user: { email: shop.owner, name: "Owner", role: "owner", shopId: shop.id }, expires: Date.now() + 600000 });
+  const preview = await fetch(`${origin}/s/komado/`, { headers: { Cookie: "gemihub_session=komado-owner" } });
+  const previewHtml = await preview.text();
+  assert.equal(preview.status, 200);
+  assert.match(previewHtml, /営業時間/);
+  assert.doesNotMatch(previewHtml, /id="assistant-toggle"|id="assistant"|agent-manifest/);
   shop.publication = "public"; shop.archivedAt = new Date().toISOString(); await store.saveShop(shop);
   assert.equal((await call("/s/komado/agent/agent-manifest.json")).status, 404);
 });

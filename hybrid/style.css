@@ -3,6 +3,7 @@
 .hybrid-badge[data-source="IN_CLOUD"]{background:#eaf1ff;color:#193d83;border-color:#a5bbed}
 html[data-embedded="true"] #ai-settings-open.hybrid-settings-open{display:inline-flex!important}
 #ai-settings-open.hybrid-settings-open{display:inline-flex;align-items:center;padding:.45rem .8rem;border:1px solid #78988b;border-radius:8px;background:#eef6f0;color:#234e40;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+html #ai-settings-open.hybrid-settings-open[hidden]{display:none!important}
 #ai-settings-open.hybrid-settings-open:hover{background:#e1f0e6}
 .hybrid-demo-note{margin:.5rem 0;padding:.65rem 1rem;border:1px solid #d7dfd0;background:#f3f6ee;border-radius:8px;color:#374938;font-size:13px;line-height:1.5}
 .hybrid-controls{display:grid;gap:.8rem;margin-top:1rem}.hybrid-controls p{font-size:.9rem;line-height:1.6}.hybrid-controls button{padding:.6rem 1rem;justify-self:start}.hybrid-log{font:12px/1.7 ui-monospace,monospace;max-height:220px;overflow:auto;padding-left:1.4rem;overflow-wrap:anywhere}

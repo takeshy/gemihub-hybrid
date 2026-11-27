@@ -46,7 +46,7 @@ try {
     await settings.getByText('Saved and applied to the live site.',{exact:true}).waitFor();
     assert.deepEqual((await store.shop(shop.id)).published.region,{country:'US',timeZone:'America/Los_Angeles'});
     await page.screenshot({path:`tmp/region/settings-us-${width}.png`,fullPage:true});
-    await page.locator('aside nav').getByRole('button',{name:/Services and prices$/}).click();const menus=page.locator('.live-settings-menus');
+    await page.locator('aside nav').getByRole('button',{name:/Services and products$/}).click();const menus=page.locator('.live-settings-menus');
     const price=menus.getByLabel('Price (USD)',{exact:true}).first();await price.waitFor();assert.equal(await price.getAttribute('step'),'0.01');
     await price.fill('55.25');await menus.getByRole('button',{name:'Save',exact:true}).click();
     await menus.getByText('Saved and applied to the live site.',{exact:true}).waitFor();
