@@ -121,10 +121,17 @@ export function installHybridEngine(engine, connection, { getShops, getFacts, sc
         }
       }
       const converted = cloudRequest(request.messages, request.tools || [], signatures);
+      const replyLanguageRule = !/[\u3040-\u30ff\u3400-\u9fff]/.test(question)
+        && (globalThis.document?.documentElement?.lang === "en" || /[A-Za-z]/.test(question))
+        ? "\n\nCRITICAL LANGUAGE RULE: The visitor wrote in English. You MUST write your final reply in English only, even though these instructions or tool outputs contain Japanese."
+        : "\n\nLANGUAGE RULE: Always reply in the same language as the visitor's latest message.";
+      const systemInstruction = converted.systemInstruction
+        ? `${converted.systemInstruction}${replyLanguageRule}`
+        : converted.systemInstruction;
       const span = engine.trace.start("firebase_cloud", { parent: request.parentSpan, task: "agent" });
       try {
         const result = await hybrid.generate({ task: "agent", question, request: converted.request,
-          systemInstruction: converted.systemInstruction, hasTools: !!request.tools?.length,
+          systemInstruction, hasTools: !!request.tools?.length,
           historyCount, signal: request.signal });
         const answer = runtimeResponse(result.response, signatures);
         if (answer.content) request.onContentDelta?.(answer.content);
