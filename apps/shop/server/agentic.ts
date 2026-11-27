@@ -222,7 +222,7 @@ export function storefrontAssistant(shop: AgenticShop, site: AgenticSite, reserv
   Object.assign(t, {
     privacy: locale === "ja" ? "簡単な質問は端末内で処理し、端末内AIが使えない場合や予約の相談はFirebase経由でクラウドへ送ります。" : "Simple questions can run on-device. Unsupported devices and reservation conversations use the cloud through Firebase.",
     key: locale === "ja" ? "APIキーの入力は不要です。" : "No API key is required.",
-    settingsDescription: locale === "ja" ? "端末内AIの準備と推論の記録を確認できます。" : "Prepare on-device AI and inspect inference details.",
+    settingsDescription: locale === "ja" ? "端末内AIを準備できます。" : "Prepare on-device AI.",
   });
   const base = site.base;
   const parent = parentSite();

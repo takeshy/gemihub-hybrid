@@ -6,11 +6,7 @@ html[data-embedded="true"] #ai-settings-open.hybrid-settings-open{display:inline
 #ai-settings-open.hybrid-settings-open[data-device="ready"]{border-color:#9fc5b0;background:#fff;color:#2c6e49;font-weight:600}
 #ai-settings-open.hybrid-settings-open:hover{background:#e1f0e6}
 .hybrid-demo-note{margin:.5rem 0;padding:.65rem 1rem;border:1px solid #d7dfd0;background:#f3f6ee;border-radius:8px;color:#374938;font-size:13px;line-height:1.5}
-.hybrid-controls{display:grid;gap:.8rem;margin-top:1rem}.hybrid-controls p{font-size:.9rem;line-height:1.6}.hybrid-controls button{padding:.6rem 1rem;justify-self:start}.hybrid-log{font:12px/1.7 ui-monospace,monospace;max-height:220px;overflow:auto;padding-left:1.4rem;overflow-wrap:anywhere}
-.hybrid-setup-steps{display:grid;gap:.65rem;margin:0;padding-left:1.35rem}
-.hybrid-flag{display:flex;gap:.4rem;margin:.4rem 0 0}
-.hybrid-flag input{width:100%;min-width:0;padding:.4rem .5rem;font:12px ui-monospace,monospace}
-.hybrid-flag button{padding:.35rem .65rem;font:inherit}
+.hybrid-controls{display:grid;gap:.8rem;margin-top:1rem}.hybrid-controls p{font-size:.9rem;line-height:1.6}.hybrid-controls button{padding:.6rem 1rem;justify-self:start}
 .ns-msg.bot[data-inference-source]:not(:has(.hybrid-telemetry-pill))::after{display:block;font-size:.7rem;opacity:.8;margin-top:.6rem}.ns-msg.bot[data-inference-source="ON_DEVICE"]:not(:has(.hybrid-telemetry-pill))::after{content:"On-device"}.ns-msg.bot[data-inference-source="IN_CLOUD"]:not(:has(.hybrid-telemetry-pill))::after{content:"Cloud"}
 .hybrid-telemetry-pill{display:inline-flex;flex-wrap:wrap;align-items:center;gap:.25rem;margin-top:.55rem;padding:.2rem .55rem;border-radius:999px;border:1px solid #cbd2dc;background:#f4f6f8;color:#26303c;font:500 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:100%;overflow-wrap:anywhere}
 .hybrid-telemetry-pill[data-source="ON_DEVICE"]{background:#e5f4ea;color:#17582d;border-color:#8dc9a1}

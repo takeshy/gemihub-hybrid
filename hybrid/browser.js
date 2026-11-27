@@ -235,37 +235,6 @@ export function mountHybridControls(engine, connection) {
   document.getElementById("ai-setup-description").textContent = label(
     "対応端末のデスクトップ版Chrome 149以降で、Gemini Nanoを準備できます。準備中もクラウドで質問できます。",
     "Gemini Nano runs on compatible computers with desktop Chrome 149 or later. You can keep chatting in the cloud during setup.");
-  const steps = document.createElement("ol");
-  steps.className = "hybrid-setup-steps";
-  const flagStep = document.createElement("li");
-  flagStep.textContent = label("次のアドレスをChromeのアドレスバーに貼り付けます。",
-    "Paste this address into the Chrome address bar.");
-  const flagRow = document.createElement("div"); flagRow.className = "hybrid-flag";
-  const flag = document.createElement("input");
-  flag.type = "text"; flag.readOnly = true; flag.spellcheck = false;
-  flag.value = "chrome://flags/#prompt-api-for-gemini-nano-multimodal-input";
-  flag.setAttribute("aria-label", label("Chromeの設定アドレス", "Chrome flag address"));
-  flag.addEventListener("focus", () => flag.select());
-  const copy = document.createElement("button"); copy.type = "button";
-  copy.textContent = label("コピー", "Copy");
-  copy.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(flag.value);
-      copy.textContent = label("コピー済み", "Copied");
-    } catch {
-      flag.focus();
-      flag.select();
-    }
-  });
-  flagRow.append(flag, copy);
-  flagStep.append(flagRow);
-  const relaunch = document.createElement("li");
-  relaunch.textContent = label("設定を Enabled にして、Chromeを再起動し、このページに戻ります。",
-    "Switch the flag to Enabled, relaunch Chrome, then return here.");
-  const download = document.createElement("li");
-  download.textContent = label("「端末内AIを準備する」を押します。初回はダウンロードに数分かかることがあります。",
-    "Click Prepare on-device AI below. The first download may take a few minutes.");
-  steps.append(flagStep, relaunch, download);
   const requirements = document.createElement("a");
   requirements.href = "https://developer.chrome.com/docs/ai/get-started#hardware";
   requirements.target = "_blank"; requirements.rel = "noopener noreferrer";
@@ -275,10 +244,11 @@ export function mountHybridControls(engine, connection) {
   prepare.textContent = label("端末内AIを準備する", "Prepare on-device AI");
   const device = document.createElement("p"); device.setAttribute("role", "status");
   device.textContent = label("準備ができるまではクラウドで回答します。", "Answers use the cloud until on-device AI is ready.");
-  const details = document.createElement("details"); const summary = document.createElement("summary");
-  summary.textContent = label("推論の記録", "Inference details");
-  const log = document.createElement("ol"); log.className = "hybrid-log"; details.append(summary, log);
-  panel.append(steps, prepare, device, requirements, details);
+  // Chrome downloads Gemini Nano on the first preparation; no flag or relaunch is needed for text.
+  const intro = document.createElement("p");
+  intro.textContent = label("「端末内AIを準備する」を押すと準備を始めます。初回はダウンロードに数分かかることがあります。",
+    "Press Prepare on-device AI to start. The first download may take a few minutes.");
+  panel.append(intro, prepare, device, requirements);
   const close = document.getElementById("ai-setup-close");
   dialog.insertBefore(panel, close?.parentElement === dialog ? close : null);
   const badge = document.createElement("span"); badge.id = "hybrid-inference-badge";
@@ -359,7 +329,7 @@ export function mountHybridControls(engine, connection) {
     if (settingsOpen?.classList.contains("hybrid-settings-open")) {
       settingsOpen.dataset.device = state;
       settingsOpen.textContent = state === "ready" ? label("⚡ 端末内AI 準備完了", "⚡ On-device AI ready") : label("端末内AIをセットアップ", "Set up on-device AI");
-      settingsOpen.title = state === "ready" ? label("推論の記録を見る", "View inference details") : "";
+      settingsOpen.title = "";
     }
     device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
       : state === "unavailable" ? label("この環境では端末内AIが使えません。クラウドで続行します。", "Local AI is unavailable here. Chat continues in the cloud.")
@@ -382,12 +352,7 @@ export function mountHybridControls(engine, connection) {
       if (atBottom) messages.scrollTop = messages.scrollHeight;
     }
     if (event.device) syncDeviceState(event.device, event.progress);
-    if (event.log) {
-      const entry = event.log; const item = document.createElement("li");
-      item.textContent = `${entry.task} · ${entry.source} · ${entry.durationMs} ms${Number.isFinite(entry.firstTokenMs) ? ` (TTFT ${entry.firstTokenMs} ms)` : ""} · ${entry.reason}${entry.fallback ? " · fallback" : ""}${entry.error ? ` · ${entry.error} · ${entry.errorCode || "unknown"}${entry.httpStatus ? ` · HTTP ${entry.httpStatus}` : ""}` : ""}`;
-      log.prepend(item); while (log.children.length > 30) log.lastElementChild.remove();
-      if (entry.finalAnswer) updateBadge(entry);
-    }
+    if (event.log?.finalAnswer) updateBadge(event.log);
     if (event.answer) updateBadge(event.answer);
   });
   const isShopPage = document.documentElement.dataset.agentKind === "shop" || /^\/s\//.test(location.pathname);
