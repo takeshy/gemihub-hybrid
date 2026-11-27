@@ -103,3 +103,53 @@ test("a new shop opens with the built-in design at once and its own AI design ar
   assert.deepEqual(await call(`/api/shops/${shop.id}/theme-proposal/dismiss`, {}), { status: "none" });
   assert.deepEqual(await proposal(), { status: "none" });
 });
+
+test("a new request while a design is still being made starts a new design instead of waiting forever", { timeout: 20000 }, async t => {
+  delete process.env.DEMO_MODE;
+  const store = new Store(":memory:");
+  const shop = await store.createShop("owner2@example.com");
+  await store.put("session", digest("proposal-owner-2"), { user: { email: shop.owner, name: "Owner", role: "owner", shopId: shop.id }, expires: Date.now() + 600000 });
+  const first = latch();
+  const requests: string[] = [];
+  const server = createApp(store, { ...ai,
+    async propose(_text, _current, email) {
+      return { config: { ...structuredClone(sample), notificationEmail: email, appearance: { accent: "sage", layout: "standard", imageUrl: "" } }, summary: ["Shop"], themeReview: undefined };
+    },
+    async initialTheme(input) {
+      requests.push(input.request);
+      // The first design hangs until the end of the test; the second finishes at once.
+      if (requests.length === 1) await first.promise;
+      return { config: input.config, request: input.request, imageIds: [], attempts: 1, feedback: [], candidate: theme, review: { approved: true, issues: [], imageUsage: [] } };
+    },
+    async themeContrast() { return []; },
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  process.env.APP_ORIGIN = origin;
+  t.after(async () => { first.resolve(); server.close(); await store.close(); });
+  const call = async (path: string, data?: unknown) => {
+    const response = await fetch(origin + path, { method: data === undefined ? "GET" : "POST", headers: { Origin: origin, Cookie: "gemihub_session=proposal-owner-2", "Content-Type": "application/json" }, body: data === undefined ? undefined : JSON.stringify(data) });
+    const body = await response.json();
+    assert.ok(response.ok, JSON.stringify(body));
+    return body;
+  };
+  const firstPlan = await call(`/api/shops/${shop.id}/plan`, { text: "A pet shop" });
+  assert.equal(firstPlan.themeProposal, true);
+  for (let i = 0; i < 50 && requests.length < 1; i++) await new Promise(resolve => setTimeout(resolve, 20));
+  const secondPlan = await call(`/api/shops/${shop.id}/plan`, { text: "A pet shop with a gray theme" });
+  let current: { status: string; theme?: unknown } = { status: "" };
+  for (let i = 0; i < 100; i++) {
+    current = await call(`/api/shops/${shop.id}/theme-proposal?plan=${secondPlan.id}`);
+    if (current.status === "ready") break;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.equal(current.status, "ready", "the newer request is not blocked by the older job");
+  assert.equal(requests.length, 2);
+  assert.match(requests[1], /gray theme/);
+  // The older job finishing later does not replace the newer design.
+  first.resolve();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const stored = await store.get<{ planId: string; status: string }>("themeProposal", shop.id);
+  assert.equal(stored?.planId, secondPlan.id);
+  assert.equal(stored?.status, "ready");
+});

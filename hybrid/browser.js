@@ -351,9 +351,13 @@ export function mountHybridControls(engine, connection) {
   if (inputBar) labelObserver.observe(inputBar, { attributes: true, attributeFilter: ["data-turn-active"] });
   const syncDeviceState = (state, progress) => {
     prepare.disabled = ["preparing", "downloading", "ready"].includes(state);
-    // Once on-device AI is ready there is nothing left to set up.
+    // Once on-device AI is ready the button becomes a status that still opens the inference details.
     const settingsOpen = document.getElementById("ai-settings-open");
-    if (settingsOpen) settingsOpen.hidden = state === "ready";
+    if (settingsOpen?.classList.contains("hybrid-settings-open")) {
+      settingsOpen.dataset.device = state;
+      settingsOpen.textContent = state === "ready" ? label("⚡ 端末内AI 準備完了", "⚡ On-device AI ready") : label("端末内AIをセットアップ", "Set up on-device AI");
+      settingsOpen.title = state === "ready" ? label("推論の記録を見る", "View inference details") : "";
+    }
     device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
       : state === "unavailable" ? label("この環境では端末内AIが使えません。クラウドで続行します。", "Local AI is unavailable here. Chat continues in the cloud.")
       : state === "downloading" ? `${label("モデルをダウンロード中", "Downloading model")} ${Math.round((progress || 0) * 100)}%`
@@ -425,7 +429,8 @@ export function mountHybridControls(engine, connection) {
   root.querySelector("#ns-input")?.addEventListener("keydown", event => { if (event.key === "Enter") start(); }, { capture: true });
   const open = document.getElementById("ai-settings-open");
   open.classList.add("hybrid-settings-open");
-  open.disabled = false; open.textContent = label("端末内AIをセットアップ", "Set up on-device AI");
+  open.disabled = false;
+  syncDeviceState(hybrid.device);
   open.setAttribute("aria-haspopup", "dialog");
   open.addEventListener("click", () => dialog.showModal());
   close?.addEventListener("click", () => dialog.close());

@@ -550,17 +550,18 @@ export function createApp(
     });
     return images;
   }
-  const themeJobs = new Set<string>();
+  // The job running for each shop, by its start time: a newer request replaces an older job.
+  const themeJobs = new Map<string, number>();
   // A job recorded before this server started cannot still be running here.
   const serverStartedAt = Date.now();
   // Runs the shop's first AI design outside any request; progress is saved so a retry can resume it.
   async function runThemeProposal(proposal: ThemeProposal) {
-    if (themeJobs.has(proposal.shopId)) return;
-    themeJobs.add(proposal.shopId);
+    if (themeJobs.get(proposal.shopId) === proposal.startedAt) return;
+    themeJobs.set(proposal.shopId, proposal.startedAt);
     const finish = async (update: Partial<ThemeProposal>) => {
       const latest = await store.get<ThemeProposal>("themeProposal", proposal.shopId);
       // A newer job or the owner's decision replaces this one.
-      if (latest && latest.startedAt !== proposal.startedAt) return;
+      if (latest && (latest.startedAt !== proposal.startedAt || latest.status !== "generating")) return;
       await store.put("themeProposal", proposal.shopId, { ...proposal, ...update, updatedAt: Date.now() });
     };
     try {
@@ -577,12 +578,17 @@ export function createApp(
       const message = error instanceof Error ? error.message.slice(0, 600) : tr("デザインを作成できませんでした");
       console.error(JSON.stringify({ event: "theme_proposal_failed", shopId: proposal.shopId, error: message }));
       await finish({ status: "failed", error: message }).catch(() => {});
-    } finally { themeJobs.delete(proposal.shopId); }
+    } finally { if (themeJobs.get(proposal.shopId) === proposal.startedAt) themeJobs.delete(proposal.shopId); }
   }
-  function startThemeProposal(input: Omit<ThemeProposal, "status" | "startedAt" | "updatedAt">) {
-    const proposal: ThemeProposal = { ...input, status: "generating", startedAt: Date.now(), updatedAt: Date.now() };
+  async function startThemeProposal(input: Omit<ThemeProposal, "status" | "startedAt" | "updatedAt">) {
+    const previous = await store.get<ThemeProposal>("themeProposal", input.shopId);
+    const now = Date.now();
+    // Start times identify jobs, so a request in the same millisecond still gets a newer one.
+    const proposal: ThemeProposal = { ...input, status: "generating", startedAt: Math.max(now, (previous?.startedAt ?? 0) + 1), updatedAt: now };
+    await store.put("themeProposal", proposal.shopId, proposal);
     // The job runs after this request ends, so it must not inherit the request's store locks.
-    return store.put("themeProposal", proposal.shopId, proposal).then(() => { void store.detached(() => runThemeProposal(proposal)); return proposal; });
+    void store.detached(() => runThemeProposal(proposal));
+    return proposal;
   }
   const proposalMatchesPlan = (proposal: ThemeProposal | undefined, plan: Plan) =>
     !!proposal && !!plan.themeProposal && proposal.themeRunId === plan.themeRunId && (!proposal.planId || proposal.planId === plan.id);
@@ -596,7 +602,7 @@ export function createApp(
   }
   function themeProposalView(proposal: ThemeProposal | undefined) {
     if (!proposal || proposal.status === "dismissed" || proposal.status === "applied") return { status: "none" as const };
-    const lost = proposal.status === "generating" && !themeJobs.has(proposal.shopId) && (proposal.updatedAt < serverStartedAt || Date.now() - proposal.updatedAt > themeProposalStaleMs);
+    const lost = proposal.status === "generating" && themeJobs.get(proposal.shopId) !== proposal.startedAt && (proposal.updatedAt < serverStartedAt || Date.now() - proposal.updatedAt > themeProposalStaleMs);
     return { status: lost ? "failed" as const : proposal.status, startedAt: proposal.startedAt, ...(proposal.status === "ready" ? { theme: proposal.theme } : {}), ...(lost ? { error: tr("デザインの作成が中断されました。もう一度作成できます。") } : proposal.error ? { error: proposal.error } : {}) };
   }
   async function savePublicShop(shop: Shop, appliedTheme?: ThemeProposal) {
