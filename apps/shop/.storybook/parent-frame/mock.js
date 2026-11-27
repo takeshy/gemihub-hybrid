@@ -99,7 +99,9 @@
       url: "../parent-site/index.html", handler: site,
       rewrite: html => html.replace(/(href|src)="\.\/([\w.-]+\.(?:css|js))"/g, '$1="../parent-site/$2"'),
       // The generated registry reflects local shops; stories use their own fixture shops.
-      imports: { [absolute("../parent-site/shop-registry.js")]: `data:text/javascript;charset=utf-8,${encodeURIComponent(`export const shops = ${JSON.stringify(config.shops || [])};`)}` },
+      imports: { [absolute("../parent-site/shop-registry.js")]: `data:text/javascript;charset=utf-8,${encodeURIComponent(`export const shops = ${JSON.stringify(config.shops || [])};`)}`,
+        // Fixed cloud answers instead of the real Firebase project; on-device calls use this browser's Nano.
+        [absolute("../parent-site/ai-connection.js")]: absolute("./hybrid-stub.js") },
     },
   };
   const page = pages[config.page];

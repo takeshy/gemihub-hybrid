@@ -4590,7 +4590,9 @@ export function createApp(
             // fixed section for this shop's owner/customer, including older releases.
             data = signedIn ? Buffer.from(html.toString().replace(/<section class="public-auth"><a class="button primary" href="[^"]*#email-login">[^<]*<\/a><\/section>/, "")) : Buffer.from(html);
             let assistantVersion = "";
-            // The agent bundle is served only for public shops, so a private preview shows no assistant.
+            // The agent bundle is served only for public shops, so a private preview shows no assistant,
+            // nor the release's own AI button that would stay disabled there.
+            if (shop.publication === "provisional") data = Buffer.from(data.toString().replace(/<button id="assistant-toggle"[^>]*>[^<]*<\/button>/g, ""));
             if (shop.published && supportsShopAgent(shop.published) && shop.publication !== "provisional") {
               const assistant = storefrontAssistant({ slug: shop.slug, config: shop.published }, publicHost ? { origin: `https://${host}`, base: "" } : appSite(origin(), shop.slug), category === "reserve");
               data = Buffer.from(data.toString().replace(/<html\b/, () => `<html${assistant.attributes}`).replace("</head>", () => `${assistant.head}</head>`).replace("</body>", () => `${assistant.body}</body>`));

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { createApp } from "../server/app.ts";
-import { allowDemoShoppers } from "../server/auth.ts";
+import { allowDemoShoppers, digest } from "../server/auth.ts";
 import { Store } from "../server/store.ts";
 import { request as httpRequest } from "node:http";
 import { shopSchema, bookingMenuName, asRestaurant, takesBookings, canPublishShop, sample, type Booking, type ShopConfig } from "../server/domain.ts";
@@ -617,4 +617,17 @@ test("only the registered finder site may frame the reservation page, without fi
   }
   process.env.AGENT_PARENT_URL = "https://finder.example/app/";
   assert.deepEqual(parentSite(), { origin: "https://finder.example", url: "https://finder.example/app/" });
+});
+
+test("a private preview's reservation page shows no AI button that could not work there", async t => {
+  const { get, store } = await serve(t);
+  const shop = (await store.list<import("../server/store.ts").Shop>("shop")).find(shop => shop.slug === "akari")!;
+  shop.publication = "provisional";
+  await store.saveShop(shop);
+  await store.put("session", digest("akari-preview-owner"), { user: { email: shop.owner, name: "Owner", role: "owner", shopId: shop.id }, expires: Date.now() + 600000 });
+  const response = await get("/s/akari/reserve", { Cookie: "gemihub_session=akari-preview-owner" });
+  assert.equal(response.status, 200);
+  const page = await response.text();
+  assert.match(page, /class="restaurant-reservation-page"/);
+  assert.doesNotMatch(page, /id="assistant-toggle"/);
 });

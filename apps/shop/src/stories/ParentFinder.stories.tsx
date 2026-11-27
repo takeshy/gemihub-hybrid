@@ -2,7 +2,8 @@ import React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ParentFrame, parentShop, parentDocuments, type ParentShop } from "./ParentFrame";
 
-// The public parent finder (site/), with fixture shops. Chat answers are fixed; no AI is contacted.
+// The public parent finder (site/), with fixture shops. Cloud answers are fixed and no Firebase project is
+// contacted; on-device questions use this browser's Gemini Nano when Chrome provides it.
 const shops: ParentShop[] = [
   parentShop("akari", "炉端 灯", { area: "東京都新宿区", cuisine: "和食・炉端焼き", pageUrl: "https://akari.example/reserve", networkUrl: "https://akari.example/agent/reservation_concierge", networkTool: "akari_reservation_concierge" }),
   parentShop("sole", "トラットリア ソーレ", { area: "東京都渋谷区", cuisine: "イタリアン・イタリア料理", pageUrl: "https://sole.example/reserve", networkUrl: "https://sole.example/agent/reservation_concierge", networkTool: "sole_reservation_concierge" }),

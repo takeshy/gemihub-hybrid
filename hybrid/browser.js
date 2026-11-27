@@ -15,6 +15,9 @@ import {
 } from "./policy.js";
 import { cloudRequest, runtimeResponse } from "./messages.js";
 
+// Storybook builds its own connection with fixed cloud answers from the same class.
+export { HybridInference };
+
 export async function createConnection(configUrl) {
   const cacheKey = `gemihub-hybrid:config:${configUrl}`;
   let config;
