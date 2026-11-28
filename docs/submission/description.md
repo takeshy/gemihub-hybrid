@@ -57,7 +57,8 @@ assistant without entering an API key.
 
 ## How we built it
 
-Both assistants share one routing pipeline on the Firebase AI Logic Web SDK.
+Both the town guide assistant and each individual shop's assistant share one
+routing pipeline on the Firebase AI Logic Web SDK.
 
 1. **On-device: understanding the request.** Gemini Nano classifies the request
    and, for bookings, extracts what the visitor has given so far (date, time,
@@ -122,6 +123,8 @@ underneath turned out to be the most important part of building a hybrid app.
 ## What's next for Gemihub Hybrid
 
 - Connect local partners such as hotels and transit guides to the Town Guide
-  MCP endpoint, so their assistants can plan across sites.
+  MCP endpoint, so their assistants can plan across sites — for example, a
+  hotel concierge AI combining a Nakazakicho café and a hair salon into a
+  tailored half-day itinerary from each shop's published facts.
 - Add on-device multimodal features, such as understanding menu photos, as
   Chrome's built-in AI matures.
