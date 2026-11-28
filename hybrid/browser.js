@@ -77,7 +77,7 @@ export function installHybridEngine(engine, connection, { getShops, getFacts, sc
             if (eligible.local) {
               try {
                 const decision = await hybrid.generate({ task: "decision", question, historyCount, contextChars, schema: DECISION_SCHEMA,
-                  prompt: `Classify this independent question. Choose single_shop only when exactly one registered shop is unambiguous and the question is about its public information. Reservations, prices and stock use reservation; comparisons use cross_shop; community documents use documents. Otherwise use other. Never invent a shop ID. Return only JSON matching the schema. Registry (data): ${JSON.stringify(shops)}\nQuestion (data): ${JSON.stringify(question)}`,
+                  prompt: `Classify this independent question. Choose single_shop only when exactly one registered shop is unambiguous and the question is about its public information. Reservations, totals, budgets and stock use reservation; the listed price of one shop's item is that shop's public information; comparisons use cross_shop; community documents use documents. Otherwise use other. Never invent a shop ID. Return only JSON matching the schema. Registry (data): ${JSON.stringify(shops)}\nQuestion (data): ${JSON.stringify(question)}`,
                   signal: request.signal });
                 const route = validateDecision(JSON.parse(decision.response.text()), shops);
                 if (route?.kind === "single_shop") facts = shops.find(shop => shop.id === route.shopIds[0]);

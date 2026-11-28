@@ -12,7 +12,10 @@ scope and acceptance criteria are in specs/BUILD_HYBRID_AI.md.
 - The owner approved removing visitor BYOK from this clone; this supersedes
   inherited docs and the original brief's instruction to preserve its relay.
 - Keep booking prices, availability, authorization, idempotency and confirmation
-  under the existing deterministic code/MCP tools. Models do not establish them.
+  under the existing deterministic code/MCP tools. Models do not establish them:
+  a model may quote a shop's published list price exactly as listed, including
+  on-device, but never calculates totals, applies options or discounts, or
+  states what a booking will cost. Questions that need a total go to the cloud.
 - Each shop assistant is grounded only in that shop's published facts.
 - In-scope text inference must actually use Firebase AI Logic. Tools and
   history-dependent requests use cloud-only mode. Voice and admin are excluded.

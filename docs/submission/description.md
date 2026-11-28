@@ -65,11 +65,13 @@ Both assistants share one routing pipeline on the Firebase AI Logic Web SDK.
    Remote Config sets the size limits (1,200 characters for the question,
    12,000 for the context).
 3. **Cloud: reasoning and live data** (`ONLY_IN_CLOUD`). Comparisons across
-   shops, community document search, allergy and price questions, follow-ups
-   that depend on earlier turns, and availability checks and bookings go to
-   Gemini 3.5 Flash-Lite. Allergy and price questions go to the cloud on
-   purpose: an on-device guess there could mislead a visitor. MCP tools remain
-   the only source of truth for availability, price, and confirmation.
+   shops, community document search, allergy questions, totals and budgets,
+   follow-ups that depend on earlier turns, and availability checks and
+   bookings go to Gemini 3.5 Flash-Lite. Allergy questions and price
+   calculations go to the cloud on purpose: an on-device guess there could
+   mislead a visitor. Gemini Nano may quote a published list price as listed.
+   MCP tools remain the only source of truth for availability, booking price,
+   and confirmation.
 
 Common first-turn questions (hours, address, menu) and incomplete booking
 requests stay on the device, reserving cloud calls for comparisons, follow-ups,

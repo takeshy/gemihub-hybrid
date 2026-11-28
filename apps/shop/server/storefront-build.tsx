@@ -13,6 +13,7 @@ import { withImageSources } from "./image-references.ts";
 import { hoursText, publishedProducts, restaurantReservations } from "./domain.ts";
 import { shopJsonLd } from "../../../hybrid/schema-org.js";
 import { compilePresentation } from "../shared/presentation.ts";
+import { currencyOf, regionOf } from "../shared/region.ts";
 import { postKey, postLabel, type PublicPost } from "./post-domain.ts";
 import type { MenuImageData } from "./menu-image-domain.ts";
 import type { Shop } from "./store.ts";
@@ -99,10 +100,11 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
         const jsonLd = post ? { "@context": "https://schema.org", "@type": post.category === "blogs" ? "BlogPosting" : "Article", headline: post.title, datePublished: post.publishedAt || post.date, url: localized(locale), inLanguage: locale, publisher: { "@type": "Organization", name: c.name }, ...(headerImage ? { image: headerImage } : {}) } : !path ? { ...shopJsonLd({ name: c.name, description: c.description, address: c.address, pageUrl: url,
           ...(shown.includes("hours") ? { hours: { regular: hoursText(c), closedWeekdays: c.hours.closedWeekdays, weekdayHours: c.hours.weekdayHours, closedDates: c.hours.holidays, specialDays: c.hours.specialDays } } : {}),
           ...(shown.includes("menus") ? { products: [
-            ...c.menus.filter(menu => menu.active).map(({ name }) => ({ name, type: c.industry === "restaurant" ? "MenuItem" as const : "Service" as const })),
-            ...publishedProducts(c).map(({ name }) => ({ name, type: "Product" as const })),
+            // The list prices the page shows; a course price is per person, as on the page.
+            ...c.menus.filter(menu => menu.active).map(({ name, price }) => ({ name, price, currency: currencyOf(regionOf(c)), type: c.industry === "restaurant" ? "MenuItem" as const : "Service" as const })),
+            ...publishedProducts(c).map(({ name, price, currency }) => ({ name, price, currency, type: "Product" as const })),
           ] } : {}),
-          ...(restaurantReservations(c) ? { reservationEnabled: true, reservationUrl: `${canonical}/reserve` } : {}) }, { industry: c.industry }), ...(headerImage ? { image: headerImage } : {}) } : undefined;
+          ...(restaurantReservations(c) ? { reservationEnabled: true, reservationUrl: `${canonical}/reserve` } : {}) }, { industry: c.industry, prices: true }), ...(headerImage ? { image: headerImage } : {}) } : undefined;
         const head = [
           `<title>${escapeHtml(title)}</title>`,
           stylesheet && `<link rel="stylesheet" href="${base}/_assets/${stylesheet}">`,

@@ -32,8 +32,8 @@ test("tools, deep/dependent history, comparisons and live transactional question
     { question: "I have a nut allergy, which dishes can I eat?" },
     { question: "エビアレルギーでも食べられるメニューは？" },
     { question: "4人だと予算はいくら？" },
-    { question: "How much would the course cost for 4 people?" },
-    { question: "コース料金とメニューを教えて" },
+    { question: "What is the total for the course?" },
+    { question: "コース3人分の合計は？" },
     { question: "What kind of shop is this?", historyCount: 1 },
     { question: "What type of business was that shop?" },
     { question: "What kind of shop is this, and can I book?" },
@@ -43,6 +43,8 @@ test("tools, deep/dependent history, comparisons and live transactional question
   assert.equal(routePolicy({ question: "予約したい", task: "booking_preflight" }, policy).local, true);
   assert.equal(routePolicy({ question: "炉端 灯の住所は？", task: "single_shop" }, policy).local, true);
   assert.equal(routePolicy({ question: "コースのメニューを教えて", task: "single_shop" }, policy).local, true);
+  for (const question of ["コース料金とメニューを教えて", "冬のコースはいくら？", "How much is the Winter robata course?", "What is the price of warm sake?"])
+    assert.deepEqual(routePolicy({ question, task: "single_shop" }, policy), { local: true, reason: "published_shop_facts" }, question);
   assert.equal(routePolicy({ question: "ベジタリアン対応はある？", task: "single_shop" }, policy).local, true);
   assert.equal(routePolicy({ question: "What type of business is this?" }, policy).local, true);
   assert.equal(routePolicy({ question: "What kind of store is this?" }, policy).local, true);
@@ -443,6 +445,17 @@ test("published facts become schema.org Restaurant JSON-LD without prices or pri
   assert.doesNotMatch(JSON.stringify(ld), /private|price|600|JPY/);
   assert.equal(shopJsonLd({ name: "Salon", industry: "hair", products: [{ name: "Cut" }] }).makesOffer[0].itemOffered["@type"], "Service");
   assert.equal(shopJsonLd({ description: "no name" }), null);
+  const priced = shopJsonLd({ name: "Robata Akari", industry: "restaurant", products: [
+    { name: "Warm sake", price: 600, currency: "JPY" }, { name: "Unpriced", currency: "JPY" }, { name: "Bad currency", price: 1, currency: "yen" },
+    { name: "Gift box", type: "Product", price: 1200, currency: "JPY" }] }, { prices: true });
+  assert.deepEqual(priced.hasMenu.hasMenuItem, [
+    { "@type": "MenuItem", name: "Warm sake", offers: { "@type": "Offer", price: 600, priceCurrency: "JPY" } },
+    { "@type": "MenuItem", name: "Unpriced" }, { "@type": "MenuItem", name: "Bad currency" }]);
+  assert.deepEqual(priced.makesOffer, [{ "@type": "Offer", price: 1200, priceCurrency: "JPY", itemOffered: { "@type": "Product", name: "Gift box" } }]);
+  const pricePrompt = groundedPrompt("How much is warm sake?", registryFacts({ name: "Robata Akari", industry: "restaurant",
+    products: [{ name: "Warm sake", type: "MenuItem", price: 600, currency: "JPY", private: "x" }] }));
+  assert.match(pricePrompt, /"name":"Warm sake","offers":\{"@type":"Offer","price":600,"priceCurrency":"JPY"\}/, "Nano can quote the listed price");
+  assert.match(pricePrompt, /never calculate a total/);
 });
 
 test("opening hours keep weekday overrides, closures and special days; unknown text stays as text", () => {
@@ -494,7 +507,7 @@ test("FAQ grounding retains all published names and exceptions before applying t
   const menuPrompt = groundedPrompt(menuQuestion, facts);
   assert.match(menuPrompt, /"name":"Dish 50"/);
   assert.match(menuPrompt, /"@type":"Product","name":"Catalog 50"/);
-  assert.doesNotMatch(menuPrompt, /"price"/);
+  assert.doesNotMatch(menuPrompt, /"price"/, "items without a currency carry no price");
   assert.equal(routePolicy({ question: menuQuestion, contextChars: menuPrompt.length }).local, true);
 
   const dates = (month) => Array.from({ length: 61 }, (_, i) => new Date(Date.UTC(2030, month, i + 1)).toISOString().slice(0, 10));
@@ -514,7 +527,8 @@ test("FAQ grounding retains all published names and exceptions before applying t
 
 test("query_shop_facts also returns the shop as schema.org JSON-LD", () => {
   const data = { documents: [], shops: [
-    { id: "akari", name: "Robata Akari", industry: "restaurant", cuisine: "Japanese robata", hours: "17:00 - 23:30", products: ["Winter robata course"] },
+    { id: "akari", name: "Robata Akari", industry: "restaurant", cuisine: "Japanese robata", hours: "17:00 - 23:30", products: ["Winter robata course"],
+      menu: [{ name: "Winter robata course", type: "MenuItem", price: 5000, currency: "JPY" }] },
     { id: "salon", name: "Local Salon", industry: "hair", cuisine: "Hair salon" },
     { id: "shop", name: "Local Shop", cuisine: "Shop" },
   ] };
@@ -523,7 +537,12 @@ test("query_shop_facts also returns the shop as schema.org JSON-LD", () => {
   const result = query("akari");
   assert.equal(result.shop.id, "akari");
   assert.equal(result.jsonLd["@type"], "Restaurant");
-  assert.equal(result.jsonLd.hasMenu.hasMenuItem[0].name, "Winter robata course");
+  assert.deepEqual(result.jsonLd.hasMenu.hasMenuItem[0], { "@type": "MenuItem", name: "Winter robata course",
+    offers: { "@type": "Offer", price: 5000, priceCurrency: "JPY" } });
+  assert.equal(result.shop.menu, undefined, "tool results keep products as names");
+  assert.deepEqual(result.shop.products, ["Winter robata course"]);
+  const listed = handleTownMcpMessage({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "list_town_shops", arguments: {} } }, data);
+  assert.ok(listed.body.result.structuredContent.shops.every(shop => !("menu" in shop)));
   assert.equal(query("salon").jsonLd["@type"], "HairSalon");
   assert.equal(query("salon").jsonLd.servesCuisine, undefined);
   assert.equal(query("shop").jsonLd["@type"], "LocalBusiness");

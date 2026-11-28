@@ -48,7 +48,7 @@
   - Optional 3-second overlay/inset showing `GET https://hybrid.gemihub.net/api/mcp` JSON (`list_town_shops`, `query_shop_facts`, `search_local_events`).
 
 **Narration (Clipchamp TTS):**
-> Comparisons across shops, allergy or price questions, and follow-ups route to ONLY_IN_CLOUD with Gemini 3.5 Flash-Lite, protected by Firebase App Check and tunable via Remote Config.
+> Comparisons across shops, allergy questions, price totals, and follow-ups route to ONLY_IN_CLOUD with Gemini 3.5 Flash-Lite, protected by Firebase App Check and tunable via Remote Config.
 > The town guide also exposes a public read-only MCP endpoint at `/api/mcp`, so external agents can discover published shops and local events.
 
 ---

@@ -22,7 +22,7 @@ export const townMcpTools = Object.freeze([
   },
   {
     name: "query_shop_facts",
-    description: "Return published hours, menu items, address, and URLs for one shop by ID or name. The result also carries the same facts as schema.org JSON-LD in jsonLd (Restaurant, HairSalon, NailSalon, or LocalBusiness when the business type is unknown; no prices or seat availability; acceptsReservations only links to the booking page).",
+    description: "Return published hours, menu items, address, and URLs for one shop by ID or name. The result also carries the same facts as schema.org JSON-LD in jsonLd (Restaurant, HairSalon, NailSalon, or LocalBusiness when the business type is unknown; published list prices where the town has them, never totals or seat availability; acceptsReservations only links to the booking page).",
     inputSchema: {
       type: "object",
       properties: {
@@ -85,6 +85,8 @@ export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin
       address: shop.address,
       hours: extra.hours || shop.hours || null,
       products: Array.isArray(extra.products) ? extra.products : [],
+      // Priced menu entries feed only the JSON-LD; the tool results keep products as names.
+      ...(Array.isArray(extra.menu) ? { menu: extra.menu } : {}),
       pageUrl: rewrite(shop.pageUrl),
       reservationEnabled: shop.reservationEnabled === true,
       reservationUrl: rewrite(shop.reservationUrl),
@@ -94,6 +96,8 @@ export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin
   return { shops, documents };
 }
 
+const publicShop = ({ menu: _menu, ...shop }) => shop;
+
 export function callTownMcpTool(name, args = {}, data) {
   if (name === "list_town_shops") {
     const area = normalize(args.area);
@@ -102,10 +106,11 @@ export function callTownMcpTool(name, args = {}, data) {
       (!area || normalize(shop.area).includes(area))
       && (!cuisine || normalize(shop.cuisine).includes(cuisine))
     );
-    return { count: filtered.length, shops: filtered };
+    return { count: filtered.length, shops: filtered.map(publicShop) };
   }
   if (name === "query_shop_facts") {
-    const found = shop => ({ found: true, shop, jsonLd: shopJsonLd(shop) });
+    const found = shop => ({ found: true, shop: publicShop(shop),
+      jsonLd: shopJsonLd(shop.menu ? { ...shop, products: shop.menu } : shop, { prices: true }) });
     const id = normalize(args.shopId);
     const shopName = normalize(args.shopName);
     if (!id && !shopName) return { found: false, error: "Provide shopId or shopName." };

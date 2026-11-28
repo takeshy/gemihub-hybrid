@@ -1,7 +1,9 @@
 // Published shop facts as schema.org JSON-LD (https://schema.org/Restaurant).
 // One vocabulary serves the on-device prompt, the town MCP and the storefront <head>.
-// Prices are left out on purpose: models never state or calculate them, and live
-// prices, availability and reservations stay with the shop's deterministic tools.
+// Published list prices are included only on request ({ prices: true }) for the storefront
+// <head> and the MCP, where code copies them unchanged. The on-device prompt never gets them:
+// models never state or calculate prices, and totals, availability and reservations stay
+// with the shop's deterministic tools.
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_ALIASES = new Map([
@@ -109,7 +111,11 @@ export function openingHoursSpecification(hours) {
   return { weekly, exceptions, parsed: Boolean(parsed) };
 }
 
-function offeredItems(products, defaultType) {
+const listPrice = product => Number.isFinite(product?.price) && product.price >= 0
+  && typeof product.currency === "string" && /^[A-Z]{3}$/.test(product.currency)
+  ? { price: product.price, priceCurrency: product.currency } : null;
+
+function offeredItems(products, defaultType, prices) {
   const seen = new Set();
   const items = [];
   for (const product of Array.isArray(products) ? products : []) {
@@ -119,7 +125,8 @@ function offeredItems(products, defaultType) {
     const key = `${type}:${name}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    items.push({ "@type": type, name });
+    const price = prices ? listPrice(product) : null;
+    items.push({ item: { "@type": type, name }, price });
   }
   return items;
 }
@@ -128,9 +135,9 @@ function offeredItems(products, defaultType) {
  * Builds a schema.org Restaurant (or HairSalon, NailSalon, LocalBusiness) from published facts only.
  * Accepts the town registry shape (hours as text, products as strings) and the
  * storefront facts.json shape (hours object, products as { name, type }).
- * Unknown keys, staff, reservations and prices are never copied.
+ * Unknown keys, staff and reservations are never copied; list prices only with { prices: true }.
  */
-export function shopJsonLd(facts, { context = true, industry } = {}) {
+export function shopJsonLd(facts, { context = true, industry, prices = false } = {}) {
   if (!facts || typeof facts !== "object") return null;
   const name = text(facts.name, 200);
   if (!name) return null;
@@ -138,10 +145,12 @@ export function shopJsonLd(facts, { context = true, industry } = {}) {
   const industryKey = industry ?? facts.industry;
   const type = Object.hasOwn(BUSINESS_TYPES, industryKey) ? BUSINESS_TYPES[industryKey] : "LocalBusiness";
   const defaultItemType = type === "Restaurant" ? "MenuItem" : type === "LocalBusiness" ? "Product" : "Service";
-  const items = offeredItems(facts.products, defaultItemType);
-  const menu = items.filter(item => item["@type"] === "MenuItem");
-  const offers = items.filter(item => item["@type"] !== "MenuItem")
-    .map(itemOffered => ({ "@type": "Offer", itemOffered }));
+  const items = offeredItems(facts.products, defaultItemType, prices);
+  const offer = price => ({ "@type": "Offer", ...price });
+  const menu = items.filter(({ item }) => item["@type"] === "MenuItem")
+    .map(({ item, price }) => price ? { ...item, offers: offer(price) } : item);
+  const offers = items.filter(({ item }) => item["@type"] !== "MenuItem")
+    .map(({ item, price }) => ({ ...offer(price), itemOffered: item }));
   const hours = openingHoursSpecification(facts.hours);
   const regular = typeof facts.hours === "string" ? facts.hours : facts.hours?.regular;
   const area = text(facts.area, 200);

@@ -102,7 +102,7 @@ export class AssistantMount {
       const publishedFacts = await readPublishedFacts(new URL("./shop-public-facts.json", siteBase).href) || {};
       installHybridEngine(engine, connection, { getShops: () => App.page.shops.map(shop => {
         const facts = publishedFacts[shop.id];
-        return facts?.sourcePageUrl === shop.pageUrl ? { ...shop, hours: facts.hours, products: facts.products } : shop;
+        return facts?.sourcePageUrl === shop.pageUrl ? { ...shop, hours: facts.hours, products: facts.menu || facts.products } : shop;
       }) });
       const model = () => engine.modelOverride || engine.top.network.config.llm_config.model_name;
       App.shopFrame = new ShopFrame({

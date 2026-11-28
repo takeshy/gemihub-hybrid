@@ -8,6 +8,38 @@
       "Grilled shrimp skewers",
       "Grilled rice ball",
       "Warm sake (180 ml)"
+    ],
+    "menu": [
+      {
+        "name": "Winter robata course",
+        "type": "MenuItem",
+        "price": 5000,
+        "currency": "JPY"
+      },
+      {
+        "name": "Seafood robata course",
+        "type": "MenuItem",
+        "price": 6500,
+        "currency": "JPY"
+      },
+      {
+        "name": "Grilled shrimp skewers",
+        "type": "MenuItem",
+        "price": 780,
+        "currency": "JPY"
+      },
+      {
+        "name": "Grilled rice ball",
+        "type": "MenuItem",
+        "price": 420,
+        "currency": "JPY"
+      },
+      {
+        "name": "Warm sake (180 ml)",
+        "type": "MenuItem",
+        "price": 680,
+        "currency": "JPY"
+      }
     ]
   },
   "trattoria-sole": {
@@ -19,6 +51,38 @@
       "Margherita pizza",
       "Seafood salad",
       "House wine (glass)"
+    ],
+    "menu": [
+      {
+        "name": "Party menu",
+        "type": "MenuItem",
+        "price": 4500,
+        "currency": "JPY"
+      },
+      {
+        "name": "Gluten-light menu",
+        "type": "MenuItem",
+        "price": 5500,
+        "currency": "JPY"
+      },
+      {
+        "name": "Margherita pizza",
+        "type": "MenuItem",
+        "price": 1600,
+        "currency": "JPY"
+      },
+      {
+        "name": "Seafood salad",
+        "type": "MenuItem",
+        "price": 1400,
+        "currency": "JPY"
+      },
+      {
+        "name": "House wine (glass)",
+        "type": "MenuItem",
+        "price": 700,
+        "currency": "JPY"
+      }
     ]
   },
   "kanton-ryu": {
@@ -28,6 +92,26 @@
       "Round-table banquet",
       "Vegetable banquet",
       "Mapo tofu"
+    ],
+    "menu": [
+      {
+        "name": "Round-table banquet",
+        "type": "MenuItem",
+        "price": 6000,
+        "currency": "JPY"
+      },
+      {
+        "name": "Vegetable banquet",
+        "type": "MenuItem",
+        "price": 5000,
+        "currency": "JPY"
+      },
+      {
+        "name": "Mapo tofu",
+        "type": "MenuItem",
+        "price": 1200,
+        "currency": "JPY"
+      }
     ]
   }
 }

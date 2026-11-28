@@ -65,7 +65,9 @@ Shop facts use one schema.org vocabulary ([`hybrid/schema-org.js`](hybrid/schema
 `LocalBusiness` when the type is unknown. On-device prompts and public
 storefront home pages use the same vocabulary. Date-specific hours override
 weekly hours, and menus, retail goods, and services retain their types.
-Prices are never included in the JSON-LD.
+Published list prices are included as `Offer`s, so Gemini Nano can quote a
+listed price on-device; questions about totals, budgets or payment
+go to the cloud, and booking prices stay with the shop's deterministic tools.
 
 With operator access configured, the judge invitation opens the Gemihub town
 administration interface. Operators can send a shop invitation, and invited

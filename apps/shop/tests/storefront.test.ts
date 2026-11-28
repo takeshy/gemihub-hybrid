@@ -35,7 +35,7 @@ test("a retail storefront without reservations keeps its about page, products an
   }
 });
 
-test("a public restaurant home page embeds schema.org Restaurant JSON-LD with the hours and menu it shows, but no prices", () => {
+test("a public restaurant home page embeds schema.org Restaurant JSON-LD with the hours, menu and list prices it shows", () => {
   const config = restaurantDemoShops("2030-01-11")[0].config;
   config.hours.holidays = ["2030-12-31"];
   config.hours.specialDays = [{ date: "2030-12-30", start: "11:00", end: "15:00" }];
@@ -60,10 +60,12 @@ test("a public restaurant home page embeds schema.org Restaurant JSON-LD with th
   assert.ok(ld.specialOpeningHoursSpecification.some((spec: { validFrom?: string; opens: string }) => spec.validFrom === "2030-12-30" && spec.opens === "11:00"));
   const items = ld.hasMenu.hasMenuItem.map((item: { name: string }) => item.name);
   assert.ok(items.length > 0);
-  assert.deepEqual(ld.makesOffer.map((offer: { itemOffered: unknown }) => offer.itemOffered), [{ "@type": "Product", name: "Bottled sake" }]);
+  assert.deepEqual(ld.makesOffer, [{ "@type": "Offer", price: 3000, priceCurrency: "JPY", itemOffered: { "@type": "Product", name: "Bottled sake" } }]);
+  const first = config.menus.find(menu => menu.active)!;
+  assert.deepEqual(ld.hasMenu.hasMenuItem[0], { "@type": "MenuItem", name: first.name, offers: { "@type": "Offer", price: first.price, priceCurrency: "JPY" } });
   for (const item of [...items, "Bottled sake"]) assert.ok(html.slice(html.indexOf("<body")).includes(item), `${item} is shown on the page`);
   assert.match(String(ld.acceptsReservations), /\/reserve$/);
-  assert.doesNotMatch(JSON.stringify(ld), /"price"|"offers"|3000/);
+  assert.doesNotMatch(JSON.stringify(ld), /total|availab/i, "list prices only, never totals or seats");
   const sample = jsonLd(build("akari", true));
   assert.equal(sample.openingHoursSpecification, undefined, "the featured sample home page does not show the about panel");
   assert.equal(sample.specialOpeningHoursSpecification, undefined);
