@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { articleKinds } from "../shared/article-features.ts";
 import { StaticStorefront, showsSampleHome, staticViewPath, type StaticStorefrontView } from "../src/StaticStorefront.tsx";
 import { sampleOfferings } from "../src/SampleStorefront.tsx";
+import { headerShowsDetails } from "../src/SiteChrome.tsx";
 import { requestLocale } from "./i18n.ts";
 import { tr } from "../shared/i18n.ts";
 import { localizeShell } from "../shared/html.ts";
@@ -25,7 +26,7 @@ import { forEachConcurrent } from "./concurrency.ts";
  * Bump when the generated markup changes in a way existing shops should receive.
  * Releases from an older generator keep being served until they are rebuilt in the background.
  */
-export const storefrontRenderer = 14;
+export const storefrontRenderer = 15;
 /** `assets` are shop-level files (`shops/{id}/assets/{name}`) the pages refer to; absent on releases before renderer 2. */
 export type StorefrontRelease = { id: string; paths: string[]; assets?: string[]; renderer?: number; posts?: Record<string, string> };
 export type StorefrontAsset = { body: Buffer; contentType: string };
@@ -98,15 +99,22 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
         // Structured data repeats only facts the page shows: the sample home page lists its own
         // offerings and the regular hours text, and a custom about screen may leave out hours or menus.
         const sampleHome = showsSampleHome(c, { sampleShop, featuredRobata });
-        const shown = sampleHome ? [] : c.screens?.about ? compilePresentation(c.screens.about).slots : ["menus", "hours"];
+        let shown = sampleHome ? [] : ["menus", "hours"];
+        if (!sampleHome && c.screens?.about) {
+          try { shown = compilePresentation(c.screens.about).slots; }
+          catch { /* ShopAbout renders its default layout when the design cannot be compiled. */ }
+        }
         const sampleFacts = sampleHome ? { hours: { regular: hoursText(c) },
-          products: sampleOfferings(c, featuredRobata && c.industry === "restaurant").map(({ name, type, price, currency }) => ({ name, type, price, currency })) } : {};
+          products: sampleOfferings(c, featuredRobata && c.industry === "restaurant").map(({ key, name, type, price, currency }) => ({ ...(key.startsWith("legacy-") ? {} : { id: key }), name, type, price, currency })) } : {};
         const jsonLd = post ? { "@context": "https://schema.org", "@type": post.category === "blogs" ? "BlogPosting" : "Article", headline: post.title, datePublished: post.publishedAt || post.date, url: localized(locale), inLanguage: locale, publisher: { "@type": "Organization", name: c.name }, ...(headerImage ? { image: headerImage } : {}) } : !path ? { ...shopJsonLd({ name: c.name, description: c.description, address: c.address, pageUrl: url,
-          ...(shown.includes("hours") ? { hours: { regular: hoursText(c), closedWeekdays: c.hours.closedWeekdays, weekdayHours: c.hours.weekdayHours, closedDates: c.hours.holidays, specialDays: c.hours.specialDays } } : {}),
+          // The about panel's hours slot shows closures and special days too; the header's details
+          // line shows only the regular hours and closed weekdays.
+          ...(shown.includes("hours") ? { hours: { regular: hoursText(c), closedWeekdays: c.hours.closedWeekdays, weekdayHours: c.hours.weekdayHours, closedDates: c.hours.holidays, specialDays: c.hours.specialDays } }
+            : !sampleHome && headerShowsDetails(c) ? { hours: { regular: hoursText(c), closedWeekdays: c.hours.closedWeekdays, weekdayHours: c.hours.weekdayHours } } : {}),
           ...(shown.includes("menus") ? { products: [
             // The list prices the page shows; a course price is per person, as on the page.
-            ...c.menus.filter(menu => menu.active).map(({ name, price }) => ({ name, price, currency: currencyOf(regionOf(c)), type: c.industry === "restaurant" ? "MenuItem" as const : "Service" as const })),
-            ...publishedProducts(c).map(({ name, price, currency }) => ({ name, price, currency, type: "Product" as const })),
+            ...c.menus.filter(menu => menu.active).map(({ id, name, price }) => ({ id: `menu:${id}`, name, price, currency: currencyOf(regionOf(c)), type: c.industry === "restaurant" ? "MenuItem" as const : "Service" as const })),
+            ...publishedProducts(c).map(({ id, name, price, currency }) => ({ id: `product:${id}`, name, price, currency, type: "Product" as const })),
           ] } : {}),
           ...sampleFacts,
           ...(restaurantReservations(c) ? { reservationEnabled: true, reservationUrl: `${canonical}/reserve` } : {}) }, { industry: c.industry, prices: true }), ...(headerImage ? { image: headerImage } : {}) } : undefined;

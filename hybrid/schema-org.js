@@ -116,21 +116,28 @@ const listPrice = product => Number.isFinite(product?.price) && product.price >=
   ? { price: product.price, priceCurrency: product.currency } : null;
 
 function offeredItems(products, defaultType, prices) {
-  const seen = new Map();
+  // Items with an ID are told apart by it, so same-name items with different prices both stay.
+  // A name-only entry (a basic product name) is dropped when an item with an ID has that name.
+  const byKey = new Map();
   const items = [];
   for (const product of Array.isArray(products) ? products : []) {
     const name = text(typeof product === "string" ? product : product?.name, 120);
     if (!name) continue;
     const type = ["MenuItem", "Product", "Service"].includes(product?.type) ? product.type : defaultType;
-    const key = `${type}:${name}`;
+    const id = text(product?.id, 200);
+    const key = id ? `id:${id}` : `name:${type}:${name}`;
     const price = prices ? listPrice(product) : null;
-    // A name listed twice (a basic product that is also in the catalog) keeps its listed price.
-    if (seen.has(key)) { const entry = seen.get(key); entry.price ||= price; continue; }
-    const entry = { item: { "@type": type, name }, price };
-    seen.set(key, entry);
+    if (byKey.has(key)) { const entry = byKey.get(key); entry.price ||= price; continue; }
+    const entry = { item: { "@type": type, name }, price, id, nameKey: `${type}:${name}` };
+    byKey.set(key, entry);
     items.push(entry);
   }
-  return items;
+  const withId = new Map(items.filter(entry => entry.id).map(entry => [entry.nameKey, entry]));
+  return items.filter(entry => {
+    if (entry.id || !withId.has(entry.nameKey)) return true;
+    withId.get(entry.nameKey).price ||= entry.price;
+    return false;
+  }).map(({ item, price }) => ({ item, price }));
 }
 
 /**

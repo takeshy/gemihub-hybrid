@@ -10,9 +10,9 @@ export function sampleOfferings(config: ShopConfig, robata = false): SampleOffer
   const currency = currencyOf(regionOf(config));
   const products = publishedProducts(config);
   const items: SampleOffering[] = robata
-    ? config.menus.filter(item => item.active).map(item => ({ key: item.id, name: item.name, type: "MenuItem", price: item.price, currency }))
+    ? config.menus.filter(item => item.active).map(item => ({ key: `menu:${item.id}`, name: item.name, type: "MenuItem", price: item.price, currency }))
     : (config.products || []).filter(name => !products.some(product => product.name === name)).map(name => ({ key: `legacy-${name}`, name, type: "Product" }));
-  return [...items, ...products.map(item => ({ key: item.id, name: item.name, type: "Product" as const, price: item.price, currency: item.currency }))];
+  return [...items, ...products.map(item => ({ key: `product:${item.id}`, name: item.name, type: "Product" as const, price: item.price, currency: item.currency }))];
 }
 
 export function SampleStorefront({ config, robata = false, bookingHref }: { config: ShopConfig; robata?: boolean; bookingHref?: string }) {

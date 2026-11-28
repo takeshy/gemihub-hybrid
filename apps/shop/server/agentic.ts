@@ -11,6 +11,7 @@ import { RestaurantReservationForm } from "../src/RestaurantReservation.tsx";
 import { z } from "zod";
 import { getLocale, tr } from "../shared/i18n.ts";
 import { restaurantReservations, type Booking, type ShopConfig } from "./domain.ts";
+import { currencyOf, regionOf } from "../shared/region.ts";
 import { shopGuideFront, shopGuideInfo, shopGuideNetwork, shopGuideQueries, shopGuideTool } from "./shop-guide.ts";
 import { callRestaurantTool, restaurantTools, shopInfo } from "./restaurant-mcp.ts";
 import { agentCopy, reservePageCopy, sampleQueries } from "../shared/restaurant-agent-copy.ts";
@@ -361,8 +362,9 @@ export function agenticSite(options: {
           address: info.address, hours: info.hours,
           products: [
             ...(shop.config.products || []).map(name => ({ name, type: "Product" })),
-            ...shop.config.menus.filter(menu => menu.active).map(({ name }) => ({ name, type: shop.config.industry === "restaurant" ? "MenuItem" : "Service" })),
-            ...info.catalog.map(product => ({ ...product, type: "Product" })),
+            // IDs keep same-name items with different prices apart.
+            ...shop.config.menus.filter(menu => menu.active).map(({ id, name, price }) => ({ id: `menu:${id}`, name, price, currency: currencyOf(regionOf(shop.config)), type: shop.config.industry === "restaurant" ? "MenuItem" : "Service" })),
+            ...info.catalog.map(product => ({ ...product, id: `product:${product.id}`, type: "Product" })),
           ],
           pageUrl: site.origin + site.base + "/", checkedAt: info.checkedAt };
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" });

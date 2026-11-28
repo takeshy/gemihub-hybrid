@@ -14,7 +14,7 @@ import {
 import { shopJsonLd, openingHoursSpecification, parseHoursText } from "../hybrid/schema-org.js";
 import { cloudRequest, runtimeResponse } from "../hybrid/messages.js";
 import { installHybridEngine } from "../hybrid/browser.js";
-import { handleTownMcpMessage, createTownMcpHandler, loadTownData } from "../scripts/town-mcp.mjs";
+import { handleTownMcpMessage, createTownMcpHandler, loadTownData, townFactsFromStorefront } from "../scripts/town-mcp.mjs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -581,7 +581,7 @@ test("town shops without published facts are synced from their own storefront fa
     assert.deepEqual(asked.sort(), ["down", "shop-1"], "only town shops without published facts are read");
     assert.deepEqual(data.facts["shop-1"], { sourcePageUrl: `${origin}/s/shop-1/`,
       hours: { regular: "10:00 – 18:00", closedWeekdays: [2], weekdayHours: [], closedDates: [], specialDays: "" },
-      products: ["color pencil"], menu: [{ name: "color pencil", type: "Product", price: 10, currency: "USD" }] });
+      products: ["color pencil"], menu: [{ id: "p1", name: "color pencil", type: "Product", price: 10, currency: "USD" }] });
     assert.deepEqual(Object.keys(data.facts).sort(), ["akari", "shop-1"]);
     assert.doesNotMatch(JSON.stringify(data), /private@example\.com/);
     const query = shopId => handleTownMcpMessage({ jsonrpc: "2.0", id: 1, method: "tools/call",
@@ -597,8 +597,20 @@ test("town shops without published facts are synced from their own storefront fa
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("a product listed twice keeps its catalog price in the JSON-LD", () => {
+test("a product listed twice keeps its catalog price, and same-name items with IDs stay apart", () => {
   const ld = shopJsonLd({ name: "nano", industry: "other", products: [{ name: "color pencil", type: "Product" },
     { name: "color pencil", type: "Product", price: 10, currency: "USD" }] }, { prices: true });
   assert.deepEqual(ld.makesOffer, [{ "@type": "Offer", price: 10, priceCurrency: "USD", itemOffered: { "@type": "Product", name: "color pencil" } }]);
+  const teas = shopJsonLd({ name: "Cafe", industry: "restaurant", products: [
+    { name: "Tea", type: "MenuItem" },
+    { id: "menu:small", name: "Tea", type: "MenuItem", price: 500, currency: "JPY" },
+    { id: "menu:large", name: "Tea", type: "MenuItem", price: 900, currency: "JPY" },
+    { id: "menu:large", name: "Tea", type: "MenuItem", price: 900, currency: "JPY" }] }, { prices: true });
+  assert.deepEqual(teas.hasMenu.hasMenuItem.map(item => item.offers.price), [500, 900]);
+  const synced = townFactsFromStorefront({ name: "Cafe", products: [{ name: "Tea", type: "Product" },
+    { id: "product:a", name: "Tea", type: "Product", price: 500, currency: "JPY" },
+    { id: "product:b", name: "Tea", type: "Product", price: 900, currency: "JPY" }] }, "https://town.example/s/cafe/");
+  assert.deepEqual(synced.menu.map(item => [item.id, item.price]), [["product:a", 500], ["product:b", 900]]);
+  assert.deepEqual(synced.products, ["Tea"]);
+  assert.deepEqual(registryFacts({ name: "Cafe", products: synced.menu }).products.map(item => item.id), ["product:a", "product:b"]);
 });

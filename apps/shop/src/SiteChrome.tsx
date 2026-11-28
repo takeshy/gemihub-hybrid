@@ -7,7 +7,7 @@ import type { ShopConfig } from "../server/domain";
 import { MenuImage } from "./MenuImage";
 import { ImagePicker } from "./ImageLibrary";
 import { Presentation } from "./Presentation";
-import { themePart } from "../shared/presentation";
+import { compilePresentation, themePart } from "../shared/presentation";
 import { sharedThemeCss } from "../shared/theme-styles";
 import { navigationItems } from "../shared/navigation";
 import { hasThemeFrame, showsHeaderEyebrow, standardTheme } from "../shared/theme-editing";
@@ -16,6 +16,15 @@ function SharedStyles({config, children}: {config: ShopConfig; children: React.R
   const css = config.appearance?.theme && sharedThemeCss(config.appearance.theme);
   if (!css) return <>{children}</>;
   return <Presentation design={{ html: '<slot name="content"></slot>', css }} resetStructure={false} slots={{ content: children }} fallback={children} />;
+}
+/** A generated theme replaces the standard header markup. */
+const usesThemeHeader = (c: ShopConfig) => !!c.appearance?.theme && (c.appearance.theme.headerHtml !== standardTheme.headerHtml || !!c.appearance.theme.css || !!c.appearance.theme.frame || !!c.appearance.theme.headerCss);
+/** Whether the header shows the regular hours and closed weekdays (the "details" line). */
+export function headerShowsDetails(c: ShopConfig) {
+  if (!c.header.showDetails) return false;
+  if (!usesThemeHeader(c)) return true;
+  // A theme header that cannot be compiled renders nothing (its fallback is empty).
+  try { return compilePresentation(themePart(c.appearance!.theme!, "header")!).slots.includes("details"); } catch { return false; }
 }
 export function SiteHeader({ config: c, children, actions, imageBase, imageSuffix, resolvedImages }: { config: ShopConfig; children?: React.ReactNode; actions?: React.ReactNode; imageBase?: string; imageSuffix?: string; resolvedImages?: Record<string, string> }) {
   const image = c.header.imageUrl || c.appearance?.imageUrl;
@@ -27,7 +36,7 @@ export function SiteHeader({ config: c, children, actions, imageBase, imageSuffi
   // A generated theme's image slot holds only a real shop image; when there is none the slot stays
   // empty so the theme's own artwork shows, never the built-in absolutely positioned flower.
   const themeImage = c.header.imageId || image ? hero : null;
-  if (c.appearance?.theme && (c.appearance.theme.headerHtml !== standardTheme.headerHtml || c.appearance.theme.css || c.appearance.theme.frame || c.appearance.theme.headerCss)) return <>{actions}<Presentation design={themePart(c.appearance.theme, "header")} slots={{ title, subtitle, details, image: themeImage, navigation: c.header.showNavigation ? children : null }} fallback={null} imageBase={imageBase} imageSuffix={imageSuffix} resolvedImages={resolvedImages} /></>;
+  if (usesThemeHeader(c)) return <>{actions}<Presentation design={themePart(c.appearance!.theme!, "header")} slots={{ title, subtitle, details, image: themeImage, navigation: c.header.showNavigation ? children : null }} fallback={null} imageBase={imageBase} imageSuffix={imageSuffix} resolvedImages={resolvedImages} /></>;
   return <SharedStyles config={c}><header className="site-header">{actions}<section className="salon-hero">
     <span className="eyebrow">{storefrontText(c, "headerEyebrow")}</span>
     <h1>{c.header.title || c.name}</h1><p>{c.header.subtitle || c.description}</p>

@@ -80,6 +80,38 @@ test("a public restaurant home page embeds schema.org Restaurant JSON-LD with th
   for (const name of [...active.map(menu => menu.name), "Bottled sake"]) assert.ok(sampleBody.includes(name), `${name} is shown on the sample page`);
 });
 
+test("JSON-LD keeps the header's regular hours and same-name items with different prices", () => {
+  const shell = { html: '<html><head></head><body><div id="root"></div></body></html>', css: "" };
+  const page = (showDetails: boolean) => {
+    const published = shopSchema.parse({ ...structuredClone(sample), industry: "other", reservationsEnabled: false, staff: [], menus: [],
+      header: { ...structuredClone(sample).header, showDetails },
+      hours: { ...structuredClone(sample).hours, start: "10:00", end: "18:00", closedWeekdays: [2], holidays: ["2030-12-31"] },
+      // The about panel leaves out its hours slot; only the header can show the hours.
+      screens: { about: { html: '<section><slot name="menus"></slot></section>', css: "" } },
+      catalogProducts: [{ id: "tea-small", name: "Tea", price: 500, active: true }, { id: "tea-large", name: "Tea", price: 900, active: true }],
+    });
+    const shop = { id: "tea", slug: "tea", owner: "owner@example.com", published, draft: null, revision: 1, history: [], publication: "public" as const };
+    const html = buildStorefront(shop, [], "https://app.example.com", shell).pages[storefrontFile("", false, "en")];
+    return { html, ld: JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]) };
+  };
+  const shown = page(true);
+  assert.match(shown.html, /class="salon-details"/);
+  assert.deepEqual(shown.ld.openingHoursSpecification.map((spec: { dayOfWeek: unknown; opens: string; closes: string }) => [spec.dayOfWeek, spec.opens, spec.closes]), [
+    [["Sunday", "Monday", "Wednesday", "Thursday", "Friday", "Saturday"], "10:00", "18:00"], ["Tuesday", "00:00", "00:00"]]);
+  assert.equal(shown.ld.specialOpeningHoursSpecification, undefined, "closures shown only in the about panel stay out");
+  assert.deepEqual(shown.ld.makesOffer.map((offer: { price: number; itemOffered: { name: string } }) => [offer.itemOffered.name, offer.price]), [["Tea", 500], ["Tea", 900]]);
+  const hidden = page(false);
+  assert.doesNotMatch(hidden.html, /class="salon-details"/);
+  assert.equal(hidden.ld.openingHoursSpecification, undefined);
+  // A stored about design that no longer compiles renders the default panel, hours included.
+  const published = shopSchema.parse({ ...structuredClone(sample), industry: "other", reservationsEnabled: false, staff: [], menus: [] });
+  published.screens = { about: { html: '<div onclick="x">broken</div>', css: "" } };
+  const shop = { id: "broken", slug: "broken", owner: "owner@example.com", published, draft: null, revision: 1, history: [], publication: "public" as const };
+  const broken = buildStorefront(shop, [], "https://app.example.com", shell).pages[storefrontFile("", false, "en")];
+  assert.match(broken, /class="panel about"/);
+  assert.ok(JSON.parse(broken.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]).openingHoursSpecification.length > 0);
+});
+
 test("published salons and other shops classify active services separately from retail goods", () => {
   const shell = { html: '<html><head></head><body><div id="root"></div></body></html>', css: "" };
   for (const [industry, businessType, service, product] of [

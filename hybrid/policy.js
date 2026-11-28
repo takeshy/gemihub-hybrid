@@ -137,7 +137,8 @@ export function registryFacts(shop) {
       const type = ["MenuItem", "Product", "Service"].includes(item.type) ? item.type : undefined;
       const listed = Number.isFinite(item.price) && item.price >= 0 && typeof item.currency === "string" && /^[A-Z]{3}$/.test(item.currency)
         ? { price: item.price, currency: item.currency } : {};
-      return [{ name: item.name.slice(0, 120), type, ...listed }];
+      const id = typeof item.id === "string" && item.id ? { id: item.id.slice(0, 200) } : {};
+      return [{ ...id, name: item.name.slice(0, 120), type, ...listed }];
     }) } : {}) };
 }
 

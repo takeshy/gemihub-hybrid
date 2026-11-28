@@ -72,20 +72,28 @@ const PRODUCT_TYPES = ["MenuItem", "Product", "Service"];
  */
 export function townFactsFromStorefront(facts, sourcePageUrl) {
   if (!facts || typeof facts !== "object" || typeof facts.name !== "string") return null;
-  const menu = [];
-  for (const item of Array.isArray(facts.products) ? facts.products : []) {
+  const entries = (Array.isArray(facts.products) ? facts.products : []).flatMap(item => {
     const name = typeof item === "string" ? item : item?.name;
-    if (typeof name !== "string" || !name.trim()) continue;
+    if (typeof name !== "string" || !name.trim()) return [];
     const listed = Number.isFinite(item?.price) && item.price >= 0 && /^[A-Z]{3}$/.test(item?.currency || "")
       ? { price: item.price, currency: item.currency } : {};
     const type = PRODUCT_TYPES.includes(item?.type) ? item.type : undefined;
-    // A name listed twice (a basic product that is also in the catalog) keeps its price.
-    const existing = menu.find(entry => entry.name === name && (entry.type || "") === (type || ""));
-    if (existing) { if (existing.price === undefined && listed.price !== undefined) Object.assign(existing, listed); continue; }
-    menu.push({ name, ...(type ? { type } : {}), ...listed });
-  }
+    const id = typeof item?.id === "string" && item.id ? item.id.slice(0, 200) : undefined;
+    return [{ ...(id ? { id } : {}), name, ...(type ? { type } : {}), ...listed }];
+  });
+  // Items with an ID stay apart even when they share a name (two "Tea"s at different prices);
+  // a name-only entry (a basic product name) gives way to an item with an ID and the same name.
+  const nameKey = entry => `${entry.type || ""}:${entry.name}`;
+  const named = new Set(entries.filter(entry => entry.id).map(nameKey));
+  const seen = new Set();
+  const menu = entries.filter(entry => {
+    const key = entry.id ? `id:${entry.id}` : nameKey(entry);
+    if (seen.has(key) || (!entry.id && named.has(key))) return false;
+    seen.add(key);
+    return true;
+  });
   const hours = facts.hours && typeof facts.hours === "object" ? facts.hours : typeof facts.hours === "string" ? facts.hours : undefined;
-  return { sourcePageUrl, ...(hours ? { hours } : {}), products: menu.map(item => item.name), menu };
+  return { sourcePageUrl, ...(hours ? { hours } : {}), products: [...new Set(menu.map(item => item.name))], menu };
 }
 
 /** The slug of a storefront on the town's own origin, or undefined for any other page. */
