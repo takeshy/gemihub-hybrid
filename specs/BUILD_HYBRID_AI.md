@@ -152,6 +152,8 @@ Checked browser cases were verified on the public URL on Nov 23, 2026; see
 [screenshots](../docs/submission/evidence/). Routing and booking safeguards were
 also checked by automated tests. Unchecked cases above still need dedicated
 adversarial/offline browser validation.
+Later real-browser results are logged with their dates in
+[real-device-log.md](../docs/submission/evidence/real-device-log.md).
 
 Suggested JST milestones: Nov 23–24 isolation, Firebase and real-device spike;
 Nov 25–26 finder integration; Nov 27–28 shop integration; Nov 29 validation and
