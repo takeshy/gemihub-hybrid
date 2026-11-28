@@ -234,8 +234,8 @@ export function mountHybridControls(engine, connection) {
   for (const element of root.querySelectorAll('[data-ns-slot="settings"]')) element.remove();
   document.getElementById("ai-setup-heading").textContent = label("端末内AIのセットアップ", "On-device AI setup");
   document.getElementById("ai-setup-description").textContent = label(
-    "対応端末のデスクトップ版Chrome 149以降で、Gemini Nanoを準備できます。準備中もクラウドで質問できます。",
-    "Gemini Nano runs on compatible computers with desktop Chrome 149 or later. You can keep chatting in the cloud during setup.");
+    "対応端末のデスクトップ版Chrome 149以降で、端末内AIを準備できます。チャットはモデルの読み込み後に利用できます。",
+    "On-device AI runs on compatible computers with desktop Chrome 149 or later. Chat unlocks after the model loads.");
   const requirements = document.createElement("a");
   requirements.href = "https://developer.chrome.com/docs/ai/get-started#hardware";
   requirements.target = "_blank"; requirements.rel = "noopener noreferrer";
@@ -244,7 +244,6 @@ export function mountHybridControls(engine, connection) {
   const prepare = document.createElement("button"); prepare.type = "button";
   prepare.textContent = label("端末内AIを準備する", "Prepare on-device AI");
   const device = document.createElement("p"); device.setAttribute("role", "status");
-  device.textContent = label("準備ができるまではクラウドで回答します。", "Answers use the cloud until on-device AI is ready.");
   // Chrome downloads Gemini Nano on the first preparation; no flag or relaunch is needed for text.
   const intro = document.createElement("p");
   intro.textContent = label("「端末内AIを準備する」を押すと準備を始めます。初回はダウンロードに数分かかることがあります。",
@@ -289,6 +288,10 @@ export function mountHybridControls(engine, connection) {
   let pendingLabel = null;
   const messages = root.querySelector("#ns-msgs");
   const inputBar = root.querySelector(".ns-inputbar");
+  const gateStatus = document.createElement("p");
+  gateStatus.className = "hybrid-device-gate";
+  gateStatus.setAttribute("role", "status");
+  inputBar?.before(gateStatus);
   let preview = null;
   const clearPreview = () => {
     preview?.remove();
@@ -333,12 +336,22 @@ export function mountHybridControls(engine, connection) {
       settingsOpen.title = "";
     }
     device.textContent = state === "ready" ? label("端末内AIの準備ができました。", "On-device AI is ready.")
-      : state === "unavailable" ? label("この環境では端末内AIが使えません。クラウドで続行します。", "Local AI is unavailable here. Chat continues in the cloud.")
+      : state === "unsupported" ? label("この環境では端末内AIが使えません。対応するデスクトップ版Chromeでお試しください。",
+        "On-device AI is not available here. Try a compatible desktop Chrome browser.")
+      : state === "unavailable" ? label("端末内AIを読み込めませんでした。もう一度お試しください。",
+        "On-device AI could not load. Please try again.")
       : state === "downloading" ? `${label("モデルをダウンロード中", "Downloading model")} ${Math.round((progress || 0) * 100)}%`
-      : state === "preparing" ? label("端末内AIを準備中…クラウドで相談を続けられます。", "Preparing local AI… You can continue using cloud chat.")
-      : label("準備ができるまではクラウドで回答します。", "Answers use the cloud until on-device AI is ready.");
+      : state === "preparing" ? label("端末内AIを読み込み中…", "Loading on-device AI…")
+      : label("チャットを使うには端末内AIを準備してください。", "Set up on-device AI to start chatting.");
+    const blocked = hybrid.canChat === false;
+    gateStatus.hidden = !blocked;
+    const assistantStatus = document.getElementById("assistant-status");
+    if (assistantStatus) assistantStatus.hidden = blocked;
+    const welcome = messages?.querySelector("[data-welcome]");
+    if (welcome) welcome.inert = blocked;
+    gateStatus.textContent = blocked ? device.textContent : "";
+    for (const control of root.querySelectorAll("#ns-input, #ns-send, .hybrid-chip, .hybrid-dictation")) control.disabled = blocked;
   };
-  syncDeviceState(hybrid.device);
   const unsubscribe = hybrid.subscribe(event => {
     if (event.faqDelta && messages && inputBar?.dataset.turnActive === "true") {
       const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 48;
@@ -394,12 +407,22 @@ export function mountHybridControls(engine, connection) {
   const dictation = mountDictation({ root, inputBar, hybrid, label, english });
   const start = () => { dictation?.cancel(); void hybrid.prepareDevice(); };
   prepare.addEventListener("click", start);
-  root.querySelector("#ns-send")?.addEventListener("click", start, { capture: true });
-  root.querySelector("#ns-input")?.addEventListener("keydown", event => { if (event.key === "Enter") start(); }, { capture: true });
+  const beforeSend = event => {
+    if (hybrid.canChat === false) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    dictation?.cancel();
+  };
+  root.querySelector("#ns-send")?.addEventListener("click", beforeSend, { capture: true });
+  root.querySelector("#ns-input")?.addEventListener("keydown", event => {
+    if (event.key === "Enter") beforeSend(event);
+  }, { capture: true });
   const open = document.getElementById("ai-settings-open");
   open.classList.add("hybrid-settings-open");
   open.disabled = false;
-  syncDeviceState(hybrid.device);
+  syncDeviceState(hybrid.device, hybrid.deviceProgress);
   open.setAttribute("aria-haspopup", "dialog");
   open.addEventListener("click", () => dialog.showModal());
   close?.addEventListener("click", () => dialog.close());

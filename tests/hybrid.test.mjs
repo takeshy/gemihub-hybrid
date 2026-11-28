@@ -118,6 +118,7 @@ test("quota failures remain distinct from model unavailability and retain no req
     const error = new Error("Private provider details"); error.code = "fetch-error";
     error.customErrorData = { status: 429 }; throw error;
   } }) });
+  hybrid.device = "ready";
   await assert.rejects(hybrid.generate({ task: "agent", question: "Private request", prompt: "Private request", hasTools: true }), /利用上限/);
   assert.equal(hybrid.logs.at(-1).httpStatus, 429);
   assert.equal(hybrid.logs.at(-1).errorCode, "fetch-error");
@@ -200,42 +201,68 @@ test("the town guide previews only verified on-device FAQ chunks", async () => {
   assert.deepEqual(received, ["Hours: ", "unconfirmed source", "cloud text"]);
 });
 
-test("startup availability probe and 250ms preparation race eliminate first-turn cloud forcing", async () => {
-  const originalLM = globalThis.LanguageModel;
+test("available is not ready: both local and cloud requests wait for the startup session to load", async () => {
+  const previous = globalThis.LanguageModel;
   try {
-    globalThis.LanguageModel = { availability: async () => "available" };
+    const session = Promise.withResolvers();
+    let creates = 0;
+    globalThis.LanguageModel = { availability: async () => "available", create: () => { creates++; return session.promise; } };
     const modes = [];
-    const hybrid = new HybridInference({}, { ai: {}, now: () => 50,
-      factory: (_ai, config) => {
-        modes.push(config.mode);
-        return {
-          initializeDeviceModel: async () => {},
-          generateContent: async () => ({ response: { inferenceSource: InferenceSource.ON_DEVICE } }),
-        };
-      } });
-    await hybrid.probeAvailability();
+    const hybrid = new HybridInference({}, { ai: {}, factory: (_ai, config) => {
+      modes.push(config.mode);
+      return { generateContent: async () => ({ response: {
+        inferenceSource: config.mode === InferenceMode.ONLY_IN_CLOUD ? InferenceSource.IN_CLOUD : InferenceSource.ON_DEVICE,
+      } }) };
+    } });
+    const startup = hybrid.probeAvailability();
+    await Promise.resolve();
+    assert.equal(hybrid.device, "preparing");
+    assert.equal(creates, 1);
+    assert.equal(hybrid.prepareDevice(), hybrid.preparing);
+    const faq = { task: "single_shop", question: "What are the opening hours?", prompt: "Facts" };
+    await assert.rejects(hybrid.generate(faq), /端末内AI/);
+    await assert.rejects(hybrid.generate({ ...faq, hasTools: true }), /端末内AI/);
+    assert.deepEqual(modes, []);
+    session.resolve({});
+    await startup;
     assert.equal(hybrid.device, "ready");
-    const first = await hybrid.generate({ task: "single_shop", question: "What are the hours?", prompt: "Facts" });
-    assert.equal(modes.at(-1), InferenceMode.PREFER_ON_DEVICE);
-    assert.equal(first.source, "ON_DEVICE");
+    assert.equal((await hybrid.generate(faq)).source, "ON_DEVICE");
+    assert.equal((await hybrid.generate({ ...faq, hasTools: true })).source, "IN_CLOUD");
+  } finally { globalThis.LanguageModel = previous; }
+});
 
-    // Simulate click-triggered prepareDevice() resolving quickly while generate() starts.
-    const racing = new HybridInference({}, { ai: {}, now: () => 50,
-      factory: (_ai, config) => {
-        modes.push(config.mode);
-        return {
-          initializeDeviceModel: () => new Promise(resolve => setTimeout(resolve, 15)),
-          generateContent: async () => ({ response: { inferenceSource: InferenceSource.ON_DEVICE } }),
-        };
-      } });
-    void racing.prepareDevice();
-    assert.equal(racing.device, "preparing");
-    const raced = await racing.generate({ task: "single_shop", question: "What are the hours?", prompt: "Facts" });
-    assert.equal(modes.at(-1), InferenceMode.PREFER_ON_DEVICE);
-    assert.equal(raced.source, "ON_DEVICE");
-  } finally {
-    globalThis.LanguageModel = originalLM;
-  }
+test("download needs a click, tracks progress, and retries without silently allowing cloud", async () => {
+  const previous = globalThis.LanguageModel;
+  try {
+    const first = Promise.withResolvers();
+    let attempts = 0;
+    globalThis.LanguageModel = {
+      availability: async () => "downloadable",
+      create({ monitor }) {
+        monitor({ addEventListener: (_event, callback) => callback({ loaded: 1, total: 4 }) });
+        return ++attempts === 1 ? first.promise : Promise.resolve({});
+      },
+    };
+    const hybrid = new HybridInference({}, { ai: {}, factory: () => assert.fail("no inference before ready") });
+    const events = [];
+    hybrid.subscribe(event => events.push(event));
+    await hybrid.probeAvailability();
+    assert.equal(attempts, 0);
+    const preparing = hybrid.prepareDevice();
+    assert.equal(attempts, 1, "create starts in the setup click's task");
+    assert.deepEqual(events.at(-1), { device: "downloading", progress: 0.25 });
+    first.reject(new Error("download failed"));
+    await preparing;
+    assert.equal(hybrid.device, "unavailable");
+    assert.equal(hybrid.canChat, false);
+    await hybrid.prepareDevice();
+    assert.equal(hybrid.canChat, true);
+    globalThis.LanguageModel = undefined;
+    const unsupported = new HybridInference({}, { ai: {} });
+    await unsupported.probeAvailability();
+    assert.equal(unsupported.device, "unsupported");
+    assert.equal(unsupported.canChat, false);
+  } finally { globalThis.LanguageModel = previous; }
 });
 
 test("streaming local answers emit deltas incrementally without duplicate full-text replay", async () => {
@@ -421,8 +448,7 @@ test("a ready device keeps one idle Nano session warm and logs first-token laten
         response: Promise.resolve({ inferenceSource: InferenceSource.ON_DEVICE, text: () => "Open 17:00." }),
       }) }) });
     await hybrid.probeAvailability();
-    await hybrid.warming;
-    await hybrid.warmDevice();
+    await hybrid.prepareDevice();
     assert.equal(created, 1);
     const result = await hybrid.generate({ task: "single_shop", question: "What are the hours?", prompt: "Facts", onDelta() {} });
     assert.equal(result.log.firstTokenMs, 100);

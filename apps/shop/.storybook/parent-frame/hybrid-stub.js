@@ -37,17 +37,12 @@ function model({ mode, onDeviceParams }) {
       const result = await answer(request, signal);
       return { stream: (async function* () { yield result; })(), response: Promise.resolve(result) };
     },
-    async initializeDeviceModel(progress) {
-      if (!globalThis.LanguageModel) return;
-      const session = await globalThis.LanguageModel.create({ ...io, monitor(m) { m.addEventListener("downloadprogress", event => progress(event.loaded)); } });
-      session.destroy?.();
-    },
   };
 }
 
 export async function aiConnection() {
   const config = await (await fetch(new URL("../parent-site/hybrid-config.json", import.meta.url))).json();
-  const hybrid = new HybridInference(config, { ai: {}, factory: (_ai, options) => model(options) });
+  const hybrid = new HybridInference(config, { ai: {}, factory: (_ai, options) => model(options), requireDevice: false });
   void hybrid.probeAvailability();
   return { mode: "hybrid", hybrid, config: { ...config, voice: false },
     setup: { router: new URL("/api/hybrid", location.origin).href, byokKey: "firebase-session", model: hybrid.policy.cloudModel } };

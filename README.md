@@ -54,7 +54,9 @@ No real mail, payment account or upstream reservation data is used.
 Use **Set up on-device AI** above the chat for Chrome setup instructions, then
 select **Prepare on-device AI**. Initial model download can take time. If Gemini
 Nano is already downloaded in Chrome, the page probes `LanguageModel.availability()`
-at startup so the very first turn can run on-device. Each assistant reply displays
+at startup and loads the model automatically. The town and storefront chats unlock
+after the model loads; on unsupported devices, visitors can still browse shops but
+cannot chat. Once unlocked, cloud routing for comparisons and live bookings is unchanged. Each assistant reply displays
 an inline telemetry pill reporting the SDK's actual `inferenceSource`, latency,
 and policy reason, and three quick-test chips above the input let judges test
 on-device FAQ, on-device booking preflight, and cloud multi-shop comparison in one click.

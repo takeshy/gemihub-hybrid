@@ -39,6 +39,7 @@
     "test:finder": "npm run build:hybrid && node --test \"tests/*.test.mjs\"",
     "test:shop": "npm run test --workspace @gemihub/shop",
     "test:browser": "node tests/browser-check.mjs",
+    "test:hybrid-device-browser": "node tests/hybrid-device-browser-check.mjs",
     "test:admin": "node tests/admin-browser-check.mjs",
     "test:chat-documents": "node tests/chat-documents-browser-check.mjs",
     "test:chat-documents:storybook": "node tests/chat-documents-storybook-check.mjs",

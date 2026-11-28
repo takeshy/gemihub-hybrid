@@ -85,6 +85,7 @@ export class AssistantMount {
       // Load the runtime here, so a missing or broken runtime is reported too.
       const { boot } = await import("./runtime/index.js");
       const connection = await aiConnection();
+      const publishedFacts = await readPublishedFacts(new URL("./shop-public-facts.json", siteBase).href) || {};
       const booted = await boot("#agent-app", {
         originUrl: siteBase,
         sandboxWorkerUrl: new URL("runtime/sandbox-worker.js", siteBase).href,
@@ -99,7 +100,6 @@ export class AssistantMount {
         () => [...document.querySelectorAll("#ns-msgs .ns-msg.user")].at(-1)?.textContent || "");
       installInquiryPolicy(booted.engine, App.inquiries);
       const engine = booted.engine;
-      const publishedFacts = await readPublishedFacts(new URL("./shop-public-facts.json", siteBase).href) || {};
       installHybridEngine(engine, connection, { getShops: () => App.page.shops.map(shop => {
         const facts = publishedFacts[shop.id];
         return facts?.sourcePageUrl === shop.pageUrl ? { ...shop, hours: facts.hours, products: facts.menu || facts.products } : shop;

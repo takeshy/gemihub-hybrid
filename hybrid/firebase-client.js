@@ -11,10 +11,10 @@ const ON_DEVICE_IO = Object.freeze({
 });
 
 export class HybridInference {
-  constructor(config, { ai, factory = getGenerativeModel, now = () => performance.now() } = {}) {
+  constructor(config, { ai, factory = getGenerativeModel, now = () => performance.now(), requireDevice = true } = {}) {
     this.config = config; this.policy = boundedPolicy({ cloudModel: config.cloudModel });
     this.factory = factory; this.now = now; this.models = new Map(); this.logs = [];
-    this.listeners = new Set(); this.device = "not_prepared";
+    this.listeners = new Set(); this.device = "not_prepared"; this.requireDevice = requireDevice;
     if (ai) { this.ai = ai; return; }
     if (!config.firebase?.appId || !config.firebase?.projectId?.startsWith("gemihub-hybrid-"))
       throw new Error("Configure this clone's dedicated Firebase project.");
@@ -29,27 +29,19 @@ export class HybridInference {
     void this.probeAvailability();
   }
   async probeAvailability() {
-    try {
-      const status = await globalThis.LanguageModel?.availability(ON_DEVICE_IO);
-      if (status === "available" && this.device === "not_prepared") {
-        this.device = "ready";
-        this.emit({ device: this.device });
-        void this.warmDevice();
-      }
-    } catch { /* Unsupported browsers stay not_prepared and use cloud fallback. */ }
+    let status;
+    try { status = await globalThis.LanguageModel?.availability(ON_DEVICE_IO); }
+    catch { /* Leave an explicit setup attempt available. */ }
+    if (this.device !== "not_prepared") return;
+    if (status === "available") await this.prepareDevice();
+    else if (!globalThis.LanguageModel?.create || status === "unavailable") this.setDevice("unsupported");
   }
-  // The SDK creates a fresh Chrome session for every on-device call. Holding one
-  // idle session keeps Gemini Nano loaded, so the first question does not pay the
-  // model load. This runs no inference; answers still go through Firebase AI Logic.
-  async warmDevice() {
-    if (this.warmSession || this.warming || !globalThis.LanguageModel?.create) return;
-    this.warming = (async () => {
-      try { this.warmSession = await globalThis.LanguageModel.create({ ...ON_DEVICE_IO }); }
-      catch { /* Warm-up is optional; the SDK still creates its own session. */ }
-      finally { this.warming = null; }
-    })();
-    return this.warming;
+  setDevice(device, progress) {
+    this.device = device;
+    this.deviceProgress = progress;
+    this.emit({ device, progress });
   }
+  get canChat() { return !this.requireDevice || this.device === "ready"; }
   async loadPolicy() {
     try {
       if (!await isSupported()) return;
@@ -91,18 +83,25 @@ export class HybridInference {
   subscribe(callback) { this.listeners.add(callback); return () => this.listeners.delete(callback); }
   emit(event) { for (const callback of this.listeners) { try { callback(event); } catch { /* Diagnostics cannot break chat. */ } } }
   prepareDevice() {
-    if (this.device === "ready") return Promise.resolve();
     if (this.preparing) return this.preparing;
-    // Called synchronously from a click/submit handler, never page load.
-    const model = this.model(InferenceMode.PREFER_ON_DEVICE);
-    this.device = "preparing"; this.emit({ device: this.device });
-    this.preparing = model.initializeDeviceModel(progress => this.emit({ device: "downloading", progress }))
-      .then(async () => {
-        const available = await globalThis.LanguageModel?.availability(ON_DEVICE_IO);
-        this.device = available === "available" ? "ready" : "unavailable";
-        this.emit({ device: this.device });
-        if (this.device === "ready") void this.warmDevice();
-      }).catch(() => { this.device = "unavailable"; this.emit({ device: this.device }); })
+    if (this.device === "ready") return Promise.resolve();
+    const model = globalThis.LanguageModel;
+    if (!model?.create) { this.setDevice("unsupported"); return Promise.resolve(); }
+    this.setDevice("preparing");
+    // Call create synchronously on a setup click to preserve user activation
+    // for downloading. Startup only calls it for a fully downloaded model.
+    // Hold that session to keep the model loaded. Inference still uses the SDK.
+    this.preparing = (async () => model.create({ ...ON_DEVICE_IO, monitor: monitor => {
+      monitor.addEventListener("downloadprogress", event => {
+        if (this.device === "preparing" || this.device === "downloading")
+          this.setDevice(event.loaded < event.total ? "downloading" : "preparing",
+            event.total > 0 ? event.loaded / event.total : 0);
+      });
+    } }))().then(session => {
+      if (!session) throw new Error("No local model session was created.");
+      this.warmSession = session;
+      this.setDevice("ready");
+    }).catch(() => this.setDevice("unavailable"))
       .finally(() => { this.preparing = null; });
     return this.preparing;
   }
@@ -139,20 +138,12 @@ export class HybridInference {
   async generate({ task, question, prompt, request, schema, systemInstruction, historyCount = 0,
     contextChars = 0, hasTools = false, crossShop = false, signal, finalAnswer = false, onDelta }) {
     signal?.throwIfAborted();
+    if (!this.canChat) throw new Error(globalThis.document?.documentElement?.lang === "en"
+      ? "Prepare on-device AI before starting a chat."
+      : "チャットを始める前に端末内AIを準備してください。");
     const size = JSON.stringify(request || prompt || "").length;
     if (size > this.policy.maxRequestChars) throw new Error("This conversation is too long. Start a new conversation.");
     const route = routePolicy({ question, contextChars, historyCount, hasTools, crossShop, task }, this.policy);
-    // Give an already-downloaded device model up to 250 ms to finish preparing
-    // without blocking ordinary chat on an initial model download.
-    if (route.local && this.preparing) {
-      let waitTimer;
-      await Promise.race([
-        this.preparing,
-        new Promise(resolve => { waitTimer = setTimeout(resolve, 250); }),
-      ]);
-      clearTimeout(waitTimer);
-      signal?.throwIfAborted();
-    }
     const deviceAtStart = this.device;
     const mode = route.local && deviceAtStart === "ready" ? InferenceMode.PREFER_ON_DEVICE : InferenceMode.ONLY_IN_CLOUD;
     const started = this.now();
