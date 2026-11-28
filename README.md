@@ -5,6 +5,8 @@ for #BuildHybridAI 2026, extending gemihub with Firebase AI Logic hybrid inferen
 
 [Live Web demo](https://hybrid.gemihub.net/)
 
+![Gemihub Hybrid: grounded shop answers on your device, cloud coordination when you need more](docs/submission/thumbnail.png)
+
 **Implementation status:** deployed and verified in real browsers. Finder and
 shop questions answered on-device in desktop Chrome; comparisons and the complete
 demo reservation flow used the cloud. A browser without Nano answered the same
@@ -57,6 +59,17 @@ an inline telemetry pill reporting the SDK's actual `inferenceSource`, latency,
 and policy reason, and three quick-test chips above the input let judges test
 on-device FAQ, on-device booking preflight, and cloud multi-shop comparison in one click.
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/submission/evidence/finder-on-device.jpg" alt="Town guide answering Robata Akari's hours and menu with Gemini Nano, with an On-device telemetry pill"></td>
+    <td width="50%"><img src="docs/submission/evidence/shop-on-device.jpg" alt="Shop assistant asking for the missing booking details on-device, with a booking_preflight telemetry pill"></td>
+  </tr>
+  <tr>
+    <td>Town guide: a published-facts question answered by Gemini Nano on-device.</td>
+    <td>Shop assistant: missing booking details collected on-device before the cloud live check.</td>
+  </tr>
+</table>
+
 The town guide also exposes a public read-only MCP endpoint at `/api/mcp`
 (`list_town_shops`, `query_shop_facts`, `search_local_events`) so external agents
 can inspect published neighborhood facts without touching reservations.
@@ -86,6 +99,17 @@ Submission materials: [Devpost project page](https://devpost.com/software/gemihu
 [real-browser screenshots](docs/submission/evidence/).
 
 ### What Was Built for #BuildHybridAI 2026
+
+```mermaid
+flowchart LR
+  Q["Visitor question"] --> P{"hybrid/policy.js"}
+  P -->|"hours, menu, listed price,<br/>missing booking details"| N["Gemini Nano<br/>on-device"]
+  P -->|"comparisons, follow-ups, totals,<br/>allergies, availability, booking"| C["Gemini 3.5 Flash-Lite<br/>cloud (ONLY_IN_CLOUD)"]
+  C --> T["Shop MCP tools<br/>deterministic booking"]
+  F[("Published shop facts<br/>schema.org JSON-LD")] --> N
+  F --> H["Storefront page head"]
+  F --> M["Town MCP /api/mcp"]
+```
 
 | Area | Inherited from `gemihub` | Built during #BuildHybridAI 2026 |
 | --- | --- | --- |

@@ -12,6 +12,30 @@ Web / Chrome 向け提出作品です。街案内と店舗の来店者向けAI�
 
 [English](README.md) · [日本語](README_ja.md)
 
+![Gemihub Hybrid：端末内で答え、必要なときはクラウドがつなぐ](docs/submission/thumbnail.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/submission/evidence/finder-on-device.jpg" alt="街案内が Robata Akari の営業時間とメニューを Gemini Nano で答え、On-device の表示が出ている画面"></td>
+    <td width="50%"><img src="docs/submission/evidence/shop-on-device.jpg" alt="店舗の予約アシスタントが足りない予約情報を端末内で聞き返し、booking_preflight の表示が出ている画面"></td>
+  </tr>
+  <tr>
+    <td>街案内：公開情報の質問に Gemini Nano が端末内で回答。</td>
+    <td>店舗：クラウドで空席を調べる前に、足りない予約情報を端末内で聞き返し。</td>
+  </tr>
+</table>
+
+```mermaid
+flowchart LR
+  Q["来店者の質問"] --> P{"hybrid/policy.js"}
+  P -->|"営業時間・メニュー・定価<br/>足りない予約情報の聞き返し"| N["Gemini Nano<br/>端末内"]
+  P -->|"比較・続きの質問・合計<br/>アレルギー・空席・予約"| C["Gemini 3.5 Flash-Lite<br/>クラウド（ONLY_IN_CLOUD）"]
+  C --> T["店舗の MCP ツール<br/>予約は決まったコードで処理"]
+  F[("公開中のお店の情報<br/>schema.org JSON-LD")] --> N
+  F --> H["店舗ページの head"]
+  F --> M["町の MCP /api/mcp"]
+```
+
 自然な言葉で AI に頼むだけで個店が独自の Web サイトを持て、さらに「街案内 AI」が全店の AI や地域資料と連携して、訪れる人に合うお店や巡り方を音声・多言語でも案内できる、画一化しない街のポータルサイト **『gemihub』** の開発リポジトリです。
 
 > **gemihubに追加した機能:** 会話で作成できる店舗サイトを土台に、街案内と
