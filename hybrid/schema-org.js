@@ -1,9 +1,9 @@
 // Published shop facts as schema.org JSON-LD (https://schema.org/Restaurant).
 // One vocabulary serves the on-device prompt, the town MCP and the storefront <head>.
-// Published list prices are included only on request ({ prices: true }) for the storefront
-// <head> and the MCP, where code copies them unchanged. The on-device prompt never gets them:
-// models never state or calculate prices, and totals, availability and reservations stay
-// with the shop's deterministic tools.
+// Published list prices are included on request ({ prices: true }) and copied unchanged by
+// code. The storefront <head>, the town MCP and the on-device prompt all use it, so a model
+// may quote a listed price as published but never calculates a total (see GROUNDING in
+// policy.js). Totals, availability and booking prices stay with the shop's deterministic tools.
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_ALIASES = new Map([
