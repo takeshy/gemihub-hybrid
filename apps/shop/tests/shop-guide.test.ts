@@ -23,6 +23,9 @@ test("other shops save products as basic settings and expose only published prod
   const info = shopGuideInfo(c, "https://shop.example/s/komado/", {}, new Date("2030-01-07T01:00:00Z"));
   assert.deepEqual(info.products, ["作家の器", "手帳", "包装の相談"]);
   assert.deepEqual(info.hours.closedDates, ["2030-02-01"]);
+  const holidays = Array.from({ length: 61 }, (_, i) => new Date(Date.UTC(2030, 1, i + 1)).toISOString().slice(0, 10));
+  const manyClosures = shopGuideInfo({ ...c, hours: { ...c.hours, holidays } }, info.pageUrl, {}, new Date("2030-01-07T01:00:00Z"));
+  assert.deepEqual(manyClosures.hours.closedDates, holidays);
   assert.match(info.hours.regular, /12:00.*21:00.*13:00.*20:00/);
   assert.match(info.hours.specialDays, /14:00.*19:00/);
   assert.equal(info.stock, "unknown");

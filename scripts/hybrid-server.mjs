@@ -142,7 +142,11 @@ const server = createServer(async (req, res) => {
     res.end(req.method === "HEAD" ? undefined : bytes);
   } catch { res.writeHead(404); res.end("Not found"); }
 });
-server.listen(port, "0.0.0.0", () => console.log(`Gemihub Hybrid fictional-shop demo: ${publicOrigin}`));
+server.listen(port, "0.0.0.0", () => {
+  console.log(`Gemihub Hybrid fictional-shop demo: ${publicOrigin}`);
+  // Storefront facts are read through this server, so the backfill waits until it listens.
+  if (town?.admin) import("./hybrid-town-admin.mjs").then(({ backfillTownIndustries }) => backfillTownIndustries(town.admin));
+});
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
   server.close();
   town?.admin.close();

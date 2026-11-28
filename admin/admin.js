@@ -188,6 +188,8 @@ $("#shop-form").addEventListener("submit", event => {
   event.preventDefault();
   run(async () => {
     const shop = fields();
+    const industry = state.shops.find(item => item.id === editingId)?.industry;
+    if (industry) shop.industry = industry;
     const shops = editingId ? state.shops.map(item => item.id === editingId ? shop : item) : [...state.shops, shop];
     await save(shops, { [shop.id]: metadata });
     $("#editor").hidden = true;

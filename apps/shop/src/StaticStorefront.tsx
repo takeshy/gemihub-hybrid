@@ -37,13 +37,16 @@ function Navigation({ config: c, base }: { config: ShopConfig; base: string }) {
 function PostList({ posts, base }: { posts: PublicPost[]; base: string }) {
   return <ul>{posts.map(post => <li key={post.id}><time dateTime={post.date}>{post.date}</time> <a href={link(postPath(base, post))}>{post.title}</a></li>)}</ul>;
 }
+/** The home page shows the sample storefront instead of the shop's about panel. */
+export const showsSampleHome = (c: Pick<ShopConfig, "industry" | "reservationsEnabled">, { sampleShop = false, featuredRobata = false } = {}) =>
+  (featuredRobata && c.industry === "restaurant") || (sampleShop && c.industry === "other" && c.reservationsEnabled === false);
 /** The same public markup is generated at publication and shown in Storybook; no effects or API calls. */
 export function StaticStorefront({ config: c, view, base, provisional = false, imageSources = {}, sampleShop = false, featuredRobata = false }: { config: ShopConfig; view: StaticStorefrontView; base: string; provisional?: boolean; imageSources?: Record<string, string>; sampleShop?: boolean; featuredRobata?: boolean }) {
   const path = staticViewPath(view);
   const resolved = imageSources;
   const informationOnly = c.industry === "other" && c.reservationsEnabled === false;
   const robata = featuredRobata && c.industry === "restaurant";
-  if (view.kind === "home" && (robata || (sampleShop && informationOnly))) return <>
+  if (view.kind === "home" && showsSampleHome(c, { sampleShop, featuredRobata })) return <>
     <LanguageLinks href={base} />
     <main><SampleStorefront config={c} robata={robata} bookingHref={robata && takesBookings(c) ? link(`${base}/reserve`) : undefined} /></main>
   </>;

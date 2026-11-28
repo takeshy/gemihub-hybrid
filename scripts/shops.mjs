@@ -1,7 +1,7 @@
 import { parseExternalAgent } from "../site/runtime/kernel.js";
 import { safeName } from "../site/runtime/runner.js";
 
-export const SHOP_FIELDS = ["id", "name", "area", "cuisine", "pageUrl", "networkUrl", "description", "address", "reservationEnabled", "reservationUrl"];
+export const SHOP_FIELDS = ["id", "name", "area", "cuisine", "industry", "pageUrl", "networkUrl", "description", "address", "reservationEnabled", "reservationUrl"];
 
 export function validateShops(config, { production = false } = {}) {
   if (config?.version !== 1 || !Array.isArray(config.shops)) throw new Error("shops.json: version:1 と shops の配列が必要です。");
@@ -14,6 +14,7 @@ export function validateShops(config, { production = false } = {}) {
     if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(shop.id) || ids.has(shop.id)) throw new Error(`shops.json: 不正または重複したid ${shop.id}`);
     ids.add(shop.id);
     if (shop.address !== undefined && (typeof shop.address !== "string" || shop.address.length > 500)) throw new Error("shops.json: 住所は500文字以内にしてください。");
+    if (shop.industry !== undefined && !["restaurant", "hair", "nail", "other"].includes(shop.industry)) throw new Error("shops.json: 業種が不正です。");
     if (shop.networkUrl !== undefined && typeof shop.networkUrl !== "string") throw new Error("shops.json: networkUrl は文字列にしてください。");
     if (shop.description !== undefined && (typeof shop.description !== "string" || shop.description.length > 2000)) throw new Error("shops.json: 紹介文は2000文字以内にしてください。");
     if (shop.reservationEnabled !== undefined && typeof shop.reservationEnabled !== "boolean") throw new Error("shops.json: 予約対応は真偽値にしてください。");

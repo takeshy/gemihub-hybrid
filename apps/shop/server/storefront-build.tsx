@@ -4,13 +4,15 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { articleKinds } from "../shared/article-features.ts";
-import { StaticStorefront, staticViewPath, type StaticStorefrontView } from "../src/StaticStorefront.tsx";
+import { StaticStorefront, showsSampleHome, staticViewPath, type StaticStorefrontView } from "../src/StaticStorefront.tsx";
 import { requestLocale } from "./i18n.ts";
 import { tr } from "../shared/i18n.ts";
 import { localizeShell } from "../shared/html.ts";
 import { escapeHtml } from "./artifacts.ts";
 import { withImageSources } from "./image-references.ts";
-import { restaurantReservations } from "./domain.ts";
+import { hoursText, publishedProducts, restaurantReservations } from "./domain.ts";
+import { shopJsonLd } from "../../../hybrid/schema-org.js";
+import { compilePresentation } from "../shared/presentation.ts";
 import { postKey, postLabel, type PublicPost } from "./post-domain.ts";
 import type { MenuImageData } from "./menu-image-domain.ts";
 import type { Shop } from "./store.ts";
@@ -21,7 +23,7 @@ import { forEachConcurrent } from "./concurrency.ts";
  * Bump when the generated markup changes in a way existing shops should receive.
  * Releases from an older generator keep being served until they are rebuilt in the background.
  */
-export const storefrontRenderer = 12;
+export const storefrontRenderer = 13;
 /** `assets` are shop-level files (`shops/{id}/assets/{name}`) the pages refer to; absent on releases before renderer 2. */
 export type StorefrontRelease = { id: string; paths: string[]; assets?: string[]; renderer?: number; posts?: Record<string, string> };
 export type StorefrontAsset = { body: Buffer; contentType: string };
@@ -75,6 +77,7 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
   const imageNames = Object.fromEntries(Object.entries(images).map(([id, image]) => [id, addAsset(Buffer.from(image.data, "base64"), imageExtension[image.mimeType], image.mimeType)]));
   const published = shop.published!;
   const featuredRobata = process.env.GEMIHUB_HYBRID_DEMO === "true" && shop.slug === "akari";
+  const sampleShop = /^sample-[a-f0-9]{24}$/.test(shop.slug);
   const live = posts.filter(post => articleKinds(published).includes(post.category));
   // Link previews need an absolute URL; a managed header image is served from the canonical address.
   const headerImage = published.header.imageId && imageNames[published.header.imageId] ? `${canonical}/_assets/${imageNames[published.header.imageId]}` : published.header.imageUrl.startsWith("https://") ? published.header.imageUrl : undefined;
@@ -90,7 +93,16 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
         // Each language has its own URL so both can be indexed; Japanese is the default.
         const localized = (language: string) => language === "ja" ? url : `${url}?lang=${language}`;
         const text = plainText(description);
-        const jsonLd = post ? { "@context": "https://schema.org", "@type": post.category === "blogs" ? "BlogPosting" : "Article", headline: post.title, datePublished: post.publishedAt || post.date, url: localized(locale), inLanguage: locale, publisher: { "@type": "Organization", name: c.name }, ...(headerImage ? { image: headerImage } : {}) } : !path ? { "@context": "https://schema.org", "@type": "LocalBusiness", name: c.name, ...(c.description ? { description: c.description } : {}), ...(c.address ? { address: c.address } : {}), url, ...(headerImage ? { image: headerImage } : {}) } : undefined;
+        // Structured data repeats only facts the page shows: the sample home page and a custom
+        // about screen may leave out hours or menus.
+        const shown = showsSampleHome(c, { sampleShop, featuredRobata }) ? [] : c.screens?.about ? compilePresentation(c.screens.about).slots : ["menus", "hours"];
+        const jsonLd = post ? { "@context": "https://schema.org", "@type": post.category === "blogs" ? "BlogPosting" : "Article", headline: post.title, datePublished: post.publishedAt || post.date, url: localized(locale), inLanguage: locale, publisher: { "@type": "Organization", name: c.name }, ...(headerImage ? { image: headerImage } : {}) } : !path ? { ...shopJsonLd({ name: c.name, description: c.description, address: c.address, pageUrl: url,
+          ...(shown.includes("hours") ? { hours: { regular: hoursText(c), closedWeekdays: c.hours.closedWeekdays, weekdayHours: c.hours.weekdayHours, closedDates: c.hours.holidays, specialDays: c.hours.specialDays } } : {}),
+          ...(shown.includes("menus") ? { products: [
+            ...c.menus.filter(menu => menu.active).map(({ name }) => ({ name, type: c.industry === "restaurant" ? "MenuItem" as const : "Service" as const })),
+            ...publishedProducts(c).map(({ name }) => ({ name, type: "Product" as const })),
+          ] } : {}),
+          ...(restaurantReservations(c) ? { reservationEnabled: true, reservationUrl: `${canonical}/reserve` } : {}) }, { industry: c.industry }), ...(headerImage ? { image: headerImage } : {}) } : undefined;
         const head = [
           `<title>${escapeHtml(title)}</title>`,
           stylesheet && `<link rel="stylesheet" href="${base}/_assets/${stylesheet}">`,
@@ -106,7 +118,7 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
           jsonLd && !noindex && `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>`,
           post && `<meta name="gemihub-post-category" content="${post.category}"><meta name="gemihub-post-title" content="${escapeHtml(post.title)}"><meta name="gemihub-post-date" content="${post.date}">`,
         ].filter(Boolean).join("");
-        const body = renderToStaticMarkup(<StaticStorefront config={c} view={view} base={base} provisional={shop.publication === "provisional"} imageSources={sources} sampleShop={/^sample-[a-f0-9]{24}$/.test(shop.slug)} featuredRobata={featuredRobata} />);
+        const body = renderToStaticMarkup(<StaticStorefront config={c} view={view} base={base} provisional={shop.publication === "provisional"} imageSources={sources} sampleShop={sampleShop} featuredRobata={featuredRobata} />);
         pages[storefrontFile(path, hosted, locale)] = localizeShell(shell.html).replace(/<title>.*?<\/title>/s, "").replace("</head>", () => `${head}</head>`).replace('<div id="root"></div>', () => `<div id="root" data-page="static-storefront" data-shop-base="${escapeHtml(base)}" data-shop-slug="${escapeHtml(shop.slug)}">${body}</div><script defer src="/storefront-login.js"></script>`);
       };
       render({ kind: "home", posts: live }, c.name, c.description);

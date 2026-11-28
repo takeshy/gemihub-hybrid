@@ -9,7 +9,9 @@ import {
   validateBookingPreflight,
   bookingFollowUp,
   registryFacts,
+  groundedPrompt,
 } from "../hybrid/policy.js";
+import { shopJsonLd, openingHoursSpecification, parseHoursText } from "../hybrid/schema-org.js";
 import { cloudRequest, runtimeResponse } from "../hybrid/messages.js";
 import { installHybridEngine } from "../hybrid/browser.js";
 import { handleTownMcpMessage, createTownMcpHandler } from "../scripts/town-mcp.mjs";
@@ -32,12 +34,18 @@ test("tools, deep/dependent history, comparisons and live transactional question
     { question: "4人だと予算はいくら？" },
     { question: "How much would the course cost for 4 people?" },
     { question: "コース料金とメニューを教えて" },
+    { question: "What kind of shop is this?", historyCount: 1 },
+    { question: "What type of business was that shop?" },
+    { question: "What kind of shop is this, and can I book?" },
+    { question: "What kind of shop is this compared to the other shop?" },
   ]) assert.equal(routePolicy({ task: "single_shop", ...value }, policy).local, false, JSON.stringify(value));
   assert.equal(routePolicy({ question: "予約したい", task: "booking_preflight", historyCount: 1 }, policy).local, false);
   assert.equal(routePolicy({ question: "予約したい", task: "booking_preflight" }, policy).local, true);
   assert.equal(routePolicy({ question: "炉端 灯の住所は？", task: "single_shop" }, policy).local, true);
   assert.equal(routePolicy({ question: "コースのメニューを教えて", task: "single_shop" }, policy).local, true);
   assert.equal(routePolicy({ question: "ベジタリアン対応はある？", task: "single_shop" }, policy).local, true);
+  assert.equal(routePolicy({ question: "What type of business is this?" }, policy).local, true);
+  assert.equal(routePolicy({ question: "What kind of store is this?" }, policy).local, true);
   assert.equal(routePolicy({ question: "Where is the shop?", contextChars: 16001 }, policy).local, false);
 });
 
@@ -111,7 +119,7 @@ test("quota failures remain distinct from model unavailability and retain no req
   assert.doesNotMatch(JSON.stringify(hybrid.logs), /Private/);
 });
 
-function engineFixture() {
+function engineFixture(options) {
   const calls = [];
   const hybrid = { policy: boundedPolicy(), emit() {}, generate: async input => {
     calls.push(input);
@@ -120,7 +128,9 @@ function engineFixture() {
   } };
   const engine = { top: { llm: {} }, _compile: async () => ({ llm: {} }),
     trace: { spans: new Map([["front", { isTopFrontMan: true }]]), start() {}, end() {}, fail() {} } };
-  installHybridEngine(engine, { hybrid }, { getShops: () => [{ id: "akari", name: "Akari", address: "A street", owner: "secret" }, { id: "other", name: "Other shop" }] });
+  installHybridEngine(engine, { hybrid }, options ?? {
+    getShops: () => [{ id: "akari", name: "Akari", address: "A street", owner: "secret" }, { id: "other", name: "Other shop" }],
+  });
   return { engine, hybrid, calls };
 }
 
@@ -139,6 +149,20 @@ test("finder uses isolated shop facts; multi-turn and peer tool calls remain clo
   calls.length = 0;
   await peer.llm.chat({ ...request, tools: [{ function: { name: "get_shop_info", parameters: { type: "object", properties: {} } } }] });
   assert.equal(calls[0].hasTools, true); assert.equal(calls[0].task, "agent");
+});
+
+test("an English shop category question reaches the local FAQ path with the published category", async () => {
+  const { engine, calls } = engineFixture({
+    scope: "shop",
+    getFacts: () => ({ name: "Zakka Mori", industry: "other", cuisine: "Home goods and stationery" }),
+  });
+  await engine.top.llm.chat({
+    parentSpan: "front",
+    messages: [{ role: "user", content: "What kind of shop is this?" }],
+    tools: [],
+  });
+  assert.deepEqual(calls.map(call => call.task), ["single_shop"]);
+  assert.match(calls[0].prompt, /"keywords":"Home goods and stationery"/);
 });
 
 test("invalid classification cannot invent a local shop context", async () => {
@@ -401,4 +425,111 @@ test("a ready device keeps one idle Nano session warm and logs first-token laten
   } finally {
     globalThis.LanguageModel = originalLM;
   }
+});
+
+test("published facts become schema.org Restaurant JSON-LD without prices or private fields", () => {
+  const ld = shopJsonLd({ id: "akari", name: "Robata Akari", industry: "restaurant", cuisine: "Japanese robata", area: "Nakazakicho, Osaka",
+    address: "Published address", hours: "17:00 – 23:30", pageUrl: "https://example.test/s/akari/",
+    reservationEnabled: true, reservationUrl: "https://example.test/s/akari/reserve",
+    products: ["Winter robata course", { name: "Warm sake", price: 600, currency: "JPY" }, "Winter robata course"],
+    owner: "private", bookings: ["private"] });
+  assert.equal(ld["@context"], "https://schema.org");
+  assert.equal(ld["@type"], "Restaurant");
+  assert.equal(ld.servesCuisine, "Japanese robata");
+  assert.deepEqual(ld.openingHoursSpecification, [{ "@type": "OpeningHoursSpecification",
+    dayOfWeek: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], opens: "17:00", closes: "23:30" }]);
+  assert.deepEqual(ld.hasMenu.hasMenuItem.map(item => item.name), ["Winter robata course", "Warm sake"]);
+  assert.equal(ld.acceptsReservations, "https://example.test/s/akari/reserve");
+  assert.doesNotMatch(JSON.stringify(ld), /private|price|600|JPY/);
+  assert.equal(shopJsonLd({ name: "Salon", industry: "hair", products: [{ name: "Cut" }] }).makesOffer[0].itemOffered["@type"], "Service");
+  assert.equal(shopJsonLd({ description: "no name" }), null);
+});
+
+test("opening hours keep weekday overrides, closures and special days; unknown text stays as text", () => {
+  assert.deepEqual(parseHoursText("17:00 – 23:30 / 月曜 17:00 – 22:00").weekdayHours, [{ day: 1, start: "17:00", end: "22:00" }]);
+  assert.deepEqual(parseHoursText("18:00 – 23:00 / Mon 18:00 – 21:00").weekdayHours, [{ day: 1, start: "18:00", end: "21:00" }]);
+  assert.deepEqual(parseHoursText("9:00 – 24:00"), { start: "09:00", end: "24:00", weekdayHours: [] });
+  for (const invalid of ["17:00 – 24:30", "17:00 – 23:60", "25:00 – 26:00"]) assert.equal(parseHoursText(invalid), null);
+  const { weekly, exceptions, parsed } = openingHoursSpecification({ regular: "17:00 – 23:30 / Mon 17:00 – 22:00",
+    closedWeekdays: ["Tuesday", 3], weekdayHours: [{ day: 5, start: "9:00", end: "17:00" }],
+    closedDates: ["2030-12-31", "not-a-date"], specialDays: "2030-12-30 10:00 – 15:00（出勤：Aki） / bad" });
+  assert.equal(parsed, true);
+  assert.deepEqual(weekly.map(spec => [spec.dayOfWeek, spec.opens, spec.closes]), [
+    [["Sunday", "Thursday", "Saturday"], "17:00", "23:30"],
+    ["Monday", "17:00", "22:00"],
+    ["Friday", "09:00", "17:00"],
+    [["Tuesday", "Wednesday"], "00:00", "00:00"],
+  ]);
+  assert.deepEqual(exceptions.map(spec => [spec.validFrom, spec.opens, spec.closes]), [
+    ["2030-12-31", "00:00", "00:00"],
+    ["2030-12-30", "10:00", "15:00"],
+  ]);
+  assert.deepEqual(openingHoursSpecification({ regular: "17:00 – 23:30", specialDays: [{ date: "2030-01-02", start: "11:00", end: "14:00", staffIds: ["x"] }] }).exceptions[0],
+    { "@type": "OpeningHoursSpecification", validFrom: "2030-01-02", validThrough: "2030-01-02", opens: "11:00", closes: "14:00" });
+  assert.equal(parseHoursText("Evenings, ask the shop"), null);
+  const unparsed = shopJsonLd({ name: "A", hours: { regular: "Evenings, ask the shop", closedWeekdays: [2], closedDates: ["2030-12-31"] } });
+  assert.equal(unparsed.openingHours, "Evenings, ask the shop");
+  assert.deepEqual(unparsed.openingHoursSpecification.map(spec => spec.dayOfWeek), ["Tuesday"]);
+  assert.deepEqual(unparsed.specialOpeningHoursSpecification.map(spec => spec.validFrom), ["2030-12-31"]);
+});
+
+test("the on-device prompt carries the facts as JSON-LD and the question as data", () => {
+  const prompt = groundedPrompt("What time do you open?", registryFacts({ id: "akari", name: "Robata Akari", industry: "restaurant", cuisine: "Japanese robata", hours: "17:00 – 23:30" }));
+  assert.match(prompt, /schema\.org JSON-LD/);
+  assert.match(prompt, /"@type":"Restaurant"/);
+  assert.match(prompt, /"opens":"17:00","closes":"23:30"/);
+  const special = groundedPrompt("Are you open on Dec 30?", { name: "Robata Akari", industry: "restaurant",
+    hours: { regular: "17:00 – 23:30", closedWeekdays: ["Monday"], specialDays: "2030-12-30 10:00 – 15:00" } });
+  assert.match(special, /"validFrom":"2030-12-30","validThrough":"2030-12-30","opens":"10:00","closes":"15:00"/);
+  assert.match(special, /"dayOfWeek":"Monday","opens":"00:00","closes":"00:00"/);
+  assert.doesNotMatch(prompt, /@context/);
+  assert.match(prompt, /"What time do you open\?"/);
+});
+
+test("FAQ grounding retains all published names and exceptions before applying the prompt size limit", () => {
+  const products = Array.from({ length: 50 }, (_, i) => `Dish ${i + 1}`);
+  products.push(...Array.from({ length: 50 }, (_, i) => ({ name: `Catalog ${i + 1}`, type: "Product", price: 500 })));
+  const facts = registryFacts({ name: "Akari", industry: "restaurant", products });
+  const menuQuestion = "What is on the menu?";
+  const menuPrompt = groundedPrompt(menuQuestion, facts);
+  assert.match(menuPrompt, /"name":"Dish 50"/);
+  assert.match(menuPrompt, /"@type":"Product","name":"Catalog 50"/);
+  assert.doesNotMatch(menuPrompt, /"price"/);
+  assert.equal(routePolicy({ question: menuQuestion, contextChars: menuPrompt.length }).local, true);
+
+  const dates = (month) => Array.from({ length: 61 }, (_, i) => new Date(Date.UTC(2030, month, i + 1)).toISOString().slice(0, 10));
+  const closedDates = dates(0);
+  const specialDays = dates(3).map(date => ({ date, start: "11:00", end: "14:00", staffIds: ["private"] }));
+  const hours = { regular: "17:00 – 23:30", closedDates, specialDays };
+  const hoursFacts = registryFacts({ name: "Akari", hours });
+  const ld = shopJsonLd(hoursFacts);
+  assert.equal(ld.specialOpeningHoursSpecification.length, 122);
+  const hoursQuestion = "What are the hours?";
+  const hoursPrompt = groundedPrompt(hoursQuestion, hoursFacts);
+  assert.match(hoursPrompt, /"validFrom":"2030-01-01","validThrough":"2030-01-01","opens":"00:00"/);
+  assert.match(hoursPrompt, /"validFrom":"2030-04-01","validThrough":"2030-04-01","opens":"11:00"/);
+  assert.doesNotMatch(hoursPrompt, /private"/);
+  assert.deepEqual(routePolicy({ question: hoursQuestion, contextChars: hoursPrompt.length }), { local: false, reason: "context_length" });
+});
+
+test("query_shop_facts also returns the shop as schema.org JSON-LD", () => {
+  const data = { documents: [], shops: [
+    { id: "akari", name: "Robata Akari", industry: "restaurant", cuisine: "Japanese robata", hours: "17:00 - 23:30", products: ["Winter robata course"] },
+    { id: "salon", name: "Local Salon", industry: "hair", cuisine: "Hair salon" },
+    { id: "shop", name: "Local Shop", cuisine: "Shop" },
+  ] };
+  const query = shopId => handleTownMcpMessage({ jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: { name: "query_shop_facts", arguments: { shopId } } }, data).body.result.structuredContent;
+  const result = query("akari");
+  assert.equal(result.shop.id, "akari");
+  assert.equal(result.jsonLd["@type"], "Restaurant");
+  assert.equal(result.jsonLd.hasMenu.hasMenuItem[0].name, "Winter robata course");
+  assert.equal(query("salon").jsonLd["@type"], "HairSalon");
+  assert.equal(query("salon").jsonLd.servesCuisine, undefined);
+  assert.equal(query("shop").jsonLd["@type"], "LocalBusiness");
+  assert.equal(query("shop").jsonLd.servesCuisine, undefined);
+  assert.equal(query("salon").jsonLd.keywords, "Hair salon", "a non-restaurant keeps its category as a keyword");
+  assert.equal(query("shop").jsonLd.keywords, "Shop");
+  assert.equal(result.jsonLd.keywords, undefined, "a restaurant's category is its cuisine");
+  assert.match(groundedPrompt("What kind of shop is this?", registryFacts({ name: "Zakka Mori", cuisine: "雑貨・生活雑貨" })), /"keywords":"雑貨・生活雑貨"/);
 });

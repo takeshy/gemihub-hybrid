@@ -357,12 +357,12 @@ export function agenticSite(options: {
         const info = shop.config.industry === "other"
           ? shopGuideInfo(shop.config, site.origin + site.base + "/")
           : shopInfo(shop.config, site.origin + site.base + "/reserve");
-        const facts = { id: shop.slug, name: info.shop, description: info.description,
+        const facts = { id: shop.slug, name: info.shop, industry: shop.config.industry, description: info.description,
           address: info.address, hours: info.hours,
           products: [
-            ...(shop.config.products || []).map(name => ({ name })),
-            ...shop.config.menus.filter(menu => menu.active).map(menu => ({ name: menu.name })),
-            ...info.catalog,
+            ...(shop.config.products || []).map(name => ({ name, type: "Product" })),
+            ...shop.config.menus.filter(menu => menu.active).map(({ name }) => ({ name, type: shop.config.industry === "restaurant" ? "MenuItem" : "Service" })),
+            ...info.catalog.map(product => ({ ...product, type: "Product" })),
           ],
           pageUrl: site.origin + site.base + "/", checkedAt: info.checkedAt };
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" });

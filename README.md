@@ -60,6 +60,12 @@ on-device FAQ, on-device booking preflight, and cloud multi-shop comparison in o
 The town guide also exposes a public read-only MCP endpoint at `/api/mcp`
 (`list_town_shops`, `query_shop_facts`, `search_local_events`) so external agents
 can inspect published neighborhood facts without touching reservations.
+Shop facts use one schema.org vocabulary ([`hybrid/schema-org.js`](hybrid/schema-org.js)):
+`query_shop_facts` returns JSON-LD with the published business type, or
+`LocalBusiness` when the type is unknown. On-device prompts and public
+storefront home pages use the same vocabulary. Date-specific hours override
+weekly hours, and menus, retail goods, and services retain their types.
+Prices are never included in the JSON-LD.
 
 With operator access configured, the judge invitation opens the Gemihub town
 administration interface. Operators can send a shop invitation, and invited

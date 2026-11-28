@@ -3,6 +3,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { searchDocuments } from "../site/chat-documents.js";
+import { shopJsonLd } from "../hybrid/schema-org.js";
 
 const MCP_PROTOCOL = "2025-06-18";
 
@@ -21,7 +22,7 @@ export const townMcpTools = Object.freeze([
   },
   {
     name: "query_shop_facts",
-    description: "Return published hours, menu items, address, and URLs for one shop by ID or name.",
+    description: "Return published hours, menu items, address, and URLs for one shop by ID or name. The result also carries the same facts as schema.org JSON-LD in jsonLd (Restaurant, HairSalon, NailSalon, or LocalBusiness when the business type is unknown; no prices or seat availability; acceptsReservations only links to the booking page).",
     inputSchema: {
       type: "object",
       properties: {
@@ -79,6 +80,7 @@ export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin
       name: shop.name,
       area: shop.area,
       cuisine: shop.cuisine,
+      ...(typeof shop.industry === "string" ? { industry: shop.industry } : {}),
       description: shop.description,
       address: shop.address,
       hours: extra.hours || shop.hours || null,
@@ -103,16 +105,17 @@ export function callTownMcpTool(name, args = {}, data) {
     return { count: filtered.length, shops: filtered };
   }
   if (name === "query_shop_facts") {
+    const found = shop => ({ found: true, shop, jsonLd: shopJsonLd(shop) });
     const id = normalize(args.shopId);
     const shopName = normalize(args.shopName);
     if (!id && !shopName) return { found: false, error: "Provide shopId or shopName." };
     const byId = id && data.shops.find(item => normalize(item.id) === id);
-    if (byId) return { found: true, shop: byId };
+    if (byId) return found(byId);
     if (!shopName) return { found: false, shop: null };
     // An exact name wins; a partial name must match exactly one shop, never the first of several.
     const exact = data.shops.filter(item => normalize(item.name) === shopName);
     const matches = exact.length ? exact : data.shops.filter(item => normalize(item.name).includes(shopName));
-    if (matches.length === 1) return { found: true, shop: matches[0] };
+    if (matches.length === 1) return found(matches[0]);
     if (matches.length > 1) return { found: false, shop: null, ambiguous: true,
       candidates: matches.slice(0, 10).map(item => ({ id: item.id, name: item.name })) };
     return { found: false, shop: null };

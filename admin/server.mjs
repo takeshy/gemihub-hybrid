@@ -72,14 +72,42 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
     let resolved = await resolver(page.href, options);
     if (resolved.choices) resolved = await resolver(page.href, { ...options, networkIndex: 0 });
     const name = typeof input.name === "string" ? input.name.trim().slice(0, 100) : "";
-    const shop = { ...resolved.shop, name: resolved.shop.name || name || (locale === "en" ? "New shop" : "新しいお店"),
+    const industry = Object.hasOwn(industryLabels, input.industry) ? input.industry : existing?.industry;
+    const shop = { ...resolved.shop, ...(industry ? { industry } : {}), name: resolved.shop.name || name || (locale === "en" ? "New shop" : "新しいお店"),
       area: resolved.shop.area || (locale === "en" ? "Not specified" : "未設定"),
-      cuisine: resolved.shop.cuisine || industryLabels[input.industry] || industryLabels.other };
+      cuisine: resolved.shop.cuisine || industryLabels[industry] || industryLabels.other };
     const shops = existing ? current.shops.map(item => item.id === existing.id ? shop : item) : [...current.shops, shop];
     await store.save(shops, { [shop.id]: resolved.cache }, current.revision);
     return { ok: true, id: shop.id, added: !existing };
   }
-  return createServer(async (req, res) => {
+  // Town shops listed before the registry kept a business type get it from their own public
+  // facts.json. Only a missing industry is filled in; operator edits and other fields stay as they are.
+  async function backfillIndustries() {
+    const current = await store.get();
+    const slugOf = shop => {
+      try {
+        const page = new URL(shop.pageUrl);
+        return page.origin === publicPage.origin ? page.pathname.match(/^\/s\/([a-z0-9][a-z0-9-]{0,79})\/?(?:reserve)?$/)?.[1] : undefined;
+      } catch { return undefined; }
+    };
+    const found = new Map();
+    for (const shop of current.shops.filter(shop => !shop.industry && slugOf(shop))) {
+      try {
+        const response = await fetchImpl(new URL(`/s/${slugOf(shop)}/agent/facts.json`, publicPage.origin),
+          { redirect: "error", signal: AbortSignal.timeout(10000) });
+        if (!response.ok) { await response.body?.cancel(); continue; }
+        const facts = await response.json();
+        if (Object.hasOwn(industryLabels, facts?.industry)) found.set(shop.id, facts.industry);
+      } catch { /* An unreachable shop keeps LocalBusiness until its next listing. */ }
+    }
+    if (!found.size) return { updated: [] };
+    const latest = await store.get();
+    const updated = latest.shops.filter(shop => !shop.industry && found.has(shop.id)).map(shop => shop.id);
+    if (!updated.length) return { updated };
+    await store.save(latest.shops.map(shop => updated.includes(shop.id) ? { ...shop, industry: found.get(shop.id) } : shop), {}, latest.revision);
+    return { updated };
+  }
+  const server = createServer(async (req, res) => {
     const send = (status, data) => {
       req.resume();
       res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -215,6 +243,8 @@ export function createAdminServer({ root = process.env.PARENT_ROOT || fileURLToP
       return send(404, { error: "見つかりません" });
     } catch (error) { if (!res.headersSent && !res.destroyed) send(error.status || 400, { error: error.message }); }
   });
+  server.backfillIndustries = backfillIndustries;
+  return server;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

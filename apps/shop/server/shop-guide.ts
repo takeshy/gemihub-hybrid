@@ -26,7 +26,7 @@ export function shopGuideInfo(config: ShopConfig, pageUrl: string, args: unknown
       regular: hoursText(config),
       closedWeekdays: config.hours.closedWeekdays,
       weekdayHours: config.hours.weekdayHours || [],
-      closedDates: config.hours.holidays.filter(date => date >= shopDate(config, now)).sort().slice(0, 30),
+      closedDates: config.hours.holidays.filter(date => date >= shopDate(config, now)).sort(),
       specialDays: specialDaysText({ ...config, staff: [] }),
     },
     products: [...new Set([...(config.products || []), ...config.menus.filter(menu => menu.active).map(menu => menu.name), ...catalog.map(product => product.name)])],

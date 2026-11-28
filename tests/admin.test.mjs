@@ -195,16 +195,48 @@ test("Gemini uses only the server key; no AI settings or genre autosave are expo
 test("ordinary shop descriptions and independent capabilities survive a real save/build", async t => {
   const { store, root } = await fixture(t);
   const current = await store.get();
-  const shop = { id: "zakka", name: "雑貨の森", area: "東京都新宿区", cuisine: "雑貨・生活雑貨", pageUrl: "https://zakka.example/", networkUrl: "", description: "器と文具のお店。", reservationEnabled: false };
+  const shop = { id: "zakka", name: "雑貨の森", area: "東京都新宿区", cuisine: "雑貨・生活雑貨", industry: "other", pageUrl: "https://zakka.example/", networkUrl: "", description: "器と文具のお店。", reservationEnabled: false };
   const saved = await store.save([...current.shops, shop]);
   assert.deepEqual(saved.shops.at(-1), shop);
   const manifest = JSON.parse(await readFile(join(root, "site/agent-manifest.json")));
   assert.ok(!manifest.allowed_peers.includes("https://zakka.example"));
   assert.match(await readFile(join(root, "site/_headers"), "utf8"), /frame-src[^\n]*https:\/\/zakka.example/);
-  assert.match(await readFile(join(root, "site/shop-registry.js"), "utf8"), /器と文具のお店/);
+  const finderRegistry = await readFile(join(root, "site/shop-registry.js"), "utf8");
+  assert.match(finderRegistry, /器と文具のお店/);
+  assert.match(finderRegistry, /"industry": "other"/);
   const network = JSON.parse(await readFile(join(root, "site/reservation_finder.network.json")));
   assert.ok(!network.tools[0].tools.some(tool => typeof tool === "string" && tool.includes("zakka.example")));
   await store.save([shop]);
   assert.deepEqual(JSON.parse(await readFile(join(root, "site/agent-manifest.json"))).allowed_peers, []);
   assert.deepEqual(JSON.parse(await readFile(join(root, "site/reservation_finder.network.json"))).tools[0].tools, ["condition_checker"]);
+});
+
+test("town shops listed without a business type get it from their own facts.json, and nothing else changes", async () => {
+  const origin = "https://town.example";
+  let shops = [
+    { id: "akari", name: "Edited by operator", cuisine: "Japanese robata", pageUrl: `${origin}/s/akari/` },
+    { id: "salon", name: "Salon", cuisine: "Hair salon", industry: "hair", pageUrl: `${origin}/s/salon` },
+    { id: "closed", name: "Closed", cuisine: "Shop", pageUrl: `${origin}/s/closed` },
+    { id: "bogus", name: "Bogus", cuisine: "Shop", pageUrl: `${origin}/s/bogus` },
+    { id: "outside", name: "Outside", cuisine: "Shop", pageUrl: "https://elsewhere.example/s/outside" },
+  ];
+  const saves = [], fetched = [];
+  const store = { get: async () => ({ shops: structuredClone(shops), revision: `r${saves.length}` }),
+    save: async (next, cache, revision) => { saves.push({ next, cache, revision }); shops = next; return { shops }; } };
+  const facts = { akari: { industry: "restaurant" }, bogus: { industry: "spaceship" } };
+  const server = createAdminServer({ auth: false, store, finderUrl: `${origin}/?guide=1`, fetch: async url => {
+    fetched.push(String(url));
+    const slug = new URL(url).pathname.split("/")[2];
+    return facts[slug] ? new Response(JSON.stringify(facts[slug])) : new Response("missing", { status: 404 });
+  } });
+  assert.deepEqual(await server.backfillIndustries(), { updated: ["akari"] });
+  assert.deepEqual(fetched, [`${origin}/s/akari/agent/facts.json`, `${origin}/s/closed/agent/facts.json`, `${origin}/s/bogus/agent/facts.json`]);
+  assert.equal(saves.length, 1);
+  assert.equal(saves[0].revision, "r0", "the save is rejected if the list changed meanwhile");
+  assert.deepEqual(saves[0].next[0], { id: "akari", name: "Edited by operator", cuisine: "Japanese robata", pageUrl: `${origin}/s/akari/`, industry: "restaurant" });
+  assert.deepEqual(saves[0].next.slice(1), shops.slice(1));
+  assert.equal(shops.find(shop => shop.id === "salon").industry, "hair");
+  assert.equal(shops.find(shop => shop.id === "bogus").industry, undefined);
+  assert.deepEqual(await server.backfillIndustries(), { updated: [] }, "a second run has nothing left to do");
+  assert.equal(saves.length, 1);
 });

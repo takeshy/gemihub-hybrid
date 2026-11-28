@@ -47,6 +47,16 @@ function localFetch(port, url, options = {}) {
   });
 }
 
+/** Fills a missing business type from each town shop's facts.json; logs and never throws. */
+export async function backfillTownIndustries(server) {
+  try {
+    const { updated } = await server.backfillIndustries();
+    if (updated.length) console.log(JSON.stringify({ event: "town_industry_backfilled", shops: updated }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "town_industry_backfill_failed", error: String(error?.message || error).slice(0, 300) }));
+  }
+}
+
 export async function startTownAdmin({ origin, shopOrigin = origin, data, shopPort, townPort, env = process.env, auth }) {
   const publicUrl = new URL("/?guide=1", origin);
   const server = createAdminServer({

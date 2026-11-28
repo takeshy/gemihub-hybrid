@@ -4,7 +4,7 @@ import { currencyOf, formatMoney, regionOf, weekdayOf } from "../shared/region.t
 import { allergenWords } from "../shared/allergens.ts";
 import type { Booking, ShopConfig } from "./domain.ts";
 import { durationFor, isLargeParty, reservableCourse, seatAvailability, seatProblemText, seatingProblem } from "./seats.ts";
-import { hoursText, publishedProducts, specialDaysText } from "./domain.ts";
+import { hoursText, publishedProducts, shopDate, specialDaysText } from "./domain.ts";
 
 // The restaurant's read-only tools for agents: open seats, and what the menu contains.
 // They return counts and menu facts only: never a guest's name, contact or reservation.
@@ -129,7 +129,7 @@ export function checkAvailability(config: ShopConfig, bookings: readonly Booking
 export function shopInfo(config: ShopConfig, reservePageUrl: string, rawInput: unknown = {}, now = new Date()) {
   z.object({}).strict().parse(rawInput ?? {});
   const seating = config.seating;
-  const today = now.toISOString().slice(0, 10);
+  const today = shopDate(config, now);
   const weekdays = weekdayNames;
   return {
     shop: config.name,
@@ -139,7 +139,7 @@ export function shopInfo(config: ShopConfig, reservePageUrl: string, rawInput: u
     hours: {
       regular: hoursText(config),
       closedWeekdays: config.hours.closedWeekdays.map(day => weekdays[day]),
-      closedDates: config.hours.holidays.filter(date => date >= today).sort().slice(0, 30),
+      closedDates: config.hours.holidays.filter(date => date >= today).sort(),
       specialDays: specialDaysText({ ...config, staff: [] }),
     },
     catalog: publishedProducts(config),
