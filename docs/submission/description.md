@@ -47,8 +47,13 @@ assistant without entering an API key.
 - **Inference details on every reply.** Each answer shows where it ran
   (SDK-reported), which model answered, latency, why it was routed there, and
   which MCP tools were called.
-- **Public read-only Town Guide MCP.** External agents can list shops, query
-  published facts, and search local events. Bookings stay on each shop's page.
+- **Public read-only Town Guide MCP & schema.org JSON-LD.** Published shop facts
+  share one schema.org JSON-LD vocabulary (`Restaurant`, `HairSalon`,
+  `NailSalon`, or `LocalBusiness`, with `OpeningHoursSpecification`,
+  `specialOpeningHoursSpecification`, and published list prices as `Offer`)
+  across on-device prompts, embedded storefront markup for search engines, and
+  the public `/api/mcp` endpoint (`list_town_shops`, `query_shop_facts`,
+  `search_local_events`). Bookings stay on each shop's page.
 
 ## How we built it
 
@@ -60,10 +65,12 @@ Both assistants share one routing pipeline on the Firebase AI Logic Web SDK.
    text — asks for it. No cloud call happens until a live availability check is
    actually possible.
 2. **On-device: answering from published facts** (`PREFER_ON_DEVICE`). A
-   first-turn question about one shop — hours, address, menu, dietary notes —
-   is answered by Gemini Nano from that shop's published data, with streaming.
-   Remote Config sets the size limits (1,200 characters for the question,
-   12,000 for the context).
+   first-turn question about one shop — hours, address, menu, listed prices,
+   dietary notes — is answered by Gemini Nano from that shop's published
+   schema.org JSON-LD facts (with date-specific hours overriding weekly hours),
+   with streaming. Remote Config sets the size limits (1,200 characters for the
+   question, 12,000 for the context), routing oversized fact sets safely to the
+   cloud.
 3. **Cloud: reasoning and live data** (`ONLY_IN_CLOUD`). Comparisons across
    shops, community document search, allergy questions, totals and budgets,
    follow-ups that depend on earlier turns, and availability checks and
@@ -92,12 +99,6 @@ cloud. To make chat feel responsive, the app warms up Gemini Nano in the
 background as soon as it is available (keeping an idle session loaded while
 actual inference still runs through Firebase AI Logic) and streams on-device
 answers with `generateContentStream` so words appear right away.
-
-A reservation can take several model calls, and I hit the daily request limit
-of my first cloud model (`gemini-4-hydrogen`) during testing. I switched to
-Gemini 3.5 Flash-Lite through Remote Config without redeploying, and moved
-booking preflight on-device so incomplete booking messages no longer use cloud
-quota.
 
 ## Accomplishments that we're proud of
 
