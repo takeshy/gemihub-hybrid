@@ -66,11 +66,18 @@ test("a public restaurant home page embeds schema.org Restaurant JSON-LD with th
   for (const item of [...items, "Bottled sake"]) assert.ok(html.slice(html.indexOf("<body")).includes(item), `${item} is shown on the page`);
   assert.match(String(ld.acceptsReservations), /\/reserve$/);
   assert.doesNotMatch(JSON.stringify(ld), /total|availab/i, "list prices only, never totals or seats");
-  const sample = jsonLd(build("akari", true));
-  assert.equal(sample.openingHoursSpecification, undefined, "the featured sample home page does not show the about panel");
+  // The featured sample home page lists its menu with prices and the regular hours, so its
+  // JSON-LD carries exactly those; the closures it does not show stay out.
+  const sampleHtml = build("akari", true);
+  assert.match(sampleHtml, /class="sample-storefront/);
+  const sample = jsonLd(sampleHtml);
+  assert.deepEqual(sample.openingHoursSpecification.map((spec: { opens: string; closes: string }) => [spec.opens, spec.closes]), [[config.hours.start, config.hours.end]]);
   assert.equal(sample.specialOpeningHoursSpecification, undefined);
-  assert.equal(sample.hasMenu, undefined);
-  assert.equal(sample.makesOffer, undefined);
+  const active = config.menus.filter(menu => menu.active);
+  assert.deepEqual(sample.hasMenu.hasMenuItem, active.map(menu => ({ "@type": "MenuItem", name: menu.name, offers: { "@type": "Offer", price: menu.price, priceCurrency: "JPY" } })));
+  assert.deepEqual(sample.makesOffer, [{ "@type": "Offer", price: 3000, priceCurrency: "JPY", itemOffered: { "@type": "Product", name: "Bottled sake" } }]);
+  const sampleBody = sampleHtml.slice(sampleHtml.indexOf("<body"));
+  for (const name of [...active.map(menu => menu.name), "Bottled sake"]) assert.ok(sampleBody.includes(name), `${name} is shown on the sample page`);
 });
 
 test("published salons and other shops classify active services separately from retail goods", () => {

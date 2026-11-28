@@ -3,15 +3,23 @@ import { publishedProducts, hoursText, type ShopConfig } from "../server/domain"
 import { getLocale, intlLocale } from "../shared/i18n";
 import { currencyOf, formatMoney, regionOf } from "../shared/region";
 
+export type SampleOffering = { key: string; name: string; type: "MenuItem" | "Product"; price?: number; currency?: string };
+
+/** What the sample home page lists, in order; the storefront's JSON-LD repeats exactly this. */
+export function sampleOfferings(config: ShopConfig, robata = false): SampleOffering[] {
+  const currency = currencyOf(regionOf(config));
+  const products = publishedProducts(config);
+  const items: SampleOffering[] = robata
+    ? config.menus.filter(item => item.active).map(item => ({ key: item.id, name: item.name, type: "MenuItem", price: item.price, currency }))
+    : (config.products || []).filter(name => !products.some(product => product.name === name)).map(name => ({ key: `legacy-${name}`, name, type: "Product" }));
+  return [...items, ...products.map(item => ({ key: item.id, name: item.name, type: "Product" as const, price: item.price, currency: item.currency }))];
+}
+
 export function SampleStorefront({ config, robata = false, bookingHref }: { config: ShopConfig; robata?: boolean; bookingHref?: string }) {
   const english = getLocale() === "en";
   const cafe = !robata && /\bcafe\b|café|喫茶|カフェ/i.test(`${config.name} ${config.description}`);
-  const currency = currencyOf(regionOf(config));
-  const products = publishedProducts(config);
-  const items = robata
-    ? config.menus.filter(item => item.active).map(item => ({ key: item.id, name: item.name, price: formatMoney(item.price, currency, intlLocale()) }))
-    : (config.products || []).filter(name => !products.some(product => product.name === name)).map(name => ({ key: `legacy-${name}`, name, price: undefined }));
-  const offerings = [...items, ...products.map(item => ({ key: item.id, name: item.name, price: formatMoney(item.price, currency, intlLocale()) }))];
+  const offerings = sampleOfferings(config, robata).map(item => ({ ...item,
+    price: item.price === undefined ? undefined : formatMoney(item.price, item.currency as Parameters<typeof formatMoney>[1], intlLocale()) }));
   const menu = cafe || robata ? (english ? "Menu" : "メニュー") : (english ? "Products and services" : "商品・サービス");
   const hours = english ? "Opening hours" : "営業時間";
   const book = english ? "Book a table" : "席を予約";

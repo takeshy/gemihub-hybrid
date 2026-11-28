@@ -14,7 +14,10 @@ import {
 import { shopJsonLd, openingHoursSpecification, parseHoursText } from "../hybrid/schema-org.js";
 import { cloudRequest, runtimeResponse } from "../hybrid/messages.js";
 import { installHybridEngine } from "../hybrid/browser.js";
-import { handleTownMcpMessage, createTownMcpHandler } from "../scripts/town-mcp.mjs";
+import { handleTownMcpMessage, createTownMcpHandler, loadTownData } from "../scripts/town-mcp.mjs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 test("tools, deep/dependent history, comparisons and live transactional questions cannot be routed locally", () => {
   const policy = boundedPolicy({ localQuestionChars: 999999, localContextChars: 999999 });
@@ -551,4 +554,51 @@ test("query_shop_facts also returns the shop as schema.org JSON-LD", () => {
   assert.equal(query("shop").jsonLd.keywords, "Shop");
   assert.equal(result.jsonLd.keywords, undefined, "a restaurant's category is its cuisine");
   assert.match(groundedPrompt("What kind of shop is this?", registryFacts({ name: "Zakka Mori", cuisine: "雑貨・生活雑貨" })), /"keywords":"雑貨・生活雑貨"/);
+});
+
+test("town shops without published facts are synced from their own storefront facts.json", async () => {
+  const root = await mkdtemp(join(tmpdir(), "town-facts-"));
+  const origin = "https://town.example";
+  await writeFile(join(root, "shops.json"), JSON.stringify({ version: 1, shops: [
+    { id: "akari", name: "Robata Akari", industry: "restaurant", cuisine: "Japanese robata", pageUrl: `${origin}/s/akari/` },
+    { id: "shop-1", name: "nano", industry: "other", cuisine: "Shop", pageUrl: `${origin}/s/shop-1/` },
+    { id: "down", name: "Closed today", cuisine: "Shop", pageUrl: `${origin}/s/down/` },
+    { id: "outside", name: "Outside", cuisine: "Shop", pageUrl: "https://elsewhere.example/s/outside/" },
+  ] }));
+  await writeFile(join(root, "shop-public-facts.json"), JSON.stringify({
+    akari: { sourcePageUrl: `${origin}/s/akari/`, hours: "17:00 – 23:30", products: ["Winter robata course"],
+      menu: [{ name: "Winter robata course", type: "MenuItem", price: 5000, currency: "JPY" }] } }));
+  const asked = [];
+  const storefrontFacts = async slug => {
+    asked.push(slug);
+    if (slug === "down") throw new Error("unreachable");
+    return { id: "shop-1", name: "nano", industry: "other", notificationEmail: "private@example.com",
+      hours: { regular: "10:00 – 18:00", closedWeekdays: [2], weekdayHours: [], closedDates: [], specialDays: "" },
+      products: [{ name: "color pencil", type: "Product" }, { id: "p1", name: "color pencil", price: 10, currency: "USD", type: "Product" }] };
+  };
+  try {
+    const data = await loadTownData({ siteDir: root, publicOrigin: origin, storefrontFacts });
+    assert.deepEqual(asked.sort(), ["down", "shop-1"], "only town shops without published facts are read");
+    assert.deepEqual(data.facts["shop-1"], { sourcePageUrl: `${origin}/s/shop-1/`,
+      hours: { regular: "10:00 – 18:00", closedWeekdays: [2], weekdayHours: [], closedDates: [], specialDays: "" },
+      products: ["color pencil"], menu: [{ name: "color pencil", type: "Product", price: 10, currency: "USD" }] });
+    assert.deepEqual(Object.keys(data.facts).sort(), ["akari", "shop-1"]);
+    assert.doesNotMatch(JSON.stringify(data), /private@example\.com/);
+    const query = shopId => handleTownMcpMessage({ jsonrpc: "2.0", id: 1, method: "tools/call",
+      params: { name: "query_shop_facts", arguments: { shopId } } }, data).body.result.structuredContent;
+    const nano = query("shop-1");
+    assert.deepEqual(nano.shop.products, ["color pencil"]);
+    assert.equal(nano.shop.hours.regular, "10:00 – 18:00");
+    assert.deepEqual(nano.jsonLd.openingHoursSpecification.map(spec => [spec.dayOfWeek, spec.opens, spec.closes]), [
+      [["Sunday", "Monday", "Wednesday", "Thursday", "Friday", "Saturday"], "10:00", "18:00"], ["Tuesday", "00:00", "00:00"]]);
+    assert.deepEqual(nano.jsonLd.makesOffer, [{ "@type": "Offer", price: 10, priceCurrency: "USD", itemOffered: { "@type": "Product", name: "color pencil" } }]);
+    assert.deepEqual(query("akari").jsonLd.hasMenu.hasMenuItem[0].offers, { "@type": "Offer", price: 5000, priceCurrency: "JPY" });
+    assert.deepEqual(query("down").shop.products, [], "an unreachable shop keeps its registry facts");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("a product listed twice keeps its catalog price in the JSON-LD", () => {
+  const ld = shopJsonLd({ name: "nano", industry: "other", products: [{ name: "color pencil", type: "Product" },
+    { name: "color pencil", type: "Product", price: 10, currency: "USD" }] }, { prices: true });
+  assert.deepEqual(ld.makesOffer, [{ "@type": "Offer", price: 10, priceCurrency: "USD", itemOffered: { "@type": "Product", name: "color pencil" } }]);
 });

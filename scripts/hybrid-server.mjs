@@ -80,7 +80,26 @@ if (town) {
 }
 const mime = { ".html": "text/html", ".js": "application/javascript", ".mjs": "application/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".txt": "text/plain", ".pdf": "application/pdf" };
 const rewritten = new Set(["shop-registry.js", "agent-manifest.json", "reservation_finder.network.json", "reservation_finder.hocon"]);
-const townMcp = createTownMcpHandler({ siteDir: publishedSite, factsDir: site, deployedOrigin, publicOrigin });
+// A town shop's own facts.json, read through this server as a visitor would see it.
+function storefrontFacts(slug) {
+  return new Promise((resolveFacts, reject) => {
+    const local = request({ hostname: "127.0.0.1", port, path: `/s/${slug}/agent/facts.json`, method: "GET",
+      headers: { host: new URL(publicOrigin).host, accept: "application/json" }, timeout: 5000 }, response => {
+      const chunks = [];
+      let size = 0;
+      response.on("data", chunk => { size += chunk.length; if (size > 262144) local.destroy(new Error("facts.json too large")); else chunks.push(chunk); });
+      response.on("end", () => {
+        if (response.statusCode !== 200) return resolveFacts(null);
+        try { resolveFacts(JSON.parse(Buffer.concat(chunks).toString("utf8"))); } catch { resolveFacts(null); }
+      });
+      response.on("error", reject);
+    });
+    local.on("timeout", () => local.destroy(new Error("facts.json timed out")));
+    local.on("error", reject);
+    local.end();
+  });
+}
+const townMcp = createTownMcpHandler({ siteDir: publishedSite, factsDir: site, deployedOrigin, publicOrigin, storefrontFacts });
 const townAssets = new Set(["index.html", "shops.json", "chat-documents.json", "links.json", ...rewritten,
   "agent-mcp.json", ".well-known/nsdeploy.json", ".well-known/nsdeploy-agent.json", "bridge/agent-manifest.json", "bridge/action-bridge.html"]);
 function forward(req, res, port, target = publicOrigin) {
@@ -102,6 +121,11 @@ const server = createServer(async (req, res) => {
       return forward(req, res, town.shopPort, builderOrigin);
     }
     if (path === "/api/mcp") { await townMcp(req, res); return; }
+    if (path === "/shop-public-facts.json" && ["GET", "HEAD"].includes(req.method)) {
+      const body = JSON.stringify(await townMcp.publishedFacts(), null, 2) + "\n";
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache" });
+      res.end(req.method === "HEAD" ? undefined : body); return;
+    }
     if (path === adminPath) { res.writeHead(308, { Location: adminPath + "/" }); res.end(); return; }
     if (path.startsWith(adminPath + "/")) {
       if (!town) { res.writeHead(503, { "Cache-Control": "no-store" }); res.end("Town administration is awaiting setup."); return; }

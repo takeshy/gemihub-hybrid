@@ -116,17 +116,19 @@ const listPrice = product => Number.isFinite(product?.price) && product.price >=
   ? { price: product.price, priceCurrency: product.currency } : null;
 
 function offeredItems(products, defaultType, prices) {
-  const seen = new Set();
+  const seen = new Map();
   const items = [];
   for (const product of Array.isArray(products) ? products : []) {
     const name = text(typeof product === "string" ? product : product?.name, 120);
     if (!name) continue;
     const type = ["MenuItem", "Product", "Service"].includes(product?.type) ? product.type : defaultType;
     const key = `${type}:${name}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
     const price = prices ? listPrice(product) : null;
-    items.push({ item: { "@type": type, name }, price });
+    // A name listed twice (a basic product that is also in the catalog) keeps its listed price.
+    if (seen.has(key)) { const entry = seen.get(key); entry.price ||= price; continue; }
+    const entry = { item: { "@type": type, name }, price };
+    seen.set(key, entry);
+    items.push(entry);
   }
   return items;
 }

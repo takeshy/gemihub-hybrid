@@ -64,7 +64,39 @@ export function serverMetadata() {
   };
 }
 
-export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin, publicOrigin }) {
+const PRODUCT_TYPES = ["MenuItem", "Product", "Service"];
+
+/**
+ * Turns a town storefront's own facts.json into the town's published-facts entry: the same
+ * hours, product names, and priced menu entries the shop publishes. Nothing else is copied.
+ */
+export function townFactsFromStorefront(facts, sourcePageUrl) {
+  if (!facts || typeof facts !== "object" || typeof facts.name !== "string") return null;
+  const menu = [];
+  for (const item of Array.isArray(facts.products) ? facts.products : []) {
+    const name = typeof item === "string" ? item : item?.name;
+    if (typeof name !== "string" || !name.trim()) continue;
+    const listed = Number.isFinite(item?.price) && item.price >= 0 && /^[A-Z]{3}$/.test(item?.currency || "")
+      ? { price: item.price, currency: item.currency } : {};
+    const type = PRODUCT_TYPES.includes(item?.type) ? item.type : undefined;
+    // A name listed twice (a basic product that is also in the catalog) keeps its price.
+    const existing = menu.find(entry => entry.name === name && (entry.type || "") === (type || ""));
+    if (existing) { if (existing.price === undefined && listed.price !== undefined) Object.assign(existing, listed); continue; }
+    menu.push({ name, ...(type ? { type } : {}), ...listed });
+  }
+  const hours = facts.hours && typeof facts.hours === "object" ? facts.hours : typeof facts.hours === "string" ? facts.hours : undefined;
+  return { sourcePageUrl, ...(hours ? { hours } : {}), products: menu.map(item => item.name), menu };
+}
+
+/** The slug of a storefront on the town's own origin, or undefined for any other page. */
+export function townSlug(pageUrl, publicOrigin) {
+  try {
+    const page = new URL(pageUrl);
+    return page.origin === new URL(publicOrigin).origin ? page.pathname.match(/^\/s\/([a-z0-9][a-z0-9-]{0,79})\/?$/)?.[1] : undefined;
+  } catch { return undefined; }
+}
+
+export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin, publicOrigin, storefrontFacts }) {
   const rewrite = value => typeof value === "string" && deployedOrigin && publicOrigin
     ? value.replaceAll(deployedOrigin, publicOrigin) : value;
   const [shopsRaw, factsRaw, docsRaw] = await Promise.all([
@@ -72,9 +104,24 @@ export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin
     readFile(resolve(factsDir, "shop-public-facts.json"), "utf8").then(JSON.parse).catch(() => ({})),
     readFile(resolve(siteDir, "chat-documents.json"), "utf8").then(JSON.parse).catch(() => ({ version: 1, documents: [] })),
   ]);
-  const shops = (Array.isArray(shopsRaw?.shops) ? shopsRaw.shops : []).map(shop => {
+  const registry = Array.isArray(shopsRaw?.shops) ? shopsRaw.shops : [];
+  const published = shop => {
     const facts = factsRaw?.[shop.id];
-    const extra = facts && rewrite(facts.sourcePageUrl) === rewrite(shop.pageUrl) ? facts : {};
+    return facts && rewrite(facts.sourcePageUrl) === rewrite(shop.pageUrl) ? facts : null;
+  };
+  // Town shops without a published entry (those listed through the town's administration)
+  // are read from their own public facts.json, so the town always shows what each shop publishes.
+  const synced = {};
+  if (storefrontFacts && publicOrigin) await Promise.all(registry.map(async shop => {
+    const slug = townSlug(rewrite(shop.pageUrl), publicOrigin);
+    if (!slug || published(shop)) return;
+    try {
+      const facts = townFactsFromStorefront(await storefrontFacts(slug), rewrite(shop.pageUrl));
+      if (facts) synced[shop.id] = facts;
+    } catch { /* An unreachable storefront keeps only its registry facts. */ }
+  }));
+  const shops = registry.map(shop => {
+    const extra = published(shop) || synced[shop.id] || {};
     return {
       id: shop.id,
       name: shop.name,
@@ -93,7 +140,12 @@ export async function loadTownData({ siteDir, factsDir = siteDir, deployedOrigin
     };
   });
   const documents = docsRaw?.version === 1 && Array.isArray(docsRaw.documents) ? docsRaw.documents : [];
-  return { shops, documents };
+  // The same entries the finder's on-device answers read from /shop-public-facts.json.
+  const facts = Object.fromEntries(registry.flatMap(shop => {
+    const entry = published(shop) || synced[shop.id];
+    return entry ? [[shop.id, { ...entry, sourcePageUrl: rewrite(entry.sourcePageUrl) }]] : [];
+  }));
+  return { shops, documents, facts };
 }
 
 const publicShop = ({ menu: _menu, ...shop }) => shop;
@@ -171,7 +223,7 @@ async function readJsonBody(req, maxBytes = 16384) {
   catch { return { parseError: true }; }
 }
 
-export function createTownMcpHandler({ siteDir, factsDir, deployedOrigin, publicOrigin }) {
+export function createTownMcpHandler({ siteDir, factsDir, deployedOrigin, publicOrigin, storefrontFacts }) {
   const hits = new Map();
   let globalHits = [];
   const allowed = key => {
@@ -192,13 +244,13 @@ export function createTownMcpHandler({ siteDir, factsDir, deployedOrigin, public
   const townData = () => {
     if (!cached || Date.now() - cached.at > 30000) {
       const at = Date.now();
-      const pending = loadTownData({ siteDir, factsDir, deployedOrigin, publicOrigin });
+      const pending = loadTownData({ siteDir, factsDir, deployedOrigin, publicOrigin, storefrontFacts });
       cached = { at, pending };
       pending.catch(() => { if (cached?.pending === pending) cached = null; });
     }
     return cached.pending;
   };
-  return async (req, res) => {
+  const handler = async (req, res) => {
     const send = (status, body) => {
       const headers = {
         "Access-Control-Allow-Origin": "*",
@@ -231,4 +283,7 @@ export function createTownMcpHandler({ siteDir, factsDir, deployedOrigin, public
     const reply = handleTownMcpMessage(parsed.value, data);
     return send(reply.status, reply.body);
   };
+  // The finder page reads the same cached facts as /shop-public-facts.json.
+  handler.publishedFacts = async () => (await townData()).facts;
+  return handler;
 }

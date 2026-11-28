@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { articleKinds } from "../shared/article-features.ts";
 import { StaticStorefront, showsSampleHome, staticViewPath, type StaticStorefrontView } from "../src/StaticStorefront.tsx";
+import { sampleOfferings } from "../src/SampleStorefront.tsx";
 import { requestLocale } from "./i18n.ts";
 import { tr } from "../shared/i18n.ts";
 import { localizeShell } from "../shared/html.ts";
@@ -24,7 +25,7 @@ import { forEachConcurrent } from "./concurrency.ts";
  * Bump when the generated markup changes in a way existing shops should receive.
  * Releases from an older generator keep being served until they are rebuilt in the background.
  */
-export const storefrontRenderer = 13;
+export const storefrontRenderer = 14;
 /** `assets` are shop-level files (`shops/{id}/assets/{name}`) the pages refer to; absent on releases before renderer 2. */
 export type StorefrontRelease = { id: string; paths: string[]; assets?: string[]; renderer?: number; posts?: Record<string, string> };
 export type StorefrontAsset = { body: Buffer; contentType: string };
@@ -94,9 +95,12 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
         // Each language has its own URL so both can be indexed; Japanese is the default.
         const localized = (language: string) => language === "ja" ? url : `${url}?lang=${language}`;
         const text = plainText(description);
-        // Structured data repeats only facts the page shows: the sample home page and a custom
-        // about screen may leave out hours or menus.
-        const shown = showsSampleHome(c, { sampleShop, featuredRobata }) ? [] : c.screens?.about ? compilePresentation(c.screens.about).slots : ["menus", "hours"];
+        // Structured data repeats only facts the page shows: the sample home page lists its own
+        // offerings and the regular hours text, and a custom about screen may leave out hours or menus.
+        const sampleHome = showsSampleHome(c, { sampleShop, featuredRobata });
+        const shown = sampleHome ? [] : c.screens?.about ? compilePresentation(c.screens.about).slots : ["menus", "hours"];
+        const sampleFacts = sampleHome ? { hours: { regular: hoursText(c) },
+          products: sampleOfferings(c, featuredRobata && c.industry === "restaurant").map(({ name, type, price, currency }) => ({ name, type, price, currency })) } : {};
         const jsonLd = post ? { "@context": "https://schema.org", "@type": post.category === "blogs" ? "BlogPosting" : "Article", headline: post.title, datePublished: post.publishedAt || post.date, url: localized(locale), inLanguage: locale, publisher: { "@type": "Organization", name: c.name }, ...(headerImage ? { image: headerImage } : {}) } : !path ? { ...shopJsonLd({ name: c.name, description: c.description, address: c.address, pageUrl: url,
           ...(shown.includes("hours") ? { hours: { regular: hoursText(c), closedWeekdays: c.hours.closedWeekdays, weekdayHours: c.hours.weekdayHours, closedDates: c.hours.holidays, specialDays: c.hours.specialDays } } : {}),
           ...(shown.includes("menus") ? { products: [
@@ -104,6 +108,7 @@ export function buildStorefront(shop: Shop, posts: PublicPost[], origin: string,
             ...c.menus.filter(menu => menu.active).map(({ name, price }) => ({ name, price, currency: currencyOf(regionOf(c)), type: c.industry === "restaurant" ? "MenuItem" as const : "Service" as const })),
             ...publishedProducts(c).map(({ name, price, currency }) => ({ name, price, currency, type: "Product" as const })),
           ] } : {}),
+          ...sampleFacts,
           ...(restaurantReservations(c) ? { reservationEnabled: true, reservationUrl: `${canonical}/reserve` } : {}) }, { industry: c.industry, prices: true }), ...(headerImage ? { image: headerImage } : {}) } : undefined;
         const head = [
           `<title>${escapeHtml(title)}</title>`,
